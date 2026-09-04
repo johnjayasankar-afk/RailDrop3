@@ -23,7 +23,7 @@ export class SupabaseRepository implements RailDropRepository {
       email: profile.email,
       timezone: profile.timezone,
     });
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     return profile;
   }
 
@@ -39,7 +39,7 @@ export class SupabaseRepository implements RailDropRepository {
 
   async createWatch(watch: WatchRecord): Promise<WatchRecord> {
     const { error } = await this.db.from("watches").insert(watchToRow(watch));
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     return watch;
   }
 

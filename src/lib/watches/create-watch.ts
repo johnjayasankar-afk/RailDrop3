@@ -9,6 +9,8 @@ import { runWatchCycle } from "@/lib/orchestration/check-cycle";
 import { isValidTimeZone } from "@/lib/domain/timezone";
 import { generateSearchDates } from "@/lib/domain/calendar";
 import { localIsoDate } from "@/lib/domain/timezone";
+import { logger } from "@/lib/logger";
+import { toAppError } from "@/lib/errors";
 
 export async function createWatchAndScan(input: {
   userId: string;
@@ -80,20 +82,34 @@ export async function createWatchAndScan(input: {
     updatedAt: now.toISOString(),
   };
 
-  await input.repo.upsertProfile({
-    id: input.userId,
-    email: input.email?.trim() || parsed.alertEmail?.trim() || "guest@raildrop.local",
-    timezone: parsed.timezone,
-    createdAt: now.toISOString(),
-  });
-  await input.repo.createWatch(watch);
-  const cycle = await runWatchCycle({
-    watch,
-    trigger: "INITIAL",
-    now,
-    repo: input.repo,
-    provider: input.provider,
-    mailer: input.mailer,
-  });
-  return cycle.watch;
+  try {
+    await input.repo.upsertProfile({
+      id: input.userId,
+      email: input.email?.trim() || parsed.alertEmail?.trim() || "guest@raildrop.local",
+      timezone: parsed.timezone,
+      createdAt: now.toISOString(),
+    });
+    await input.repo.createWatch(watch);
+  } catch (error) {
+    throw toAppError(error);
+  }
+
+  // Persist first — never lose the watch if the live scan flakes.
+  try {
+    const cycle = await runWatchCycle({
+      watch,
+      trigger: "INITIAL",
+      now,
+      repo: input.repo,
+      provider: input.provider,
+      mailer: input.mailer,
+    });
+    return cycle.watch;
+  } catch (error) {
+    logger.error("watch.initial_scan_failed", {
+      watchId: watch.id,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return watch;
+  }
 }

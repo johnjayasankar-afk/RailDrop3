@@ -2,8 +2,8 @@ create extension if not exists pgcrypto;
 create extension if not exists pg_trgm;
 
 create table if not exists public.profiles (
-  id uuid primary key references auth.users(id) on delete cascade,
-  email text not null,
+  id uuid primary key,
+  email text not null default '',
   timezone text not null default 'America/New_York',
   created_at timestamptz not null default now()
 );

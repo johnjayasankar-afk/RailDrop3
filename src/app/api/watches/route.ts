@@ -3,6 +3,8 @@ import { getSessionUser } from "@/lib/auth/session";
 import { getFareProvider, getMailer, getRepository } from "@/lib/services";
 import { createWatchAndScan } from "@/lib/watches/create-watch";
 import { ProviderNotConfiguredError } from "@/lib/providers/fare-provider";
+import { errorMessage } from "@/lib/errors";
+import { logger } from "@/lib/logger";
 
 export const maxDuration = 120;
 
@@ -28,10 +30,16 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ watch }, { status: 201 });
   } catch (error) {
+    const message = errorMessage(error);
+    logger.error("watch.create_failed", {
+      userId: user.id,
+      guest: Boolean(user.isGuest),
+      message,
+    });
     if (error instanceof ProviderNotConfiguredError) {
-      return NextResponse.json({ error: error.message }, { status: 503 });
+      return NextResponse.json({ error: message }, { status: 503 });
     }
-    const message = error instanceof Error ? error.message : "Could not create watch";
-    return NextResponse.json({ error: message }, { status: 400 });
+    const status = message.includes("guest fix") || message.includes("Database needs") ? 503 : 400;
+    return NextResponse.json({ error: message }, { status });
   }
 }
