@@ -1,10 +1,11 @@
 import { createBrowserClient } from "@supabase/ssr";
-import { getConfig } from "@/lib/config";
 
 export function createBrowserSupabase() {
-  const config = getConfig();
-  if (!config.supabaseUrl || !config.supabaseAnonKey) {
+  // Read NEXT_PUBLIC_* directly so Next inlines them into the client bundle at build time.
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error("Supabase is not configured");
   }
-  return createBrowserClient(config.supabaseUrl, config.supabaseAnonKey);
+  return createBrowserClient(supabaseUrl, supabaseAnonKey);
 }
