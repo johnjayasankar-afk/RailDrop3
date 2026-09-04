@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { copyText as writeClipboard } from "@/lib/ui/clipboard";
+import { scrollBehavior } from "@/lib/ui/motion";
+import { ConfirmSheet } from "@/components/confirm-sheet";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { Route } from "next";
@@ -175,6 +178,9 @@ export function WatchDetail({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [rebookOpen, setRebookOpen] = useState(false);
   const [liveMoreOpen, setLiveMoreOpen] = useState(false);
+  const [dockToolsOpen, setDockToolsOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const tripRailRef = useRef<HTMLDivElement>(null);
   const [settingsEmail, setSettingsEmail] = useState(watch.alertEmail);
   const [settingsThreshold, setSettingsThreshold] = useState(
     String(Math.round(watch.minimumSavingsCents / 100)),
@@ -591,6 +597,10 @@ export function WatchDetail({
 
   useEffect(() => {
     if (!shareOpen) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const root = document.getElementById("share-sheet");
+    root?.querySelector<HTMLElement>("button")?.focus();
+
     function onDoc(event: MouseEvent) {
       const target = event.target as HTMLElement | null;
       if (!target) return;
@@ -598,15 +608,83 @@ export function WatchDetail({
       if (target.closest('[aria-controls="share-sheet"]')) return;
       setShareOpen(false);
     }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setShareOpen(false);
+        return;
+      }
+      if (event.key !== "Tab" || !root) return;
+      const focusable = [...root.querySelectorAll<HTMLElement>("button")];
+      if (focusable.length === 0) return;
+      const first = focusable[0]!;
+      const last = focusable[focusable.length - 1]!;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
     document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey, true);
+      previous?.focus();
+    };
   }, [shareOpen]);
+
+  useEffect(() => {
+    const el = tripRailRef.current;
+    if (!el) return;
+    function sync() {
+      document.documentElement.style.setProperty("--trip-rail-h", `${el!.offsetHeight}px`);
+    }
+    sync();
+    const observer = new ResizeObserver(sync);
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      document.documentElement.style.removeProperty("--trip-rail-h");
+    };
+  }, [zen, shareOpen]);
 
   useEffect(() => {
     if (!helpOpen) return;
     const previous = document.activeElement as HTMLElement | null;
+    const root = document.getElementById("help-sheet");
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     document.getElementById("help-close")?.focus();
+
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setHelpOpen(false);
+        return;
+      }
+      if (event.key !== "Tab" || !root) return;
+      const focusable = [
+        ...root.querySelectorAll<HTMLElement>("a[href], button, [tabindex]:not([tabindex='-1'])"),
+      ];
+      if (focusable.length === 0) return;
+      const first = focusable[0]!;
+      const last = focusable[focusable.length - 1]!;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", onKey, true);
     return () => {
+      document.removeEventListener("keydown", onKey, true);
+      document.body.style.overflow = overflow;
       previous?.focus();
     };
   }, [helpOpen]);
@@ -709,9 +787,7 @@ export function WatchDetail({
       }
       if ((event.key === "t" || event.key === "T") && !busyRef.current) {
         event.preventDefault();
-        void navigator.clipboard.writeText(share);
-        setNotice("Text for a friend copied");
-        window.setTimeout(() => setNotice(null), 1600);
+        void copyNotice(share, "Text for a friend copied");
       }
       if (event.key === "/" && !busyRef.current) {
         event.preventDefault();
@@ -721,7 +797,7 @@ export function WatchDetail({
         event.preventDefault();
         setRebookOpen(true);
         window.setTimeout(() => {
-          document.getElementById("rebook")?.scrollIntoView({ behavior: "smooth", block: "center" });
+          document.getElementById("rebook")?.scrollIntoView({ behavior: scrollBehavior(), block: "center" });
           rebookRef.current?.focus();
         }, 80);
       }
@@ -737,7 +813,7 @@ export function WatchDetail({
         const next = keys[Math.min(keys.length - 1, idx + 1)] ?? keys[0]!;
         setFocusKey(next);
         document.getElementById(`opt-${next}`)?.scrollIntoView({
-          behavior: "smooth",
+          behavior: scrollBehavior(),
           block: "center",
         });
       }
@@ -749,7 +825,7 @@ export function WatchDetail({
         const next = keys[Math.max(0, idx - 1)] ?? keys[0]!;
         setFocusKey(next);
         document.getElementById(`opt-${next}`)?.scrollIntoView({
-          behavior: "smooth",
+          behavior: scrollBehavior(),
           block: "center",
         });
       }
@@ -759,9 +835,7 @@ export function WatchDetail({
         const candidate =
           rankedRef.current.find((item) => candidateKey(item) === key) ?? rankedRef.current[0];
         if (!candidate) return;
-        void navigator.clipboard.writeText(itineraryText(candidate));
-        setNotice("Itinerary copied");
-        window.setTimeout(() => setNotice(null), 1600);
+        void copyNotice(itineraryText(candidate), "Itinerary copied");
       }
       if ((event.key === "z" || event.key === "Z") && !busyRef.current) {
         event.preventDefault();
@@ -803,7 +877,7 @@ export function WatchDetail({
         setFocusKey(next);
         if (next) {
           document.getElementById(`opt-${next}`)?.scrollIntoView({
-            behavior: "smooth",
+            behavior: scrollBehavior(),
             block: "center",
           });
         }
@@ -822,7 +896,7 @@ export function WatchDetail({
         setHiddenKeys(stack.slice(0, -1));
         setFocusKey(last);
         document.getElementById(`opt-${last}`)?.scrollIntoView({
-          behavior: "smooth",
+          behavior: scrollBehavior(),
           block: "center",
         });
         setNotice("Unhidden");
@@ -834,7 +908,7 @@ export function WatchDetail({
         const candidate =
           rankedRef.current.find((item) => candidateKey(item) === key) ?? rankedRef.current[0];
         if (!candidate) return;
-        void navigator.clipboard.writeText(
+        void copyNotice(
           compareLine({
             originCode: watch.originCode,
             destinationCode: watch.destinationCode,
@@ -842,19 +916,16 @@ export function WatchDetail({
             bookedCents: watch.currentBookedPriceCents,
             focused: candidate,
           }),
+          "You vs this copied",
         );
-        setNotice("You vs this copied");
-        window.setTimeout(() => setNotice(null), 1600);
       }
       if ((event.key === "w" || event.key === "W") && !busyRef.current) {
         event.preventDefault();
-        void navigator.clipboard.writeText(stripRef.current);
-        setNotice("Window copied");
-        window.setTimeout(() => setNotice(null), 1600);
+        void copyNotice(stripRef.current, "Window copied");
       }
       if ((event.key === "g" || event.key === "G") && !busyRef.current) {
         event.preventDefault();
-        document.getElementById("board")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        document.getElementById("board")?.scrollIntoView({ behavior: scrollBehavior(), block: "start" });
       }
       if ((event.key === "b" || event.key === "B") && !busyRef.current) {
         event.preventDefault();
@@ -866,7 +937,7 @@ export function WatchDetail({
         }
         setFocusKey(next);
         document.getElementById(`opt-${next}`)?.scrollIntoView({
-          behavior: "smooth",
+          behavior: scrollBehavior(),
           block: "center",
         });
       }
@@ -880,7 +951,7 @@ export function WatchDetail({
         }
         setFocusKey(next);
         document.getElementById(`opt-${next}`)?.scrollIntoView({
-          behavior: "smooth",
+          behavior: scrollBehavior(),
           block: "center",
         });
       }
@@ -890,9 +961,7 @@ export function WatchDetail({
         const candidate =
           rankedRef.current.find((item) => candidateKey(item) === key) ?? rankedRef.current[0];
         if (!candidate) return;
-        void navigator.clipboard.writeText(amtrakFieldsText(candidate));
-        setNotice("Amtrak fields copied");
-        window.setTimeout(() => setNotice(null), 1600);
+        void copyNotice(amtrakFieldsText(candidate), "Amtrak fields copied");
       }
       if (event.key === "Enter" && !busyRef.current) {
         const tag = target?.tagName;
@@ -968,6 +1037,17 @@ export function WatchDetail({
     });
   }
 
+
+  function flashNotice(message: string, ms = 1600) {
+    setNotice(message);
+    window.setTimeout(() => setNotice(null), ms);
+  }
+
+  async function copyNotice(text: string, okLabel: string) {
+    const ok = await writeClipboard(text);
+    flashNotice(ok ? okLabel : "Couldn’t copy — check clipboard permission");
+  }
+
   function persistFee(value: string) {
     setFeeDollars(value);
     try {
@@ -986,7 +1066,7 @@ export function WatchDetail({
     const key = candidateKey(candidate);
     setFocusKey(key);
     document.getElementById(optionAnchor(candidate))?.scrollIntoView({
-      behavior: "smooth",
+      behavior: scrollBehavior(),
       block: "center",
     });
   }
@@ -1002,9 +1082,7 @@ export function WatchDetail({
   }
 
   async function copyShare() {
-    await navigator.clipboard.writeText(window.location.href);
-    setNotice("Link copied");
-    window.setTimeout(() => setNotice(null), 1600);
+    await copyNotice(window.location.href, "Link copied");
   }
 
   function downloadIcs(candidate: RankedCandidate) {
@@ -1018,21 +1096,15 @@ export function WatchDetail({
   }
 
   async function copyDecision() {
-    await navigator.clipboard.writeText(brief);
-    setNotice("Decision copied");
-    window.setTimeout(() => setNotice(null), 1600);
+    await copyNotice(brief, "Decision copied");
   }
 
   async function copyFriend() {
-    await navigator.clipboard.writeText(share);
-    setNotice("Text for a friend copied");
-    window.setTimeout(() => setNotice(null), 1600);
+    await copyNotice(share, "Text for a friend copied");
   }
 
   async function copyOptions() {
-    await navigator.clipboard.writeText(optionsCopy);
-    setNotice("Cheaper options copied");
-    window.setTimeout(() => setNotice(null), 1600);
+    await copyNotice(optionsCopy, "Cheaper options copied");
   }
 
   function clearFilters() {
@@ -1053,19 +1125,15 @@ export function WatchDetail({
   }
 
   async function copyPacket() {
-    await navigator.clipboard.writeText(packet);
-    setNotice("Decision packet copied");
-    window.setTimeout(() => setNotice(null), 1600);
+    await copyNotice(packet, "Decision packet copied");
   }
 
   async function copyFields(candidate: RankedCandidate) {
-    await navigator.clipboard.writeText(amtrakFieldsText(candidate));
-    setNotice("Amtrak fields copied");
-    window.setTimeout(() => setNotice(null), 1600);
+    await copyNotice(amtrakFieldsText(candidate), "Amtrak fields copied");
   }
 
   async function copyCompare(candidate: RankedCandidate) {
-    await navigator.clipboard.writeText(
+    await copyNotice(
       compareLine({
         originCode: watch.originCode,
         destinationCode: watch.destinationCode,
@@ -1073,15 +1141,12 @@ export function WatchDetail({
         bookedCents: watch.currentBookedPriceCents,
         focused: candidate,
       }),
+      "You vs this copied",
     );
-    setNotice("You vs this copied");
-    window.setTimeout(() => setNotice(null), 1600);
   }
 
   async function copyWindow() {
-    await navigator.clipboard.writeText(strip);
-    setNotice("Window copied");
-    window.setTimeout(() => setNotice(null), 1600);
+    await copyNotice(strip, "Window copied");
   }
 
   function hideTrain(key: string) {
@@ -1095,13 +1160,11 @@ export function WatchDetail({
   }
 
   async function copyItinerary(candidate: RankedCandidate) {
-    await navigator.clipboard.writeText(itineraryText(candidate));
-    setNotice("Itinerary copied");
-    window.setTimeout(() => setNotice(null), 1600);
+    await copyNotice(itineraryText(candidate), "Itinerary copied");
   }
 
   return (
-    <main id="main" className={`mx-auto max-w-6xl px-4 py-8${zen ? " is-zen" : ""}`}>
+    <main id="main" className={`has-dock mx-auto max-w-6xl px-4 py-8${zen ? " is-zen" : ""}`}>
       {scanning ? (
         <SearchingOverlay
           origin={watch.originCode}
@@ -1109,11 +1172,13 @@ export function WatchDetail({
           date={watch.desiredTravelDate}
           elapsedSeconds={elapsed}
           flexibility={watch.dateFlexibilityDays}
+          mode="recheck"
           onCancel={cancelScan}
         />
       ) : null}
       {helpOpen ? (
         <div
+          id="help-sheet"
           className="help-sheet no-print"
           role="dialog"
           aria-modal="true"
@@ -1203,7 +1268,7 @@ export function WatchDetail({
         {stationLabel(watch.originCode)} to {stationLabel(watch.destinationCode)}{" "}
         {formatDisplayDate(watch.desiredTravelDate)}
       </h1>
-      <div className={`trip-rail no-print${zen ? " is-zen" : ""}`}>
+      <div ref={tripRailRef} className={`trip-rail no-print${zen ? " is-zen" : ""}`}>
         <Flap>{watch.originCode}</Flap>
         <span className="trip-rail-to">to</span>
         <Flap>{watch.destinationCode}</Flap>
@@ -1218,12 +1283,15 @@ export function WatchDetail({
             <Flap>{boardNow.label}</Flap>
           </span>
         ) : null}
-        <span className="trip-rail-to trip-rail-meta">You paid</span>
-        <span className="price serif trip-rail-meta">
-          {formatUsdCompact(watch.currentBookedPriceCents)}
+        <span className="trip-rail-metric trip-rail-meta">
+          <span className="trip-rail-to">You paid</span>
+          <span className="price serif">{formatUsdCompact(watch.currentBookedPriceCents)}</span>
         </span>
         {best ? (
-          <span className="price serif">{formatUsdCompact(best.totalPartyPriceCents)}</span>
+          <span className="trip-rail-metric">
+            <span className="trip-rail-to">Best listed</span>
+            <span className="price serif">{formatUsdCompact(best.totalPartyPriceCents)}</span>
+          </span>
         ) : null}
         <span className="trip-rail-call">{verdict.label}</span>
         {best && best.savingsCents > 0 ? (
@@ -1243,13 +1311,40 @@ export function WatchDetail({
           >
             Share
           </button>
-          <button type="button" className="trip-rail-shortcuts" onClick={() => setHelpOpen(true)}>
+          <button type="button" onClick={() => setHelpOpen(true)}>
             Shortcuts
           </button>
         </div>
       </div>
+      <div className="print-only depart-strip mt-4" aria-hidden>
+        <Flap>{watch.originCode}</Flap>
+        <span className="text-[10px] uppercase tracking-[0.18em] opacity-70">to</span>
+        <Flap>{watch.destinationCode}</Flap>
+        <span className="depart-strip-rule" aria-hidden />
+        <Flap>{formatDisplayDate(watch.desiredTravelDate)}</Flap>
+        <span className="depart-strip-rule" aria-hidden />
+        <span className="text-[10px] uppercase tracking-[0.16em] opacity-70">paid</span>
+        <span className="price serif text-lg">
+          {formatUsdCompact(watch.currentBookedPriceCents)}
+        </span>
+        {best ? (
+          <>
+            <span className="depart-strip-rule" aria-hidden />
+            <span className="text-[10px] uppercase tracking-[0.16em] opacity-70">best</span>
+            <span className="price serif text-lg">
+              {formatUsdCompact(best.totalPartyPriceCents)}
+            </span>
+          </>
+        ) : null}
+      </div>
       {shareOpen ? (
-        <div id="share-sheet" className="share-sheet no-print" role="group" aria-label="Share">
+        <div
+          id="share-sheet"
+          className="share-sheet no-print"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Share"
+        >
           <button
             type="button"
             onClick={() => {
@@ -1329,27 +1424,39 @@ export function WatchDetail({
           ) : null}
         </div>
       ) : null}
-      {stale ? (
-        <p className="mt-3 text-sm text-drop">Board is stale — recheck for current listed fares.</p>
-      ) : null}
-      {cycleStatus === "PARTIAL_SUCCESS" ? (
-        <p className="mt-3 text-sm text-drop">
-          Best found: {best ? formatUsdCompact(best.totalPartyPriceCents) : "—"}.{" "}
-          {datesFailed.map((date) => formatDisplayDate(date)).join(", ")} could not be refreshed.
-        </p>
-      ) : null}
-      {cycleStatus === "PROVIDER_ERROR" ? (
-        <p className="mt-3 text-sm text-danger">
-          Live fares are unavailable right now. Recheck in a minute.
-          {snapshots.find((snapshot) => snapshot.errorMessage)?.errorMessage
-            ? ` (${snapshots.find((snapshot) => snapshot.errorMessage)?.errorMessage})`
-            : null}
-        </p>
-      ) : null}
-      {actionError ? (
-        <p className="mt-3 text-sm text-danger" role="alert">
-          {actionError}
-        </p>
+      {stale || cycleStatus === "PARTIAL_SUCCESS" || cycleStatus === "PROVIDER_ERROR" || actionError ? (
+        <div className="board-status mt-3 no-print" role="status">
+          {cycleStatus === "PROVIDER_ERROR" ? (
+            <p className="text-sm text-danger">
+              Live fares are unavailable right now. Recheck in a minute.
+              {snapshots.find((snapshot) => snapshot.errorMessage)?.errorMessage
+                ? ` (${snapshots.find((snapshot) => snapshot.errorMessage)?.errorMessage})`
+                : null}
+            </p>
+          ) : cycleStatus === "PARTIAL_SUCCESS" ? (
+            <p className="text-sm text-drop">
+              Best found: {best ? formatUsdCompact(best.totalPartyPriceCents) : "—"}.{" "}
+              {datesFailed.map((date) => formatDisplayDate(date)).join(", ")} could not be refreshed.
+            </p>
+          ) : stale ? (
+            <p className="text-sm text-drop">Board is stale — recheck for current listed fares.</p>
+          ) : null}
+          {actionError ? (
+            <p className="mt-1 text-sm text-danger" role="alert">
+              {actionError}
+            </p>
+          ) : null}
+          {watch.status === "ACTIVE" && (stale || cycleStatus === "PROVIDER_ERROR") ? (
+            <button
+              type="button"
+              className="btn btn-ink mt-3"
+              disabled={busy}
+              onClick={() => action(`/api/watches/${watch.id}/check`, "POST", undefined, true)}
+            >
+              Check now
+            </button>
+          ) : null}
+        </div>
       ) : null}
       {watch.status === "COMPLETED" ? (
         <div className="panel mt-3 p-4 no-print">
@@ -1414,8 +1521,8 @@ export function WatchDetail({
               value={feeDollars}
               onChange={(event) => persistFee(event.target.value)}
               inputMode="decimal"
-              placeholder="$"
-              className="field mt-0 max-w-[4.5rem]"
+              placeholder="Custom"
+              className="field mt-0 max-w-[5.5rem]"
               aria-label="Estimated change fee dollars"
             />
           </div>
@@ -1758,7 +1865,7 @@ export function WatchDetail({
                 setRebookOpen(true);
                 window.setTimeout(() => {
                   document.getElementById("rebook")?.scrollIntoView({
-                    behavior: "smooth",
+                    behavior: scrollBehavior(),
                     block: "center",
                   });
                   rebookRef.current?.focus();
@@ -1782,11 +1889,20 @@ export function WatchDetail({
           </div>
         </section>
       ) : (
-        <section className="panel mt-8 p-6">
-          <h2 className="serif text-2xl">No trains on the board yet.</h2>
-          <p className="mt-2 text-sm text-ink-soft">
-            Check now to search live inventory for this window.
+        <section className="ticket mt-8 p-6">
+          <p className="kicker">Empty board</p>
+          <h2 className="serif mt-3 text-2xl">No trains on the board yet.</h2>
+          <p className="mt-2 max-w-lg text-sm text-ink-soft">
+            Search live Amtrak inventory for this window. We never invent a fare.
           </p>
+          <button
+            type="button"
+            className="btn btn-primary mt-5"
+            disabled={busy || watch.status !== "ACTIVE"}
+            onClick={() => action(`/api/watches/${watch.id}/check`, "POST", undefined, true)}
+          >
+            Check now
+          </button>
         </section>
       )}
 
@@ -1810,7 +1926,16 @@ export function WatchDetail({
               </div>
             ) : null}
           </div>
-          <div className="quiet-row no-print">
+        </div>
+        {ranked.length === 0 ? (
+          <p className="mt-4 max-w-lg text-sm text-ink-soft">
+            {watch.status === "ACTIVE"
+              ? "Scan the window to fill this board. Filters and exports appear once trains land."
+              : "Resume this watch, then scan to fill the board."}
+          </p>
+        ) : (
+          <>
+          <div className="quiet-row no-print mt-3">
             <button type="button" onClick={downloadCsv}>
               Export CSV
             </button>
@@ -1839,7 +1964,6 @@ export function WatchDetail({
               </button>
             ) : null}
           </div>
-        </div>
         <div className="filter-stack mt-4 text-sm no-print">
           <div className="filter-block">
             <span className="filter-label">Train</span>
@@ -2032,16 +2156,16 @@ export function WatchDetail({
         </div>
         <div className="census mt-4" aria-label="Board counts">
           <span>
-            <Flap>{String(board.length)}</Flap>
+            <Flap quiet>{String(board.length)}</Flap>
             <span>on board</span>
           </span>
           <span>
-            <Flap>{String(board.filter((item) => item.savingsCents > 0).length)}</Flap>
+            <Flap quiet>{String(board.filter((item) => item.savingsCents > 0).length)}</Flap>
             <span>cheaper</span>
           </span>
           {yours ? (
             <span>
-              <Flap>{String(board.filter((item) => beatsBooked(item, yours)).length)}</Flap>
+              <Flap quiet>{String(board.filter((item) => beatsBooked(item, yours)).length)}</Flap>
               <span>beat yours</span>
             </span>
           ) : null}
@@ -2060,15 +2184,32 @@ export function WatchDetail({
         <div className="timetable mt-4">
           {board.length === 0 ? (
             <p className="px-4 py-6 text-sm text-ink-soft">
-              No other trains for this filter.
               {filtersOn ? (
                 <>
-                  {" "}
+                  No trains match these filters.{" "}
                   <button type="button" className="underline" onClick={clearFilters}>
                     Clear filters
                   </button>
                 </>
-              ) : null}
+              ) : hideHero && best ? (
+                <>
+                  Only the cheapest train is pinned above.{" "}
+                  <button
+                    type="button"
+                    className="underline"
+                    onClick={() => {
+                      setFocusKey(candidateKey(best));
+                      document
+                        .querySelector("[data-hero-opt]")
+                        ?.scrollIntoView({ behavior: scrollBehavior(), block: "center" });
+                    }}
+                  >
+                    Jump to it
+                  </button>
+                </>
+              ) : (
+                <>No trains on this board yet.</>
+              )}
             </p>
           ) : (
             <>
@@ -2112,6 +2253,8 @@ export function WatchDetail({
             </>
           )}
         </div>
+          </>
+        )}
       </section>
 
       <div id="rebook" className="no-print mt-6 max-w-lg">
@@ -2133,28 +2276,36 @@ export function WatchDetail({
             className="ticket mt-3 space-y-3 p-5"
             onSubmit={async (event) => {
               event.preventDefault();
-              await action(`/api/watches/${watch.id}/rebook`, "POST", {
+              const ok = await action(`/api/watches/${watch.id}/rebook`, "POST", {
                 newBookedPriceCents: Math.round(Number(rebookPrice) * 100),
                 newTrainNumber: rebookTrain.trim() || null,
                 newFareFamily: rebookFamily || null,
               });
+              if (!ok) return;
               setRebookPrice("");
               setRebookTrain("");
+              setRebookOpen(false);
+              flashNotice("Booked price updated");
             }}
           >
             <p className="eyebrow">After Amtrak</p>
             <h2 className="serif text-2xl">I rebooked</h2>
             <p className="text-sm text-ink-soft">Then type what you actually paid.</p>
-            <input
-              ref={rebookRef}
-              required
-              value={rebookPrice}
-              onChange={(event) => setRebookPrice(event.target.value)}
-              placeholder="New actual total paid"
-              className="field mt-0"
-              inputMode="decimal"
-              aria-label="New actual total paid"
-            />
+            <div className="money-field mt-3">
+              <span className="money-affix" aria-hidden>
+                $
+              </span>
+              <input
+                ref={rebookRef}
+                required
+                value={rebookPrice}
+                onChange={(event) => setRebookPrice(event.target.value.replace(/[^0-9.]/g, ""))}
+                placeholder="128.00"
+                className="field"
+                inputMode="decimal"
+                aria-label="New actual total paid"
+              />
+            </div>
             <input
               value={rebookTrain}
               onChange={(event) => setRebookTrain(event.target.value)}
@@ -2244,31 +2395,35 @@ export function WatchDetail({
         {settingsOpen ? (
           <form
             className="panel mt-3 max-w-lg space-y-3 p-4 text-sm"
-            onSubmit={(event) => {
+            onSubmit={async (event) => {
               event.preventDefault();
               const email = settingsEmail.trim();
-              if (!email || !email.includes("@")) {
-                setActionError("Enter a valid alert email.");
+              if (email && !email.includes("@")) {
+                setActionError("Enter a valid alert email, or leave it blank.");
                 return;
               }
               const preferred = settingsPreferred.trim();
-              void action(`/api/watches/${watch.id}`, "PATCH", {
-                alertEmail: email,
+              const ok = await action(`/api/watches/${watch.id}`, "PATCH", {
+                alertEmail: email || "",
                 minimumSavingsCents: Math.round(Number(settingsThreshold) * 100),
                 includeRestrictedFares: settingsRestricted,
                 includeThruway: settingsThruway,
                 preferredDepartureTime: preferred || null,
               });
+              if (ok) {
+                flashNotice("Settings saved");
+                setSettingsOpen(false);
+              }
             }}
           >
             <label className="block">
-              Alert email
+              Alert email · optional
               <input
                 type="email"
-                required
                 value={settingsEmail}
                 onChange={(event) => setSettingsEmail(event.target.value)}
                 className="field"
+                placeholder="you@email.com"
               />
             </label>
             <label className="block">
@@ -2293,7 +2448,7 @@ export function WatchDetail({
                 className="field"
               />
             </label>
-            <label className="block">
+            <label className={`choice ${settingsRestricted ? "choice-on" : ""}`}>
               <input
                 type="checkbox"
                 checked={settingsRestricted}
@@ -2301,7 +2456,7 @@ export function WatchDetail({
               />{" "}
               Also include cheaper restricted fares
             </label>
-            <label className="block">
+            <label className={`choice ${settingsThruway ? "choice-on" : ""}`}>
               <input
                 type="checkbox"
                 checked={settingsThruway}
@@ -2363,7 +2518,10 @@ export function WatchDetail({
               <p className="mt-2 text-ink-soft">
                 {watch.originCode} → {watch.destinationCode} from{" "}
                 {formatUsdCompact(best.totalPartyPriceCents)} — save{" "}
-                {formatUsdCompact(best.savingsCents)}. {watch.alertEmail}
+                {formatUsdCompact(best.savingsCents)}.
+                {watch.alertEmail
+                  ? ` ${watch.alertEmail}`
+                  : " No alert email on this watch — add one in settings below."}
               </p>
             </section>
           ) : null}
@@ -2469,13 +2627,13 @@ export function WatchDetail({
             <div className="live-col">
               <p className="eyebrow opacity-70">You paid</p>
               <p className="price serif text-2xl">
-                <Flap>{formatUsdCompact(watch.currentBookedPriceCents)}</Flap>
+                <Flap quiet>{formatUsdCompact(watch.currentBookedPriceCents)}</Flap>
               </p>
             </div>
             <div className="live-col">
               <p className="eyebrow opacity-70">This train</p>
               <p className="price serif text-2xl">
-                <Flap>{formatUsdCompact(active.totalPartyPriceCents)}</Flap>
+                <Flap quiet>{formatUsdCompact(active.totalPartyPriceCents)}</Flap>
               </p>
               <p className="mt-1 text-xs opacity-80">
                 {trainLabel(active)} · {formatClock(active.journey.departureAt)}
@@ -2494,7 +2652,7 @@ export function WatchDetail({
               <p
                 className={`price serif text-2xl ${compare.saveCents > 0 ? "text-save" : compare.saveCents < 0 ? "text-drop" : ""}`}
               >
-                <Flap>{formatUsdCompact(Math.abs(compare.saveCents))}</Flap>
+                <Flap quiet>{formatUsdCompact(Math.abs(compare.saveCents))}</Flap>
               </p>
               <p className="mt-1 text-xs opacity-80">
                 {compare.beats
@@ -2551,57 +2709,83 @@ export function WatchDetail({
           <p className="live-hint">J / K walk · H skip · W window · Y you vs this</p>
         )}
         <div className="dock-btns">
-          <button
-            className="btn btn-ink"
-            disabled={busy || watch.status !== "ACTIVE"}
-            onClick={() => action(`/api/watches/${watch.id}/check`, "POST", undefined, true)}
-          >
-            Check now
-          </button>
-          <button
-            className="btn btn-ghost"
-            disabled={busy || watch.status === "COMPLETED"}
-            onClick={() =>
-              action(`/api/watches/${watch.id}`, "PATCH", {
-                status: watch.status === "PAUSED" ? "ACTIVE" : "PAUSED",
-              })
-            }
-          >
-            {watch.status === "PAUSED" ? "Resume" : "Pause"}
-          </button>
-          <Link href={reverseHref as Route} className="btn btn-ghost">
-            Watch return
-          </Link>
-          <div className="dock-more">
-            <div className="stay-dock">
-              <span className="eyebrow">Stay</span>
-              {([1, 2, 3, 4, 7] as const).map((days) => (
-                <button
-                  key={days}
-                  type="button"
-                  className={`chip ${stayDays === days ? "chip-on" : ""}`}
-                  onClick={() => setStayDays(days)}
-                >
-                  {days}d
-                </button>
-              ))}
-            </div>
-            <button type="button" className="btn btn-ghost" onClick={() => void copyPacket()}>
-              Copy packet
+          <div className="dock-primary">
+            <button
+              className="btn btn-ink"
+              disabled={busy || watch.status !== "ACTIVE"}
+              onClick={() => action(`/api/watches/${watch.id}/check`, "POST", undefined, true)}
+            >
+              Check now
+            </button>
+            <button
+              className="btn btn-ghost"
+              disabled={busy || watch.status === "COMPLETED"}
+              onClick={async () => {
+                const next = watch.status === "PAUSED" ? "ACTIVE" : "PAUSED";
+                const ok = await action(`/api/watches/${watch.id}`, "PATCH", {
+                  status: next,
+                });
+                if (ok) flashNotice(next === "PAUSED" ? "Watch paused" : "Watch resumed");
+              }}
+            >
+              {watch.status === "PAUSED" ? "Resume" : "Pause"}
+            </button>
+            <Link href={reverseHref as Route} className="btn btn-ghost">
+              Watch return
+            </Link>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              aria-expanded={dockToolsOpen}
+              onClick={() => setDockToolsOpen((value) => !value)}
+            >
+              {dockToolsOpen ? "Less" : "Tools"}
             </button>
             <button
               className="btn btn-ghost dock-danger"
               disabled={busy}
-              onClick={async () => {
-                const ok = await action(`/api/watches/${watch.id}`, "DELETE");
-                if (ok) router.push("/dashboard");
-              }}
+              onClick={() => setDeleteConfirmOpen(true)}
             >
               Delete
             </button>
           </div>
+          {dockToolsOpen ? (
+            <div className="dock-more">
+              <div className="stay-dock">
+                <span className="eyebrow">Stay</span>
+                {([1, 2, 3, 4, 7] as const).map((days) => (
+                  <button
+                    key={days}
+                    type="button"
+                    className={`chip ${stayDays === days ? "chip-on" : ""}`}
+                    aria-pressed={stayDays === days}
+                    onClick={() => setStayDays(days)}
+                  >
+                    {days}d
+                  </button>
+                ))}
+              </div>
+              <button type="button" className="btn btn-ghost" onClick={() => void copyPacket()}>
+                Copy packet
+              </button>
+            </div>
+          ) : null}
         </div>
       </section>
+
+      <ConfirmSheet
+        open={deleteConfirmOpen}
+        title="Delete this watch?"
+        body="Your board history for this trip will be removed. This can’t be undone."
+        confirmLabel="Delete watch"
+        busy={busy}
+        onCancel={() => setDeleteConfirmOpen(false)}
+        onConfirm={async () => {
+          const ok = await action(`/api/watches/${watch.id}`, "DELETE");
+          if (ok) router.push("/dashboard");
+          else setDeleteConfirmOpen(false);
+        }}
+      />
 
       <p className="mt-8 text-xs text-ink-soft">
         {snapshots.filter((item) => item.status !== "PROVIDER_ERROR").length} of {snapshots.length}{" "}
@@ -2635,7 +2819,7 @@ function PriceLadder({
           You
         </span>
       </div>
-      <p className="mt-5 text-xs text-ink-soft">
+      <p className="ladder-caption">
         Listed from {formatUsdCompact(ladder.min)} to {formatUsdCompact(ladder.max)} · you paid{" "}
         {formatUsdCompact(ladder.booked)}
       </p>
@@ -2695,9 +2879,8 @@ function TimetableRow({
   const vsRide =
     yours && !mine ? formatDurationDelta(durationDeltaMinutes(yours, candidate)) : null;
   return (
-    <div
+    <article
       id={optionAnchor(candidate)}
-      role="button"
       tabIndex={0}
       className={`board-row board-grid border-t border-line px-4 py-4 ${picked ? "board-row-on" : ""} ${mine ? "your-train" : ""} ${pinned ? "board-row-pin" : ""} ${focused ? "board-row-focus" : ""} ${departed ? "is-departed" : ""}`}
       onClick={(event) => {
@@ -2717,13 +2900,13 @@ function TimetableRow({
       <div className="board-cell-depart">
         <p className="board-mobile-label">Depart</p>
         <p className="price serif text-2xl md:text-xl">
-          <Flap>{formatClock(candidate.journey.departureAt)}</Flap>
+          <Flap quiet>{formatClock(candidate.journey.departureAt)}</Flap>
         </p>
       </div>
       <div className="board-cell-arrive">
         <p className="board-mobile-label">Arrive</p>
         <p className="price serif text-2xl md:text-xl">
-          <Flap>{formatClock(candidate.journey.arrivalAt)}</Flap>
+          <Flap quiet>{formatClock(candidate.journey.arrivalAt)}</Flap>
         </p>
         {overnight ? (
           <p className="text-[10px] uppercase tracking-[0.12em] text-ink-soft">{overnight}</p>
@@ -2797,7 +2980,7 @@ function TimetableRow({
       <div className="board-cell-price">
         <p className="board-mobile-label">Price</p>
         <p className="price serif text-2xl md:text-xl">
-          <Flap>{formatUsdCompact(candidate.totalPartyPriceCents)}</Flap>
+          <Flap quiet>{formatUsdCompact(candidate.totalPartyPriceCents)}</Flap>
         </p>
         {each ? <p className="text-xs opacity-70">{formatUsdCompact(each)} / person</p> : null}
       </div>
@@ -2817,7 +3000,7 @@ function TimetableRow({
       <div className="board-cell-actions no-print">
         <Handoff candidate={candidate} resolver={resolver} compact />
       </div>
-    </div>
+    </article>
   );
 }
 
@@ -2852,7 +3035,7 @@ function Handoff({
   resolver: BookingLinkResolver;
   compact?: boolean;
 }) {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<"ok" | "fail" | null>(null);
   const handoff = resolver.resolve({ journey: candidate.journey, fare: candidate.fare });
   return (
     <div className={`space-y-2 text-sm ${compact ? "max-w-full" : ""}`}>
@@ -2864,12 +3047,12 @@ function Handoff({
         type="button"
         className="underline"
         onClick={async () => {
-          await navigator.clipboard.writeText(handoff.copyText);
-          setCopied(true);
-          window.setTimeout(() => setCopied(false), 1600);
+          const ok = await writeClipboard(handoff.copyText);
+          setCopied(ok ? "ok" : "fail");
+          window.setTimeout(() => setCopied(null), 1600);
         }}
       >
-        {copied ? "Copied" : "Copy trip details"}
+        {copied === "ok" ? "Copied" : copied === "fail" ? "Couldn’t copy" : "Copy trip details"}
       </button>
     </div>
   );

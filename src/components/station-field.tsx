@@ -16,6 +16,8 @@ export function StationField({
   const [query, setQuery] = useState(value);
   const [results, setResults] = useState<Station[]>([]);
   const [active, setActive] = useState(0);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [emptyQuery, setEmptyQuery] = useState<string | null>(null);
   const lastValue = useRef(value);
   const root = useRef<HTMLLabelElement>(null);
   const listId = useId();
@@ -25,19 +27,35 @@ export function StationField({
     lastValue.current = value;
     setQuery(value);
     setResults([]);
+    setSearchError(null);
+    setEmptyQuery(null);
   }, [value]);
 
   useEffect(() => {
     const q = query.trim();
     if (q.length < 2 || q.toUpperCase() === value || q.toUpperCase().includes(`(${value})`)) {
+      setEmptyQuery(null);
       return;
     }
     const handle = setTimeout(async () => {
-      const response = await fetch(`/api/stations/search?q=${encodeURIComponent(q)}`);
-      if (!response.ok) return;
-      const json = (await response.json()) as { stations: Station[] };
-      setResults(json.stations);
-      setActive(0);
+      try {
+        const response = await fetch(`/api/stations/search?q=${encodeURIComponent(q)}`);
+        if (!response.ok) {
+          setResults([]);
+          setEmptyQuery(null);
+          setSearchError("Couldn’t search stations. Try again in a moment.");
+          return;
+        }
+        const json = (await response.json()) as { stations: Station[] };
+        setResults(json.stations);
+        setSearchError(null);
+        setEmptyQuery(json.stations.length === 0 ? q : null);
+        setActive(0);
+      } catch {
+        setResults([]);
+        setEmptyQuery(null);
+        setSearchError("Couldn’t search stations. Check your connection.");
+      }
     }, 180);
     return () => clearTimeout(handle);
   }, [query, value]);
@@ -86,7 +104,7 @@ export function StationField({
       <input
         value={query}
         role="combobox"
-        aria-expanded={results.length > 0}
+        aria-expanded={results.length > 0 || Boolean(emptyQuery)}
         aria-controls={listId}
         aria-autocomplete="list"
         aria-activedescendant={results[active] ? `${listId}-${results[active].code}` : undefined}
@@ -94,6 +112,7 @@ export function StationField({
         onChange={(event) => {
           setQuery(event.target.value);
           setResults([]);
+          setEmptyQuery(null);
           if (/^[A-Za-z]{3}$/.test(event.target.value)) {
             onChange(event.target.value.toUpperCase());
           }
@@ -102,6 +121,16 @@ export function StationField({
         placeholder="Boston or BOS"
         autoComplete="off"
       />
+      {searchError ? (
+        <p className="mt-1 text-xs text-danger" role="alert">
+          {searchError}
+        </p>
+      ) : null}
+      {emptyQuery && results.length === 0 ? (
+        <p id={listId} role="status" className="station-list absolute z-20 mt-1 w-full px-3 py-2.5 text-sm">
+          No stations match “{emptyQuery}”
+        </p>
+      ) : null}
       {results.length > 0 ? (
         <ul id={listId} role="listbox" className="station-list absolute z-20 mt-1 w-full">
           {results.map((station, index) => (

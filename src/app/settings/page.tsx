@@ -6,6 +6,7 @@ import { getRepository } from "@/lib/services";
 import { fareProviderStatus } from "@/lib/providers/create-provider";
 import { ConnectLiveFares } from "@/components/connect-live-fares";
 import { Flap } from "@/components/flap";
+import { localIsoDate } from "@/lib/domain/timezone";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +15,7 @@ export default async function SettingsPage() {
   const user = await getSessionUser();
   if (!user) redirect(guestEntryHref("/settings"));
   const config = getConfig();
-  const usage = await getRepository().getUsage(new Date().toISOString().slice(0, 10));
+  const usage = await getRepository().getUsage(localIsoDate(new Date(), "America/New_York"));
   const provider = fareProviderStatus();
   const projected = (usage?.credits ?? 0) * 30;
   const overBudget = projected > config.providerMonthlyCreditBudget;

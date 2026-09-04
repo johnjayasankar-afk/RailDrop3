@@ -14,6 +14,13 @@ import { changeRuleNote } from "@/lib/domain/board-moves";
 
 const LAST_ROUTE = "raildrop.lastRoute";
 
+function clientLocalIsoDate(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export function NewWatchForm({
   email,
   isGuest = false,
@@ -24,11 +31,11 @@ export function NewWatchForm({
   initial?: WatchFormInitial;
 }) {
   const router = useRouter();
-  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const today = useMemo(() => clientLocalIsoDate(), []);
   const defaultDate = useMemo(() => {
     const date = new Date();
     date.setDate(date.getDate() + 14);
-    return date.toISOString().slice(0, 10);
+    return clientLocalIsoDate(date);
   }, []);
   const [origin, setOrigin] = useState(initial?.origin ?? "BOS");
   const [destination, setDestination] = useState(initial?.destination ?? "NYP");
@@ -139,7 +146,7 @@ export function NewWatchForm({
   }
 
   return (
-    <PageFrame email={email}>
+    <PageFrame email={email} isGuest={isGuest}>
       {busy ? (
         <SearchingOverlay
           origin={origin}
@@ -147,6 +154,7 @@ export function NewWatchForm({
           date={date}
           elapsedSeconds={elapsed}
           flexibility={flexibility}
+          mode="create"
           onCancel={cancelScan}
         />
       ) : null}
@@ -239,8 +247,8 @@ export function NewWatchForm({
               </h2>
               <label className="block text-sm">
                 Actual total paid
-                <div className="relative">
-                  <span className="pointer-events-none absolute top-[0.95rem] left-3 text-ink-soft">
+                <div className="money-field">
+                  <span className="money-affix" aria-hidden>
                     $
                   </span>
                   <input
@@ -248,8 +256,9 @@ export function NewWatchForm({
                     inputMode="decimal"
                     value={price}
                     onChange={(event) => setPrice(event.target.value.replace(/[^0-9.]/g, ""))}
-                    className="field pl-7"
-                    placeholder="What you actually paid"
+                    className="field"
+                    placeholder="128.00"
+                    aria-label="Actual total paid in dollars"
                   />
                 </div>
               </label>
@@ -294,7 +303,14 @@ export function NewWatchForm({
                   min={1}
                   max={8}
                   value={passengers}
-                  onChange={(event) => setPassengers(Number(event.target.value))}
+                  onChange={(event) => {
+                    const next = Number(event.target.value);
+                    if (!Number.isFinite(next)) {
+                      setPassengers(1);
+                      return;
+                    }
+                    setPassengers(Math.min(8, Math.max(1, Math.round(next))));
+                  }}
                   className="field"
                 />
               </label>
@@ -303,7 +319,7 @@ export function NewWatchForm({
               <h2 className="text-xs uppercase tracking-[0.16em] text-ink-soft">
                 Compare & monitor
               </h2>
-              <label className="block text-sm">
+              <label className={`choice ${restricted ? "choice-on" : ""}`}>
                 <input
                   type="checkbox"
                   checked={restricted}
@@ -311,7 +327,7 @@ export function NewWatchForm({
                 />{" "}
                 Also include cheaper restricted fares
               </label>
-              <label className="block text-sm">
+              <label className={`choice ${includeThruway ? "choice-on" : ""}`}>
                 <input
                   type="checkbox"
                   checked={includeThruway}
@@ -381,7 +397,7 @@ export function NewWatchForm({
               <div className="mt-4">
                 <RouteRibbon origin={origin} destination={destination} compact />
               </div>
-              <p className="mt-1 text-ink-soft">
+              <p className="mt-1 text-sm text-ink">
                 {stationLabel(origin)} to {stationLabel(destination)}
               </p>
               <p className="mt-3">
@@ -394,13 +410,17 @@ export function NewWatchForm({
               {bookedTrain.trim() ? (
                 <p className="mt-1 text-xs text-ink-soft">Watching train {bookedTrain.trim()}</p>
               ) : null}
-              <p className="mt-1">
+              <p className="mt-1 text-sm">
                 {passengers} passenger{passengers === 1 ? "" : "s"} · {fareFamily.toLowerCase()}
               </p>
               <p className="price serif mt-4 text-3xl">
-                <Flap>{price ? `$${price}` : "$0"}</Flap>
+                {price ? <Flap>{`$${price}`}</Flap> : <span className="opacity-50">—</span>}
               </p>
-              <p className="text-xs text-ink-soft">Your booking · confirm on Amtrak later</p>
+              <p className="mt-2 text-xs text-ink-soft">
+                {price
+                  ? "Your booking · confirm on Amtrak later"
+                  : "Enter what you paid · confirm on Amtrak later"}
+              </p>
               {initial?.origin && initial?.destination ? (
                 <p className="mt-3 text-xs text-ink-soft">Return trip prefilled.</p>
               ) : null}

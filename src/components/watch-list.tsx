@@ -6,6 +6,7 @@ import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { SavingsMeter } from "@/components/savings-meter";
 import { SearchingOverlay } from "@/components/searching-overlay";
+import { ConfirmSheet } from "@/components/confirm-sheet";
 import { formatUsdCompact } from "@/lib/domain/money";
 import {
   formatDisplayDate,
@@ -39,6 +40,8 @@ export function WatchList({ watches, today }: { watches: WatchRecord[]; today: s
   const [scanning, setScanning] = useState<WatchRecord | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [checkError, setCheckError] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<WatchRecord | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   const visible = watches.filter((watch) => {
@@ -139,6 +142,7 @@ export function WatchList({ watches, today }: { watches: WatchRecord[]; today: s
   }
 
   async function deleteWatch(watch: WatchRecord) {
+    setDeleting(true);
     setCheckError(null);
     try {
       const response = await fetch(`/api/watches/${watch.id}`, { method: "DELETE" });
@@ -146,9 +150,12 @@ export function WatchList({ watches, today }: { watches: WatchRecord[]; today: s
         setCheckError("Could not delete that watch");
         return;
       }
+      setPendingDelete(null);
       router.refresh();
     } catch {
       setCheckError("Could not delete that watch");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -167,6 +174,7 @@ export function WatchList({ watches, today }: { watches: WatchRecord[]; today: s
           date={scanning.desiredTravelDate}
           elapsedSeconds={elapsed}
           flexibility={scanning.dateFlexibilityDays}
+          mode="recheck"
           onCancel={cancelScan}
         />
       ) : null}
@@ -192,6 +200,7 @@ export function WatchList({ watches, today }: { watches: WatchRecord[]; today: s
                 key={value}
                 type="button"
                 className={`chip ${filter === value ? "chip-on" : ""}`}
+                aria-pressed={filter === value}
                 onClick={() => setFilter(value)}
               >
                 {label}
@@ -213,6 +222,7 @@ export function WatchList({ watches, today }: { watches: WatchRecord[]; today: s
                 key={value}
                 type="button"
                 className={`chip ${listSort === value ? "chip-on" : ""}`}
+                aria-pressed={listSort === value}
                 onClick={() => setListSort(value)}
               >
                 {label}
@@ -296,11 +306,15 @@ export function WatchList({ watches, today }: { watches: WatchRecord[]; today: s
         </div>
       ) : null}
       {visible.length === 0 ? (
-        <p className="mt-6 text-sm text-ink-soft">
-          No watches match that filter.{" "}
+        <div className="ticket mt-6 p-5">
+          <p className="serif text-2xl">Nothing matches</p>
+          <p className="mt-2 text-sm text-ink-soft">
+            No watches match that filter
+            {query.trim() ? ` for “${query.trim()}”` : ""}. Adjust the filter or show everything.
+          </p>
           <button
             type="button"
-            className="underline"
+            className="btn btn-ghost mt-4"
             onClick={() => {
               setQuery("");
               setFilter("all");
@@ -308,7 +322,7 @@ export function WatchList({ watches, today }: { watches: WatchRecord[]; today: s
           >
             Show all
           </button>
-        </p>
+        </div>
       ) : (
         <ul className="mt-6 space-y-4">
           {ordered.map((watch) => {
@@ -450,7 +464,7 @@ export function WatchList({ watches, today }: { watches: WatchRecord[]; today: s
                   <button
                     type="button"
                     className="btn btn-ghost dock-danger"
-                    onClick={() => void deleteWatch(watch)}
+                    onClick={() => setPendingDelete(watch)}
                   >
                     Delete
                   </button>
@@ -460,6 +474,21 @@ export function WatchList({ watches, today }: { watches: WatchRecord[]; today: s
           })}
         </ul>
       )}
+      <ConfirmSheet
+        open={Boolean(pendingDelete)}
+        title="Delete this watch?"
+        body={
+          pendingDelete
+            ? `${pendingDelete.originCode} → ${pendingDelete.destinationCode} board history will be removed. This can’t be undone.`
+            : "Your board history for this trip will be removed."
+        }
+        confirmLabel="Delete watch"
+        busy={deleting}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => {
+          if (pendingDelete) void deleteWatch(pendingDelete);
+        }}
+      />
     </div>
   );
 }

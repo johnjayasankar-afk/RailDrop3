@@ -304,7 +304,7 @@ export async function runWatchCycle(input: {
   });
 
   await input.repo.incrementUsage(
-    localIsoDate(now, "UTC"),
+    localIsoDate(now, "America/New_York"),
     credits,
     providerRequests,
     datesSucceeded.length,

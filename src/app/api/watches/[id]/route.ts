@@ -8,7 +8,11 @@ const patchSchema = z.object({
   monitorPreset: z.enum(["24h", "48h", "72h", "until_departure", "custom"]).optional(),
   monitorEndAt: z.string().datetime().nullable().optional(),
   monitorStartAt: z.string().datetime().optional(),
-  alertEmail: z.string().email().optional(),
+  alertEmail: z.preprocess(
+    (value) =>
+      value === null || (typeof value === "string" && value.trim() === "") ? "" : value,
+    z.union([z.string().email(), z.literal("")]).optional(),
+  ),
   minimumSavingsCents: z.number().int().min(100).max(100_000).optional(),
   includeRestrictedFares: z.boolean().optional(),
   includeThruway: z.boolean().optional(),

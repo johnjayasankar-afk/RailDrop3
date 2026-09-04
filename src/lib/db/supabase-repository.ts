@@ -426,7 +426,7 @@ function mapWatch(row: Record<string, unknown>): WatchRecord {
     monitorEndAt: (row.monitor_end_at as string | null) ?? null,
     monitorPreset: row.monitor_preset as WatchRecord["monitorPreset"],
     timezone: String(row.timezone),
-    alertEmail: String(row.alert_email),
+    alertEmail: row.alert_email == null ? "" : String(row.alert_email),
     status: row.status as WatchRecord["status"],
     lastCheckCycleId: (row.last_check_cycle_id as string | null) ?? null,
     lastCheckedAt: (row.last_checked_at as string | null) ?? null,
