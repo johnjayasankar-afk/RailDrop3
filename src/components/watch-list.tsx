@@ -276,7 +276,7 @@ export function WatchList({ watches, today }: { watches: WatchRecord[]; today: s
         </div>
       ) : null}
       {pairs.length > 0 ? (
-        <div className="ticket mt-6 p-4">
+        <div className="panel mt-6 p-4">
           <p className="text-xs uppercase tracking-[0.16em] text-ink-soft">Round trip</p>
           <ul className="mt-3 space-y-3 text-sm">
             {pairs.map((pair) => (

@@ -179,6 +179,29 @@ export function WatchDetail({
   const [rebookOpen, setRebookOpen] = useState(false);
   const [liveMoreOpen, setLiveMoreOpen] = useState(false);
   const [dockToolsOpen, setDockToolsOpen] = useState(false);
+  const [compareDockOpen, setCompareDockOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem(`raildrop.compareDock.${watch.id}`) === "1") {
+        setCompareDockOpen(true);
+      }
+    } catch {
+      // private mode / quota
+    }
+  }, [watch.id]);
+
+  function toggleCompareDock() {
+    setCompareDockOpen((value) => {
+      const next = !value;
+      try {
+        window.localStorage.setItem(`raildrop.compareDock.${watch.id}`, next ? "1" : "0");
+      } catch {
+        // private mode / quota
+      }
+      return next;
+    });
+  }
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const tripRailRef = useRef<HTMLDivElement>(null);
   const [settingsEmail, setSettingsEmail] = useState(watch.alertEmail);
@@ -2623,88 +2646,109 @@ export function WatchDetail({
 
       <section className="action-dock no-print mt-8 text-sm">
         {active && compare ? (
-          <div className={`live-compare${compare.beats ? " is-beats" : ""}`} aria-live="polite">
-            <div className="live-col">
-              <p className="eyebrow opacity-70">You paid</p>
-              <p className="price serif text-2xl">
-                <Flap quiet>{formatUsdCompact(watch.currentBookedPriceCents)}</Flap>
-              </p>
-            </div>
-            <div className="live-col">
-              <p className="eyebrow opacity-70">This train</p>
-              <p className="price serif text-2xl">
-                <Flap quiet>{formatUsdCompact(active.totalPartyPriceCents)}</Flap>
-              </p>
-              <p className="mt-1 text-xs opacity-80">
-                {trainLabel(active)} · {formatClock(active.journey.departureAt)}
-                {activeArrive ? ` · ${activeArrive}` : ""}
-                {untilActive == null
-                  ? ""
-                  : untilActive >= 0
-                    ? ` · in ${untilActive}m`
-                    : " · departed"}
-              </p>
-            </div>
-            <div className="live-col">
-              <p className="eyebrow opacity-70">
-                {compare.saveCents > 0 ? "Save" : compare.saveCents < 0 ? "More" : "Vs paid"}
-              </p>
-              <p
-                className={`price serif text-2xl ${compare.saveCents > 0 ? "text-save" : compare.saveCents < 0 ? "text-drop" : ""}`}
-              >
-                <Flap quiet>{formatUsdCompact(Math.abs(compare.saveCents))}</Flap>
-              </p>
-              <p className="mt-1 text-xs opacity-80">
-                {compare.beats
-                  ? "Beats your train"
-                  : (compare.vsYours ??
-                    (compare.saveCents > 0 ? "Cheaper listed" : "No listed save"))}
-              </p>
-              {feeCents > 0 && compare.saveCents > 0 ? (
-                <p className="mt-1 text-xs opacity-80">
-                  {netAfterFee(compare.saveCents, feeCents) > 0
-                    ? `${formatUsdCompact(netAfterFee(compare.saveCents, feeCents))} after fee`
-                    : "Fee estimate would wipe this save"}
-                </p>
-              ) : compare.saveCents > 0 ? (
-                <p className="mt-1 text-xs opacity-80">
-                  Covers a fee under {formatUsdCompact(compare.saveCents)}
-                </p>
-              ) : null}
-            </div>
-            <div className="live-actions">
-              <Handoff candidate={active} resolver={resolver} compact />
-              <div className="quiet-row">
-                <button type="button" onClick={() => void copyCompare(active)}>
-                  Copy you vs this
-                </button>
-                <button
-                  type="button"
-                  className="live-more-toggle"
-                  aria-expanded={liveMoreOpen}
-                  onClick={() => setLiveMoreOpen((value) => !value)}
-                >
-                  {liveMoreOpen ? "Less" : "More"}
-                </button>
-              </div>
-              {liveMoreOpen ? (
-                <div className="quiet-row live-more">
-                  <button type="button" onClick={() => downloadIcs(active)}>
-                    Add to calendar
-                  </button>
-                  <button type="button" onClick={() => void copyFields(active)}>
-                    Copy Amtrak fields
-                  </button>
-                  <button type="button" onClick={() => void copyWindow()}>
-                    Copy window
-                  </button>
-                  <button type="button" onClick={() => hideTrain(candidateKey(active))}>
-                    Hide this visit
-                  </button>
+          <>
+            <button
+              type="button"
+              className="dock-compare-toggle"
+              aria-expanded={compareDockOpen}
+              onClick={toggleCompareDock}
+            >
+              <span className="dock-compare-summary">
+                You paid {formatUsdCompact(watch.currentBookedPriceCents)} · this train{" "}
+                {formatUsdCompact(active.totalPartyPriceCents)}
+                {compare.saveCents !== 0
+                  ? ` · ${compare.saveCents > 0 ? "save" : "more"} ${formatUsdCompact(Math.abs(compare.saveCents))}`
+                  : ""}
+              </span>
+              <span className="dock-compare-action">
+                {compareDockOpen ? "Hide compare" : "Show compare"}
+              </span>
+            </button>
+            {compareDockOpen ? (
+              <div className={`live-compare${compare.beats ? " is-beats" : ""}`} aria-live="polite">
+                <div className="live-col">
+                  <p className="eyebrow opacity-70">You paid</p>
+                  <p className="price serif text-2xl">
+                    {formatUsdCompact(watch.currentBookedPriceCents)}
+                  </p>
                 </div>
-              ) : null}
-            </div>
-          </div>
+                <div className="live-col">
+                  <p className="eyebrow opacity-70">This train</p>
+                  <p className="price serif text-2xl">
+                    {formatUsdCompact(active.totalPartyPriceCents)}
+                  </p>
+                  <p className="mt-1 text-xs opacity-80">
+                    {trainLabel(active)} · {formatClock(active.journey.departureAt)}
+                    {activeArrive ? ` · ${activeArrive}` : ""}
+                    {untilActive == null
+                      ? ""
+                      : untilActive >= 0
+                        ? ` · in ${untilActive}m`
+                        : " · departed"}
+                  </p>
+                </div>
+                <div className="live-col">
+                  <p className="eyebrow opacity-70">
+                    {compare.saveCents > 0 ? "Save" : compare.saveCents < 0 ? "More" : "Vs paid"}
+                  </p>
+                  <p
+                    className={`price serif text-2xl ${compare.saveCents > 0 ? "text-save" : compare.saveCents < 0 ? "text-drop" : ""}`}
+                  >
+                    {formatUsdCompact(Math.abs(compare.saveCents))}
+                  </p>
+                  <p className="mt-1 text-xs opacity-80">
+                    {compare.beats
+                      ? "Beats your train"
+                      : (compare.vsYours ??
+                        (compare.saveCents > 0 ? "Cheaper listed" : "No listed save"))}
+                  </p>
+                  {feeCents > 0 && compare.saveCents > 0 ? (
+                    <p className="mt-1 text-xs opacity-80">
+                      {netAfterFee(compare.saveCents, feeCents) > 0
+                        ? `${formatUsdCompact(netAfterFee(compare.saveCents, feeCents))} after fee`
+                        : "Fee estimate would wipe this save"}
+                    </p>
+                  ) : compare.saveCents > 0 ? (
+                    <p className="mt-1 text-xs opacity-80">
+                      Covers a fee under {formatUsdCompact(compare.saveCents)}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="live-actions">
+                  <Handoff candidate={active} resolver={resolver} compact />
+                  <div className="quiet-row">
+                    <button type="button" onClick={() => void copyCompare(active)}>
+                      Copy you vs this
+                    </button>
+                    <button
+                      type="button"
+                      className="live-more-toggle"
+                      aria-expanded={liveMoreOpen}
+                      onClick={() => setLiveMoreOpen((value) => !value)}
+                    >
+                      {liveMoreOpen ? "Less" : "More"}
+                    </button>
+                  </div>
+                  {liveMoreOpen ? (
+                    <div className="quiet-row live-more">
+                      <button type="button" onClick={() => downloadIcs(active)}>
+                        Add to calendar
+                      </button>
+                      <button type="button" onClick={() => void copyFields(active)}>
+                        Copy Amtrak fields
+                      </button>
+                      <button type="button" onClick={() => void copyWindow()}>
+                        Copy window
+                      </button>
+                      <button type="button" onClick={() => hideTrain(candidateKey(active))}>
+                        Hide this visit
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+          </>
         ) : (
           <p className="live-hint">J / K walk · H skip · W window · Y you vs this</p>
         )}
