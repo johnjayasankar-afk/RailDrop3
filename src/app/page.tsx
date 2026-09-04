@@ -16,6 +16,10 @@ const SAMPLE = [
 
 const FAQ = [
   [
+    "Do I need an account?",
+    "No. Watch a trip as a guest. Add an email on the trip only if you want fare-drop alerts. Sign-in is optional.",
+  ],
+  [
     "Do you invent Amtrak prices?",
     "No. If the live board is down, you see that — never a guessed fare. Confirm on Amtrak before you change a ticket.",
   ],
@@ -63,8 +67,9 @@ const FAQ = [
 
 export default async function HomePage() {
   const user = await getSessionUser();
+  const watching = Boolean(user);
   return (
-    <PageFrame email={user?.email}>
+    <PageFrame email={user?.email} isGuest={Boolean(user?.isGuest)}>
       <JsonLd
         data={{
           "@context": "https://schema.org",
@@ -88,7 +93,10 @@ export default async function HomePage() {
               Book the trip. We watch every bookable Amtrak rail option across your window.
             </p>
             <div className="mt-10 flex flex-wrap gap-3">
-              <Link href={user ? "/watches/new" : "/login"} className="btn btn-primary">
+              <Link
+                href={watching ? "/watches/new" : "/api/auth/guest?next=%2Fwatches%2Fnew"}
+                className="btn btn-primary"
+              >
                 Watch a booked trip
               </Link>
               <Link href="/login" className="btn btn-ghost">
@@ -96,7 +104,7 @@ export default async function HomePage() {
               </Link>
             </div>
             <p className="mt-5 text-xs uppercase tracking-[0.16em] text-ink-soft">
-              Live listed fares · no invented prices · one precise alert
+              No account required · email alerts optional · no invented prices
             </p>
           </div>
           <section className="ticket reveal" style={{ animationDelay: "80ms" }}>

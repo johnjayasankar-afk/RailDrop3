@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { PageFrame } from "@/components/page-frame";
-import { getSessionUser } from "@/lib/auth/session";
+import { getSessionUser, guestEntryHref } from "@/lib/auth/session";
 import { getRepository } from "@/lib/services";
 import { collectEligibleFares } from "@/lib/domain/eligibility";
 import { cheapestByDate, rankCandidates } from "@/lib/domain/ranking";
@@ -26,8 +26,8 @@ export async function generateMetadata({
 
 export default async function WatchPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await getSessionUser();
-  if (!user) redirect("/login");
   const { id } = await params;
+  if (!user) redirect(guestEntryHref(`/watches/${id}`));
   const repo = getRepository();
   const watch = await repo.getWatch(id);
   if (!watch || watch.userId !== user.id) notFound();
@@ -83,7 +83,7 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
   const fareSource = fareProviderStatus();
 
   return (
-    <PageFrame email={user.email}>
+    <PageFrame email={user.email} isGuest={Boolean(user.isGuest)}>
       <WatchDetail
         watch={watch}
         ranked={ranked}

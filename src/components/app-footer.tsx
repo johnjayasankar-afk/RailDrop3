@@ -1,6 +1,12 @@
 import Link from "next/link";
 
-export function AppFooter({ signedIn = false }: { signedIn?: boolean }) {
+export function AppFooter({
+  signedIn = false,
+  isGuest = false,
+}: {
+  signedIn?: boolean;
+  isGuest?: boolean;
+}) {
   return (
     <footer className="mt-16 border-t border-line">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-7 text-sm text-ink-soft">
@@ -20,10 +26,13 @@ export function AppFooter({ signedIn = false }: { signedIn?: boolean }) {
           <Link href={signedIn ? "/dashboard" : "/"} className="hover:text-ink">
             {signedIn ? "Your watches" : "Home"}
           </Link>
-          <Link href={signedIn ? "/watches/new" : "/login"} className="hover:text-ink">
+          <Link
+            href={signedIn ? "/watches/new" : "/api/auth/guest?next=%2Fwatches%2Fnew"}
+            className="hover:text-ink"
+          >
             Watch a trip
           </Link>
-          {signedIn ? (
+          {signedIn && !isGuest ? (
             <Link href="/settings" className="hover:text-ink">
               Settings
             </Link>

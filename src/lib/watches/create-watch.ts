@@ -67,7 +67,7 @@ export async function createWatchAndScan(input: {
     monitorEndAt: monitoring.endAt ? monitoring.endAt.toISOString() : null,
     monitorPreset: parsed.monitorPreset,
     timezone: parsed.timezone,
-    alertEmail: parsed.alertEmail ?? input.email,
+    alertEmail: parsed.alertEmail?.trim() || input.email?.trim() || "",
     status: "ACTIVE",
     lastCheckCycleId: null,
     lastCheckedAt: null,
@@ -82,7 +82,7 @@ export async function createWatchAndScan(input: {
 
   await input.repo.upsertProfile({
     id: input.userId,
-    email: input.email,
+    email: input.email?.trim() || parsed.alertEmail?.trim() || "guest@raildrop.local",
     timezone: parsed.timezone,
     createdAt: now.toISOString(),
   });

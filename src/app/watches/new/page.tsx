@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { getSessionUser } from "@/lib/auth/session";
+import { getSessionUser, guestEntryHref } from "@/lib/auth/session";
 import { NewWatchForm } from "@/components/new-watch-form";
 import { watchFormInitialFromQuery } from "@/lib/domain/watch-query";
 import { localIsoDate } from "@/lib/domain/timezone";
@@ -17,8 +17,8 @@ export default async function NewWatchPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const user = await getSessionUser();
-  if (!user) redirect("/login");
+  if (!user) redirect(guestEntryHref("/watches/new"));
   const query = await searchParams;
   const initial = watchFormInitialFromQuery(query, localIsoDate(new Date(), "America/New_York"));
-  return <NewWatchForm email={user.email} initial={initial} />;
+  return <NewWatchForm email={user.email} isGuest={Boolean(user.isGuest)} initial={initial} />;
 }

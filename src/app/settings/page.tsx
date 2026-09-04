@@ -1,17 +1,18 @@
 import { redirect } from "next/navigation";
 import { PageFrame } from "@/components/page-frame";
-import { getSessionUser } from "@/lib/auth/session";
+import { getSessionUser, guestEntryHref } from "@/lib/auth/session";
 import { getConfig } from "@/lib/config";
 import { getRepository } from "@/lib/services";
 import { fareProviderStatus } from "@/lib/providers/create-provider";
 import { ConnectLiveFares } from "@/components/connect-live-fares";
 import { Flap } from "@/components/flap";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const user = await getSessionUser();
-  if (!user) redirect("/login");
+  if (!user) redirect(guestEntryHref("/settings"));
   const config = getConfig();
   const usage = await getRepository().getUsage(new Date().toISOString().slice(0, 10));
   const provider = fareProviderStatus();
@@ -19,7 +20,7 @@ export default async function SettingsPage() {
   const overBudget = projected > config.providerMonthlyCreditBudget;
 
   return (
-    <PageFrame email={user.email}>
+    <PageFrame email={user.email} isGuest={Boolean(user.isGuest)}>
       <main id="main" className="mx-auto max-w-2xl px-4 py-8">
         <div className="depart-strip">
           <Flap>SET</Flap>
@@ -27,7 +28,19 @@ export default async function SettingsPage() {
           <Flap>FARES</Flap>
         </div>
         <h1 className="serif mt-6 text-4xl">Settings</h1>
-        <p className="mt-2 text-ink-soft">{user.email}</p>
+        <p className="mt-2 text-ink-soft">
+          {user.isGuest
+            ? "Guest session — sign in only if you want an account. Alerts use the email on each watch."
+            : user.email}
+        </p>
+        {user.isGuest ? (
+          <p className="mt-4 text-sm">
+            <Link href="/login" className="text-ink underline">
+              Sign in with email
+            </Link>{" "}
+            (optional)
+          </p>
+        ) : null}
         {config.isLocal ? <ConnectLiveFares live={Boolean(config.parseApiKey)} /> : null}
         <section className="panel mt-8 p-5 text-sm">
           <h2 className="text-xs uppercase tracking-[0.16em] text-ink-soft">Provider usage</h2>

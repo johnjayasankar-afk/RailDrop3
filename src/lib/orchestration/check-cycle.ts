@@ -242,7 +242,8 @@ export async function runWatchCycle(input: {
   );
 
   let alertSent = false;
-  if (opportunity.decision.notify && opportunity.fingerprint && input.mailer) {
+  const alertTo = watch.alertEmail?.trim() ?? "";
+  if (opportunity.decision.notify && opportunity.fingerprint && input.mailer && alertTo) {
     const cheapest = cheapestByDate(opportunity.qualifying);
     const subject = buildAlertSubject(watch, opportunity.qualifying[0]);
     const alert = await input.repo.insertAlert({
@@ -255,7 +256,7 @@ export async function runWatchCycle(input: {
     });
     const delivery = await sendFareDropEmail({
       mailer: input.mailer,
-      to: watch.alertEmail,
+      to: alertTo,
       watch,
       best: opportunity.qualifying[0],
       others: opportunity.qualifying.slice(1, 4),
@@ -269,7 +270,7 @@ export async function runWatchCycle(input: {
       id: crypto.randomUUID(),
       alertId: alert.id,
       watchId: watch.id,
-      toEmail: watch.alertEmail,
+      toEmail: alertTo,
       status: delivery.status,
       providerMessageId: delivery.providerMessageId,
       errorMessage: delivery.errorMessage,

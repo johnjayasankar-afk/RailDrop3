@@ -35,7 +35,10 @@ export const createWatchSchema = z.object({
   monitorPreset: z.enum(["24h", "48h", "72h", "until_departure", "custom"]).default("48h"),
   customMonitorEndAt: z.string().datetime().nullable().optional(),
   timezone: z.string().default("America/New_York"),
-  alertEmail: z.string().email().nullable().optional(),
+  alertEmail: z.preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? null : value),
+    z.string().email().nullable().optional(),
+  ),
 });
 
 export const rebookSchema = z.object({

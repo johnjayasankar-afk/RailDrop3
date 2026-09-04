@@ -11,5 +11,6 @@ export async function POST() {
   const response = NextResponse.redirect(new URL("/", config.appUrl));
   response.cookies.delete("raildrop_e2e_user");
   response.cookies.delete("raildrop_local_user");
+  response.cookies.delete("raildrop_guest_user");
   return response;
 }

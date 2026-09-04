@@ -14,7 +14,15 @@ import { changeRuleNote } from "@/lib/domain/board-moves";
 
 const LAST_ROUTE = "raildrop.lastRoute";
 
-export function NewWatchForm({ email, initial }: { email: string; initial?: WatchFormInitial }) {
+export function NewWatchForm({
+  email,
+  isGuest = false,
+  initial,
+}: {
+  email: string;
+  isGuest?: boolean;
+  initial?: WatchFormInitial;
+}) {
   const router = useRouter();
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const defaultDate = useMemo(() => {
@@ -344,9 +352,14 @@ export function NewWatchForm({ email, initial }: { email: string; initial?: Watc
                   value={alertEmail}
                   onChange={(event) => setAlertEmail(event.target.value)}
                   className="field"
-                  placeholder={email}
+                  placeholder={email || "you@email.com"}
                 />
               </label>
+              <p className="text-xs text-ink-soft">
+                {isGuest
+                  ? "Leave blank to watch prices on this device only. Add an email if you want fare-drop alerts."
+                  : "Leave blank to skip email alerts. We’ll use this address when a listed fare drops."}
+              </p>
             </section>
             {error ? (
               <p className="text-sm text-danger" role="alert">

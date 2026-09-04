@@ -111,13 +111,16 @@ export function LoginForm({
         </div>
         <p className="mt-2 text-ink-soft">
           {localMode
-            ? "Local mode: enter any email to continue. No password."
-            : "Email only. No password. No reservation number."}
+            ? "Local mode: enter any email to continue, or skip."
+            : "Optional. Sign in for an account — or skip and watch prices without one."}
         </p>
         {!supabaseUrl || !supabaseAnonKey ? (
           <p className="mt-4 text-sm text-danger" role="alert">
-            Supabase keys are missing on this deploy. Add NEXT_PUBLIC_SUPABASE_URL and
-            NEXT_PUBLIC_SUPABASE_ANON_KEY in Vercel Production, then redeploy.
+            Supabase keys are missing on this deploy. You can still{" "}
+            <a href="/api/auth/guest?next=%2Fwatches%2Fnew" className="underline">
+              watch a trip as a guest
+            </a>
+            .
           </p>
         ) : null}
         <form onSubmit={sendLink} className="ticket mt-8 space-y-4 p-5">
@@ -137,6 +140,11 @@ export function LoginForm({
             {sending ? "Continuing…" : localMode ? "Continue" : "Send magic link"}
           </button>
         </form>
+        <p className="mt-4 text-center text-sm">
+          <a href="/api/auth/guest?next=%2Fwatches%2Fnew" className="text-ink underline">
+            Skip — watch a trip without signing in
+          </a>
+        </p>
         {sent ? (
           <form onSubmit={verifyCode} className="ticket mt-6 space-y-3 p-5">
             <label className="block text-sm">

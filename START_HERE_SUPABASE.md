@@ -43,6 +43,9 @@ You only need a browser. Check each box as you go. When you finish **Part A**, p
 5. Paste → click **Run**
 6. You want a success / “Success. No rows returned” style message — not a red error.
 
+7. **Also run** (required for optional sign-in / guest watches): open  
+   `supabase/migrations/20260904140000_guest_profiles.sql` → copy all → New query → **Run**.
+
 ### A5. Copy your 3 keys
 1. Left sidebar → **Project Settings** (gear)
 2. **API**

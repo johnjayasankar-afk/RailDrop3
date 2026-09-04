@@ -44,7 +44,10 @@ export function getConfig(): AppConfig {
   if (cached) return cached;
   const parsed = envSchema.parse(process.env);
   const isE2E = parsed.E2E_TEST === "1";
-  const isLocal = parsed.RAILDROP_LOCAL === "1" || parsed.NEXT_PUBLIC_RAILDROP_LOCAL === "1";
+  // Never treat Vercel / cloud builds as local, even if a laptop .env.local is present.
+  const onVercel = process.env.VERCEL === "1" || Boolean(parsed.VERCEL_ENV);
+  const isLocal =
+    !onVercel && (parsed.RAILDROP_LOCAL === "1" || parsed.NEXT_PUBLIC_RAILDROP_LOCAL === "1");
   const isProduction = parsed.NODE_ENV === "production" || parsed.VERCEL_ENV === "production";
 
   if (isProduction && isE2E) {
