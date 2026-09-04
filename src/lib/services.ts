@@ -10,7 +10,6 @@ import type { FareProvider } from "@/lib/providers/fare-provider";
 import { ParseFareProvider } from "@/lib/providers/parse-fare-provider";
 import { FixtureFareProvider } from "@/lib/providers/fixture-fare-provider";
 import { WanderuBrowserProvider } from "@/lib/providers/wanderu-browser-provider";
-import { ProviderNotConfiguredError } from "@/lib/providers/fare-provider";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const globalStore = globalThis as unknown as {
@@ -30,20 +29,20 @@ export function getRepository(): RailDropRepository {
   return new SupabaseRepository(createAdminClient());
 }
 
+/**
+ * Live fares only — never invent Amtrak prices.
+ * - Local, or no Parse key → Wanderu (browser)
+ * - PARSE_API_KEY in cloud → Parse
+ */
 export function getFareProvider(): FareProvider {
   const config = getConfig();
   if (config.isE2E) {
     return new FixtureFareProvider();
   }
-  if (config.isLocal) {
-    return new WanderuBrowserProvider();
-  }
-  if (config.parseApiKey) {
+  if (config.parseApiKey && !config.isLocal) {
     return new ParseFareProvider();
   }
-  throw new ProviderNotConfiguredError(
-    "PARSE_API_KEY is required. RailDrop will not show invented Amtrak fares.",
-  );
+  return new WanderuBrowserProvider();
 }
 
 export function getMailer(): Mailer {

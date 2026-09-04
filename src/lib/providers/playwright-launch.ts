@@ -50,6 +50,19 @@ export function sanitizeProviderError(message: string): string {
 
 export async function launchChromium(): Promise<PlaywrightBrowser> {
   pinBrowsersPath();
+
+  // Vercel / Lambda: use the serverless Chromium build (no postinstall browser download).
+  if (process.env.VERCEL === "1" || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    try {
+      const serverless = await launchServerlessChromium();
+      if (serverless) return serverless;
+    } catch (error) {
+      logger.error("provider.serverless_chromium_failed", {
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
   const { chromium } = await import("playwright");
   const attempts: LaunchOptions[] = [
     { headless: true, args: LAUNCH_ARGS },
@@ -83,6 +96,24 @@ export async function launchChromium(): Promise<PlaywrightBrowser> {
   }
 
   throw toProviderError(lastError);
+}
+
+async function launchServerlessChromium(): Promise<PlaywrightBrowser | null> {
+  // Bundled for Vercel — no Playwright postinstall browser download required.
+  const sparticuz = (await import("@sparticuz/chromium")) as {
+    default?: { args: string[]; executablePath: () => Promise<string> };
+    args?: string[];
+    executablePath?: () => Promise<string>;
+  };
+  const chromiumPkg = sparticuz.default ?? sparticuz;
+  if (!chromiumPkg.executablePath) return null;
+  const { chromium } = await import("playwright-core");
+  const executablePath = await chromiumPkg.executablePath();
+  return chromium.launch({
+    args: [...(chromiumPkg.args ?? []), ...LAUNCH_ARGS],
+    executablePath,
+    headless: true,
+  }) as Promise<PlaywrightBrowser>;
 }
 
 export function pinBrowsersPath(): string {

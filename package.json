@@ -22,12 +22,14 @@
     "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {
+    "@sparticuz/chromium": "^149.0.0",
     "@supabase/ssr": "^0.12.5",
     "@supabase/supabase-js": "^2.114.0",
     "date-fns": "^4.4.0",
     "lucide-react": "^1.39.0",
     "next": "16.3.4",
     "playwright": "^1.62.1",
+    "playwright-core": "^1.62.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "resend": "^6.26.0",
