@@ -52,6 +52,9 @@ export function sanitizeProviderError(message: string): string {
   if (lower.includes("net::err") || lower.includes("cloudflare") || lower.includes("just a moment")) {
     return "Live fare site blocked this check. Recheck in a minute.";
   }
+  if (lower.includes("enoent") && (lower.includes(".playwright") || lower.includes("mkdir"))) {
+    return "Browser for live fares is still setting up. Recheck in a minute.";
+  }
   // Never dump stack / box-drawing installer essays into the UI.
   const firstLine = message.split("\n")[0]?.trim() ?? "Live fare search failed";
   if (firstLine.length > 140) return `${firstLine.slice(0, 137)}…`;
@@ -64,8 +67,6 @@ export function sanitizeProviderError(message: string): string {
  * Vercel/Lambda: @sparticuz/chromium + puppeteer-core (Playwright CDP wrapper).
  */
 export async function launchChromium(): Promise<PlaywrightBrowser> {
-  pinBrowsersPath();
-
   // Optional hosted browser (Browserless / Browserbase / etc.) — most reliable on Vercel
   // when Cloudflare blocks datacenter IPs. Example:
   // BROWSER_WS_ENDPOINT=wss://chrome.browserless.io?token=...
@@ -87,10 +88,13 @@ export async function launchChromium(): Promise<PlaywrightBrowser> {
     }
   }
 
+  // Vercel / Lambda: read-only except /tmp — never mkdir under /var/task.
   if (isServerlessRuntime()) {
+    pinBrowsersPath();
     try {
       const serverless = await launchServerlessChromium();
       if (serverless) return serverless;
+      throw new Error("Serverless Chromium failed to launch");
     } catch (error) {
       logger.error("provider.serverless_chromium_failed", {
         message: error instanceof Error ? error.message : String(error),
@@ -99,6 +103,7 @@ export async function launchChromium(): Promise<PlaywrightBrowser> {
     }
   }
 
+  pinBrowsersPath();
   const { chromium } = await import("playwright");
   const attempts: LaunchOptions[] = [
     { headless: true, args: LAUNCH_ARGS },
@@ -292,6 +297,21 @@ function wrapPuppeteerPage(page: PuppeteerPageLike) {
 }
 
 export function pinBrowsersPath(): string {
+  // Vercel/Lambda: only /tmp is writable. @sparticuz/chromium extracts there;
+  // Playwright must not try to install under /var/task.
+  if (isServerlessRuntime()) {
+    const tmp = path.join("/tmp", "raildrop-playwright");
+    try {
+      fs.mkdirSync(tmp, { recursive: true });
+    } catch {
+      // /tmp should always exist on Lambda; ignore rare races.
+    }
+    process.env.PLAYWRIGHT_BROWSERS_PATH = tmp;
+    // Keep Chromium pack extraction on the writable volume.
+    process.env.HOME ??= "/tmp";
+    return tmp;
+  }
+
   const local = path.join(process.cwd(), ".playwright");
   const current = process.env.PLAYWRIGHT_BROWSERS_PATH;
   if (current && browserTreeLooksReady(current)) {
