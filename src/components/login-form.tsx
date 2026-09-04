@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
 import { PageFrame } from "@/components/page-frame";
 import { RouteRibbon } from "@/components/route-ribbon";
@@ -17,6 +17,7 @@ export function LoginForm({
   localMode: boolean;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
@@ -30,6 +31,14 @@ export function LoginForm({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- remember email without hydrating from localStorage on the server
     if (remembered) setEmail(remembered);
   }, []);
+
+  useEffect(() => {
+    const err = searchParams.get("error");
+    if (err) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- surface callback failures
+      setMessage(err === "missing_code" ? "Sign-in link was incomplete. Request a new one." : err);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (sent) codeRef.current?.focus();
@@ -63,8 +72,8 @@ export function LoginForm({
         options: { emailRedirectTo: `${window.location.origin}/api/auth/callback` },
       });
       if (error) throw error;
-      setSent(true);
-      setMessage("Check your email for a magic link or six-digit code.");
+          setSent(true);
+          setMessage("Check your email and click Sign in. You usually won’t get a separate code.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not start sign-in");
     } finally {
