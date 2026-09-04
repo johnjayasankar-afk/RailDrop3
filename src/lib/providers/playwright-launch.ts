@@ -39,7 +39,9 @@ export function sanitizeProviderError(message: string): string {
     lower.includes("npx playwright install") ||
     lower.includes("could not find chromium") ||
     lower.includes("libnss3") ||
-    lower.includes("error while loading shared libraries")
+    lower.includes("error while loading shared libraries") ||
+    lower.includes("input directory") ||
+    lower.includes("@sparticuz/chromium")
   ) {
     return "Browser for live fares is still setting up. Recheck in a minute.";
   }
@@ -64,7 +66,7 @@ export function sanitizeProviderError(message: string): string {
 /**
  * Launch Chromium for fare scraping.
  * Local: Playwright browsers from `.playwright`.
- * Vercel/Lambda: @sparticuz/chromium + puppeteer-core (Playwright CDP wrapper).
+ * Vercel/Lambda: @sparticuz/chromium-min + remote pack into /tmp + puppeteer-core.
  */
 export async function launchChromium(): Promise<PlaywrightBrowser> {
   // Optional hosted browser (Browserless / Browserbase / etc.) — most reliable on Vercel
@@ -140,8 +142,9 @@ export async function launchChromium(): Promise<PlaywrightBrowser> {
 }
 
 async function launchServerlessChromium(): Promise<PlaywrightBrowser | null> {
-  // Bundled for Vercel — no Playwright postinstall browser download required.
-  const sparticuzMod = (await import("@sparticuz/chromium")) as {
+  // Vercel: use chromium-min + remote pack (binaries are NOT traced into /var/task).
+  // Downloads/extracts into /tmp on cold start — does not need node_modules/.../bin.
+  const sparticuzMod = (await import("@sparticuz/chromium-min")) as {
     default?: SparticuzChromium;
   } & SparticuzChromium;
   const chromiumPkg = sparticuzMod.default ?? sparticuzMod;
@@ -153,7 +156,9 @@ async function launchServerlessChromium(): Promise<PlaywrightBrowser | null> {
     // older builds may not expose the setter
   }
 
-  const executablePath = await chromiumPkg.executablePath();
+  const packUrl = resolveChromiumPackUrl();
+  logger.info("provider.serverless_chromium_pack", { packUrl });
+  const executablePath = await chromiumPkg.executablePath(packUrl);
   if (!executablePath || !fs.existsSync(executablePath)) {
     throw new Error(`Serverless Chromium missing at ${executablePath || "(empty)"}`);
   }
@@ -189,9 +194,19 @@ async function launchServerlessChromium(): Promise<PlaywrightBrowser | null> {
   }) as Promise<PlaywrightBrowser>;
 }
 
+const CHROMIUM_PACK_VERSION = "149.0.0";
+
+function resolveChromiumPackUrl(): string {
+  const override = process.env.CHROMIUM_PACK_URL?.trim();
+  if (override) return override;
+  // Vercel Node functions are x86_64 (Amazon Linux). arm64 pack is for local/serverless ARM.
+  const arch = process.arch === "arm64" ? "arm64" : "x64";
+  return `https://github.com/Sparticuz/chromium/releases/download/v${CHROMIUM_PACK_VERSION}/chromium-v${CHROMIUM_PACK_VERSION}-pack.${arch}.tar`;
+}
+
 type SparticuzChromium = {
   args?: string[];
-  executablePath?: () => Promise<string>;
+  executablePath?: (input?: string) => Promise<string>;
   setGraphicsMode?: boolean;
 };
 

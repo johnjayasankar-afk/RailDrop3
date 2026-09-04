@@ -4,7 +4,7 @@ import { getFareProvider } from "@/lib/services";
 import { fareProviderStatus } from "@/lib/providers/create-provider";
 import { isServerlessRuntime } from "@/lib/providers/playwright-launch";
 
-export const maxDuration = 120;
+export const maxDuration = 300;
 export const runtime = "nodejs";
 
 /**
@@ -27,7 +27,7 @@ export async function GET(request: Request) {
     localMode: config.isLocal,
     provider: status.provider,
     health,
-    tip: "Add ?probe=1 to run one live BOS→NYP search (can take up to ~60s).",
+    tip: "Add ?probe=1 to run one live BOS→NYP search. First cold start may take 30–90s while Chromium downloads to /tmp.",
   };
 
   if (wantProbe) {

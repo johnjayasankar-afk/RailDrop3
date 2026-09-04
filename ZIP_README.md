@@ -5,7 +5,7 @@ This zip is the **exact RailDrop app** (Amtrak fare watch). It does **not** incl
 ## What’s inside
 
 - Next.js 16 app: watches, live board, alerts, settings, guest mode
-- Live fares via **Wanderu** (local Playwright; Vercel uses `@sparticuz/chromium` + `puppeteer-core`)
+- Live fares via **Wanderu** (local Playwright; Vercel downloads Chromium pack via `@sparticuz/chromium-min` into `/tmp`)
 - Optional Parse fallback if `PARSE_API_KEY` is set
 - Vercel-safe `postinstall` (skips Playwright Chromium download)
 
