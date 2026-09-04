@@ -6,7 +6,7 @@ import { ProviderNotConfiguredError } from "@/lib/providers/fare-provider";
 import { errorMessage } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 export async function GET() {
   const user = await getSessionUser();

@@ -1341,6 +1341,9 @@ export function WatchDetail({
       {cycleStatus === "PROVIDER_ERROR" ? (
         <p className="mt-3 text-sm text-danger">
           Live fares are unavailable right now. Recheck in a minute.
+          {snapshots.find((snapshot) => snapshot.errorMessage)?.errorMessage
+            ? ` (${snapshots.find((snapshot) => snapshot.errorMessage)?.errorMessage})`
+            : null}
         </p>
       ) : null}
       {actionError ? (

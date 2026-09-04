@@ -10,11 +10,13 @@ import type { FareProvider } from "@/lib/providers/fare-provider";
 import { ParseFareProvider } from "@/lib/providers/parse-fare-provider";
 import { FixtureFareProvider } from "@/lib/providers/fixture-fare-provider";
 import { WanderuBrowserProvider } from "@/lib/providers/wanderu-browser-provider";
+import { FallbackFareProvider } from "@/lib/providers/fallback-fare-provider";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const globalStore = globalThis as unknown as {
   __raildropMemory?: MemoryRepository;
   __raildropMailer?: RecordingMailer;
+  __raildropFareProvider?: FareProvider;
 };
 
 export function getRepository(): RailDropRepository {
@@ -31,18 +33,26 @@ export function getRepository(): RailDropRepository {
 
 /**
  * Live fares only — never invent Amtrak prices.
- * - Local, or no Parse key → Wanderu (browser)
- * - PARSE_API_KEY in cloud → Parse
+ * Default: Wanderu (works local + Vercel without a Parse key).
+ * Optional Parse: set FARE_PROVIDER=parse, or leave a PARSE_API_KEY and Wanderu will
+ * fall back to Parse only when Wanderu returns PROVIDER_ERROR.
  */
 export function getFareProvider(): FareProvider {
+  if (globalStore.__raildropFareProvider) return globalStore.__raildropFareProvider;
   const config = getConfig();
   if (config.isE2E) {
-    return new FixtureFareProvider();
+    globalStore.__raildropFareProvider = new FixtureFareProvider();
+    return globalStore.__raildropFareProvider;
   }
-  if (config.parseApiKey && !config.isLocal) {
-    return new ParseFareProvider();
+  const prefer = (process.env.FARE_PROVIDER ?? "").trim().toLowerCase();
+  if (prefer === "parse") {
+    globalStore.__raildropFareProvider = new ParseFareProvider();
+    return globalStore.__raildropFareProvider;
   }
-  return new WanderuBrowserProvider();
+  const wanderu = new WanderuBrowserProvider();
+  const parse = config.parseApiKey ? new ParseFareProvider() : null;
+  globalStore.__raildropFareProvider = new FallbackFareProvider(wanderu, parse);
+  return globalStore.__raildropFareProvider;
 }
 
 export function getMailer(): Mailer {

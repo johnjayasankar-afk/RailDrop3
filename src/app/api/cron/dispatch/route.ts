@@ -3,6 +3,8 @@ import { getConfig } from "@/lib/config";
 import { dispatchScheduledChecks } from "@/lib/orchestration/dispatcher";
 import { getFareProvider, getMailer, getRepository } from "@/lib/services";
 
+export const maxDuration = 300;
+
 function authorized(request: Request): boolean {
   const config = getConfig();
   const header = request.headers.get("authorization");

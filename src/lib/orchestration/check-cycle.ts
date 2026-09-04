@@ -102,9 +102,10 @@ export async function runWatchCycle(input: {
   let providerRequests = 0;
   let reusedSearches = 0;
   let credits = 0;
-  const parallel = config.isLocal && !config.isE2E;
+  // Local can fan out; Vercel keeps concurrency low (Chromium memory) but >1 when possible.
+  const parallel = config.isE2E ? 1 : config.isLocal ? 3 : 1;
 
-  const dateResults = await mapPool(dates, parallel ? 3 : 1, async (travelDate) => {
+  const dateResults = await mapPool(dates, parallel, async (travelDate) => {
     const request = {
       originCode: watch.originCode,
       destinationCode: watch.destinationCode,

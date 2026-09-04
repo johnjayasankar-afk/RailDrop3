@@ -3,7 +3,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { getFareProvider, getMailer, getRepository } from "@/lib/services";
 import { runWatchCycle } from "@/lib/orchestration/check-cycle";
 
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 export async function POST(_: Request, context: { params: Promise<{ id: string }> }) {
   const user = await getSessionUser();

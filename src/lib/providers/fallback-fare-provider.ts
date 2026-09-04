@@ -1,49 +1,55 @@
 import type { FareSearchRequest, FareSearchResult, Station } from "@/lib/domain/types";
-import type { FareProvider } from "./fare-provider";
 import { logger } from "@/lib/logger";
+import type { FareProvider } from "./fare-provider";
 
+/**
+ * Try primary live source first; fall back to secondary only on PROVIDER_ERROR.
+ * Never invents fares — both providers must be real live sources.
+ */
 export class FallbackFareProvider implements FareProvider {
   readonly id: string;
 
   constructor(
     private readonly primary: FareProvider,
-    private readonly secondary: FareProvider,
+    private readonly secondary: FareProvider | null,
   ) {
     this.id = primary.id;
   }
 
   async searchTrips(request: FareSearchRequest): Promise<FareSearchResult> {
-    const first = await this.primary.searchTrips(request);
-    if (first.status !== "PROVIDER_ERROR") return first;
-    logger.info("provider.fallback", {
+    const primaryResult = await this.primary.searchTrips(request);
+    if (primaryResult.status !== "PROVIDER_ERROR" || !this.secondary) {
+      return primaryResult;
+    }
+    logger.warn("provider.fallback", {
       origin: request.originCode,
       destination: request.destinationCode,
       travelDate: request.travelDate,
-      primaryError: first.providerError?.message,
+      primaryError: primaryResult.providerError?.message ?? null,
+      secondary: this.secondary.id,
     });
-    const second = await this.secondary.searchTrips(request);
+    const secondaryResult = await this.secondary.searchTrips(request);
     return {
-      ...second,
+      ...secondaryResult,
       metadata: {
-        ...second.metadata,
-        rawJourneyRef: second.metadata.rawJourneyRef ?? `fallback-from:${this.primary.id}`,
+        ...secondaryResult.metadata,
+        // Preserve original request id lineage in logs via credits / latency already set.
       },
     };
   }
 
   async getStations(): Promise<Station[]> {
     try {
-      const stations = await this.primary.getStations();
-      if (stations.length > 0) return stations;
+      return await this.primary.getStations();
     } catch {
-      // Use the secondary catalog when the primary source is unavailable.
+      if (this.secondary) return this.secondary.getStations();
+      throw new Error("No fare provider stations available");
     }
-    return this.secondary.getStations();
   }
 
   async healthCheck() {
     const primary = await this.primary.healthCheck();
-    if (primary.ok) return primary;
+    if (primary.ok || !this.secondary) return primary;
     return this.secondary.healthCheck();
   }
 }

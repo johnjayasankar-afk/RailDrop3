@@ -2,16 +2,20 @@
   "installCommand": "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install",
   "functions": {
     "src/app/api/watches/route.ts": {
-      "maxDuration": 120,
-      "memory": 1024
+      "maxDuration": 300,
+      "memory": 3008
     },
     "src/app/api/watches/[id]/check/route.ts": {
-      "maxDuration": 120,
-      "memory": 1024
+      "maxDuration": 300,
+      "memory": 3008
     },
     "src/app/api/cron/dispatch/route.ts": {
       "maxDuration": 300,
-      "memory": 1024
+      "memory": 3008
+    },
+    "src/app/api/health/provider/route.ts": {
+      "maxDuration": 120,
+      "memory": 3008
     }
   },
   "crons": [

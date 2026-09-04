@@ -26,21 +26,31 @@ const LAUNCH_ARGS = ["--disable-blink-features=AutomationControlled", "--disable
 let installPromise: Promise<boolean> | null = null;
 let installSucceeded = false;
 
+export function isServerlessRuntime(): boolean {
+  return process.env.VERCEL === "1" || Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
+}
+
 export function sanitizeProviderError(message: string): string {
   const lower = message.toLowerCase();
   if (
     lower.includes("executable doesn't exist") ||
     lower.includes("playwright was just installed") ||
     lower.includes("browserType.launch") ||
-    lower.includes("npx playwright install")
+    lower.includes("npx playwright install") ||
+    lower.includes("could not find chromium") ||
+    lower.includes("libnss3") ||
+    lower.includes("error while loading shared libraries")
   ) {
     return "Browser for live fares is still setting up. Recheck in a minute.";
   }
-  if (lower.includes("timeout") || lower.includes("navigation")) {
+  if (lower.includes("timeout") || lower.includes("navigation") || lower.includes("timed out")) {
     return "Live fare search timed out. Recheck in a minute.";
   }
   if (lower.includes("wanderu returned no trip data")) {
     return "No live trips came back for this window. Recheck in a minute.";
+  }
+  if (lower.includes("net::err") || lower.includes("cloudflare") || lower.includes("just a moment")) {
+    return "Live fare site blocked this check. Recheck in a minute.";
   }
   // Never dump stack / box-drawing installer essays into the UI.
   const firstLine = message.split("\n")[0]?.trim() ?? "Live fare search failed";
@@ -48,11 +58,36 @@ export function sanitizeProviderError(message: string): string {
   return firstLine;
 }
 
+/**
+ * Launch Chromium for fare scraping.
+ * Local: Playwright browsers from `.playwright`.
+ * Vercel/Lambda: @sparticuz/chromium + puppeteer-core (Playwright CDP wrapper).
+ */
 export async function launchChromium(): Promise<PlaywrightBrowser> {
   pinBrowsersPath();
 
-  // Vercel / Lambda: use the serverless Chromium build (no postinstall browser download).
-  if (process.env.VERCEL === "1" || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+  // Optional hosted browser (Browserless / Browserbase / etc.) — most reliable on Vercel
+  // when Cloudflare blocks datacenter IPs. Example:
+  // BROWSER_WS_ENDPOINT=wss://chrome.browserless.io?token=...
+  const remote = process.env.BROWSER_WS_ENDPOINT?.trim();
+  if (remote) {
+    try {
+      const { chromium } = await import("playwright-core");
+      logger.info("provider.remote_browser_connect", { endpointHost: safeWsHost(remote) });
+      try {
+        return (await chromium.connectOverCDP(remote)) as unknown as PlaywrightBrowser;
+      } catch {
+        return (await chromium.connect(remote)) as unknown as PlaywrightBrowser;
+      }
+    } catch (error) {
+      logger.error("provider.remote_browser_failed", {
+        message: error instanceof Error ? error.message : String(error),
+      });
+      // Fall through to local/serverless launch.
+    }
+  }
+
+  if (isServerlessRuntime()) {
     try {
       const serverless = await launchServerlessChromium();
       if (serverless) return serverless;
@@ -60,6 +95,7 @@ export async function launchChromium(): Promise<PlaywrightBrowser> {
       logger.error("provider.serverless_chromium_failed", {
         message: error instanceof Error ? error.message : String(error),
       });
+      throw toProviderError(error);
     }
   }
 
@@ -100,20 +136,159 @@ export async function launchChromium(): Promise<PlaywrightBrowser> {
 
 async function launchServerlessChromium(): Promise<PlaywrightBrowser | null> {
   // Bundled for Vercel — no Playwright postinstall browser download required.
-  const sparticuz = (await import("@sparticuz/chromium")) as {
-    default?: { args: string[]; executablePath: () => Promise<string> };
-    args?: string[];
-    executablePath?: () => Promise<string>;
-  };
-  const chromiumPkg = sparticuz.default ?? sparticuz;
+  const sparticuzMod = (await import("@sparticuz/chromium")) as {
+    default?: SparticuzChromium;
+  } & SparticuzChromium;
+  const chromiumPkg = sparticuzMod.default ?? sparticuzMod;
   if (!chromiumPkg.executablePath) return null;
-  const { chromium } = await import("playwright-core");
+
+  try {
+    chromiumPkg.setGraphicsMode = false;
+  } catch {
+    // older builds may not expose the setter
+  }
+
   const executablePath = await chromiumPkg.executablePath();
+  if (!executablePath || !fs.existsSync(executablePath)) {
+    throw new Error(`Serverless Chromium missing at ${executablePath || "(empty)"}`);
+  }
+
+  const args = [...(chromiumPkg.args ?? []), ...LAUNCH_ARGS];
+  logger.info("provider.serverless_chromium_launch", {
+    executablePath,
+    args: args.length,
+  });
+
+  // Prefer puppeteer-core on Lambda — it is the supported pairing for @sparticuz/chromium.
+  try {
+    const puppeteer = await import("puppeteer-core");
+    const browser = await puppeteer.default.launch({
+      args,
+      defaultViewport: { width: 1440, height: 900 },
+      executablePath,
+      headless: true,
+    });
+    return wrapPuppeteerBrowser(browser as unknown as PuppeteerBrowserLike);
+  } catch (error) {
+    logger.error("provider.puppeteer_launch_failed", {
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  // Fallback: playwright-core against the same binary.
+  const { chromium } = await import("playwright-core");
   return chromium.launch({
-    args: [...(chromiumPkg.args ?? []), ...LAUNCH_ARGS],
+    args,
     executablePath,
     headless: true,
   }) as Promise<PlaywrightBrowser>;
+}
+
+type SparticuzChromium = {
+  args?: string[];
+  executablePath?: () => Promise<string>;
+  setGraphicsMode?: boolean;
+};
+
+type PuppeteerBrowserLike = {
+  connected?: boolean;
+  isConnected?: () => boolean;
+  createBrowserContext?: () => Promise<PuppeteerContextLike>;
+  newPage: () => Promise<PuppeteerPageLike>;
+  close: () => Promise<void>;
+};
+
+type PuppeteerContextLike = {
+  newPage: () => Promise<PuppeteerPageLike>;
+  close: () => Promise<void>;
+};
+
+type PuppeteerPageLike = {
+  setUserAgent?: (ua: string) => Promise<void>;
+  setExtraHTTPHeaders?: (headers: Record<string, string>) => Promise<void>;
+  setViewport?: (viewport: { width: number; height: number }) => Promise<void>;
+  goto: (url: string, options?: { waitUntil?: string | string[]; timeout?: number }) => Promise<unknown>;
+  waitForFunction: (
+    fn: (...args: unknown[]) => unknown,
+    options?: { timeout?: number },
+    ...args: unknown[]
+  ) => Promise<unknown>;
+  evaluate: <T>(fn: (...args: unknown[]) => T | Promise<T>, ...args: unknown[]) => Promise<T>;
+  on: (event: string, handler: (...args: unknown[]) => void) => void;
+  close: () => Promise<void>;
+};
+
+/**
+ * Adapt puppeteer-core to the small Playwright-shaped surface WanderuBrowserProvider uses.
+ */
+function wrapPuppeteerBrowser(browser: PuppeteerBrowserLike): PlaywrightBrowser {
+  return {
+    isConnected: () => {
+      if (typeof browser.isConnected === "function") return browser.isConnected();
+      return browser.connected !== false;
+    },
+    newContext: async (options?: Record<string, unknown>) => {
+      const context =
+        typeof browser.createBrowserContext === "function"
+          ? await browser.createBrowserContext()
+          : null;
+      const userAgent =
+        typeof options?.userAgent === "string"
+          ? options.userAgent
+          : "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36";
+      const extraHeaders =
+        options?.extraHTTPHeaders && typeof options.extraHTTPHeaders === "object"
+          ? (options.extraHTTPHeaders as Record<string, string>)
+          : { "Accept-Language": "en-US,en;q=0.9" };
+      const viewport =
+        options?.viewport && typeof options.viewport === "object"
+          ? (options.viewport as { width: number; height: number })
+          : { width: 1440, height: 900 };
+
+      return {
+        newPage: async () => {
+          const page = context ? await context.newPage() : await browser.newPage();
+          await page.setUserAgent?.(userAgent);
+          await page.setExtraHTTPHeaders?.(extraHeaders);
+          await page.setViewport?.(viewport);
+          return wrapPuppeteerPage(page);
+        },
+        close: async () => {
+          await context?.close().catch(() => undefined);
+        },
+      };
+    },
+    close: () => browser.close(),
+  };
+}
+
+function wrapPuppeteerPage(page: PuppeteerPageLike) {
+  return {
+    goto: (url: string, options?: { waitUntil?: string; timeout?: number }) =>
+      page.goto(url, {
+        waitUntil: (options?.waitUntil as "domcontentloaded") ?? "domcontentloaded",
+        timeout: options?.timeout ?? 45000,
+      }),
+    waitForFunction: (
+      fn: () => unknown,
+      _arg?: unknown,
+      options?: { timeout?: number },
+    ) => page.waitForFunction(fn, { timeout: options?.timeout ?? 35000 }),
+    evaluate: <T>(fn: () => T) => page.evaluate(fn),
+    on: (event: "response", handler: (response: { url: () => string; json: () => Promise<unknown> }) => void) => {
+      page.on("response", (response: unknown) => {
+        const res = response as {
+          url: () => string;
+          json: () => Promise<unknown>;
+        };
+        handler({
+          url: () => res.url(),
+          json: () => res.json(),
+        });
+      });
+    },
+    close: () => page.close(),
+  };
 }
 
 export function pinBrowsersPath(): string {
@@ -206,4 +381,12 @@ function runPlaywrightInstall(browsersPath: string): Promise<void> {
       else reject(new Error(`Playwright install exited ${code ?? "null"}`));
     });
   });
+}
+
+function safeWsHost(endpoint: string): string {
+  try {
+    return new URL(endpoint).host;
+  } catch {
+    return "invalid-ws-url";
+  }
 }
