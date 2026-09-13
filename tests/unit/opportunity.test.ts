@@ -1,78 +1,131 @@
-import { describe, expect, it } from "vitest";
-import { OpportunityComparator, compareOpportunities } from "@/lib/domain/opportunity";
-import type { OpportunityFingerprint, RankedCandidate } from "@/lib/domain/types";
+import { describe, expect, it } from 'vitest';
+import { evaluateEligibility } from '@/lib/domain/eligibility';
+import { buildOpportunities, opportunitySignature } from '@/lib/domain/opportunity';
+import { derivePartyTotal } from '@/lib/providers/parse/adapter';
+import {
+  makeCandidate,
+  makeFare,
+  makeJourney,
+  makeRequest,
+  makeResult,
+  makeWatch,
+} from '../helpers/factories';
 
-const fingerprint = (
-  partial: Partial<OpportunityFingerprint> & Pick<OpportunityFingerprint, "bestPriceCents">,
-): OpportunityFingerprint => ({
-  bestJourneyKey: "key",
-  bestTravelDate: "2026-09-19",
-  sameDayBestPriceCents: null,
-  sameDayJourneyKey: null,
-  qualifyingCount: 1,
-  ...partial,
+function dated(date: string, displacement: number, cents: number, id = date) {
+  return {
+    result: makeResult(
+      [
+        makeJourney({
+          providerJourneyId: id,
+          travelDate: date,
+          departureLocal: `${date}T07:05`,
+          arrivalLocal: `${date}T11:14`,
+          fares: [makeFare({ id: `${id}-f`, amountCents: cents, partyTotalCents: cents })],
+        }),
+      ],
+      { request: makeRequest({ date }) },
+    ),
+    searchDate: { date, displacementDays: displacement },
+  };
+}
+
+describe('opportunity engine', () => {
+  const watch = makeWatch({ benchmarkCents: 12800 });
+
+  it('qualifies only options at or below benchmark minus minimum savings', () => {
+    const eligibility = evaluateEligibility(watch, [
+      dated('2026-09-19', -1, 7400),
+      dated('2026-09-20', 0, 12500), // only $3 cheaper, below the $5 threshold
+      dated('2026-09-21', 1, 12800), // same price
+    ]);
+    const out = buildOpportunities({ watch, benchmarkCents: 12800, eligibility });
+
+    expect(out.opportunities.map((o) => o.totalCents)).toEqual([7400]);
+    expect(out.allRanked).toHaveLength(3);
+    expect(out.bestTotalCents).toBe(7400);
+  });
+
+  it('computes savings against the benchmark', () => {
+    const eligibility = evaluateEligibility(watch, [dated('2026-09-19', -1, 7400)]);
+    const out = buildOpportunities({ watch, benchmarkCents: 12800, eligibility });
+    expect(out.opportunities[0]?.savingsCents).toBe(5400);
+  });
+
+  it('records the cheapest price per date for the fare strip', () => {
+    const eligibility = evaluateEligibility(watch, [
+      dated('2026-09-19', -1, 7400),
+      dated('2026-09-20', 0, 8100),
+      dated('2026-09-21', 1, 8600),
+    ]);
+    const out = buildOpportunities({ watch, benchmarkCents: 12800, eligibility });
+    expect([...out.cheapestByDate.entries()].sort()).toEqual([
+      ['2026-09-19', 7400],
+      ['2026-09-20', 8100],
+      ['2026-09-21', 8600],
+    ]);
+  });
+
+  it('produces a price-independent signature so identity survives a price change', () => {
+    const a = makeCandidate({ fare: { amountCents: 8900, partyTotalCents: 8900 } });
+    const b = makeCandidate({ fare: { amountCents: 9500, partyTotalCents: 9500 } });
+    expect(opportunitySignature(a)).toBe(opportunitySignature(b));
+  });
+
+  it('flags ambiguous party pricing rather than trusting it', () => {
+    const partyWatch = makeWatch({ passengers: 2, benchmarkCents: 25600 });
+    const ambiguous = derivePartyTotal(7400, 2, 'UNKNOWN');
+    expect(ambiguous.pricingConfidence).toBe('AMBIGUOUS');
+
+    const eligibility = evaluateEligibility(partyWatch, [
+      {
+        result: makeResult(
+          [
+            makeJourney({
+              fares: [
+                makeFare({
+                  amountCents: 7400,
+                  partyTotalCents: ambiguous.partyTotalCents,
+                  pricingConfidence: 'AMBIGUOUS',
+                }),
+              ],
+            }),
+          ],
+          { request: makeRequest({ passengers: 2 }) },
+        ),
+        searchDate: { date: '2026-09-20', displacementDays: 0 },
+      },
+    ]);
+    const out = buildOpportunities({ watch: partyWatch, benchmarkCents: 25600, eligibility });
+    expect(out.opportunities[0]?.pricingAmbiguous).toBe(true);
+  });
 });
 
-describe("OpportunityComparator", () => {
-  it("emails the first qualifying drop and not an unchanged repeat", () => {
-    expect(compareOpportunities(null, fingerprint({ bestPriceCents: 9900 }))).toEqual({
-      notify: true,
-      reason: "first_qualifying",
+describe('party pricing derivation', () => {
+  it('multiplies for a confirmed per-passenger basis', () => {
+    expect(derivePartyTotal(7400, 2, 'PER_PASSENGER')).toEqual({
+      partyTotalCents: 14800,
+      pricingConfidence: 'CONFIRMED',
     });
-    expect(
-      compareOpportunities(
-        fingerprint({ bestPriceCents: 9900 }),
-        fingerprint({ bestPriceCents: 9900 }),
-      ),
-    ).toEqual({ notify: false, reason: "unchanged" });
   });
 
-  it("emails when the best price improves", () => {
-    expect(
-      compareOpportunities(
-        fingerprint({ bestPriceCents: 9900 }),
-        fingerprint({ bestPriceCents: 8900 }),
-      ),
-    ).toEqual({ notify: true, reason: "better_price" });
+  it('leaves a confirmed total-party price alone', () => {
+    expect(derivePartyTotal(14800, 2, 'TOTAL_PARTY')).toEqual({
+      partyTotalCents: 14800,
+      pricingConfidence: 'CONFIRMED',
+    });
   });
 
-  it("may email when a same-day alternative appears near the best price", () => {
-    expect(
-      compareOpportunities(
-        fingerprint({ bestPriceCents: 8900, sameDayBestPriceCents: null }),
-        fingerprint({
-          bestPriceCents: 8900,
-          sameDayBestPriceCents: 9000,
-          sameDayJourneyKey: "same",
-        }),
-      ),
-    ).toEqual({ notify: true, reason: "better_convenience" });
+  it('treats a single passenger as unambiguous even with an unknown basis', () => {
+    expect(derivePartyTotal(7400, 1, 'UNKNOWN')).toEqual({
+      partyTotalCents: 7400,
+      pricingConfidence: 'UNAMBIGUOUS_SINGLE',
+    });
   });
 
-  it("does not treat a $128 booking with no cheaper fare as an alert", () => {
-    const comparator = new OpportunityComparator();
-    const result = comparator.decide(null, [], 12800, 100);
-    expect(result.decision).toEqual({ notify: false, reason: "no_qualifying" });
-  });
-
-  it("qualifies any window date under the threshold", () => {
-    const comparator = new OpportunityComparator();
-    const candidate = {
-      totalPartyPriceCents: 7400,
-      savingsCents: 5400,
-      dateOffsetDays: -1,
-      preferredTimeDeltaMinutes: null,
-      rankScore: 0,
-      journey: {
-        id: "179",
-        searchedTravelDate: "2026-09-19",
-        trainNumber: "179",
-        departureAt: "2026-09-19T07:05:00",
-      },
-      fare: { fareFamily: "FLEXIBLE", travelClass: "COACH" },
-    } as RankedCandidate;
-    const result = comparator.decide(null, [candidate], 12800, 100);
-    expect(result.decision.notify).toBe(true);
-    expect(result.qualifying).toHaveLength(1);
+  it('marks multi-passenger unknown-basis prices ambiguous', () => {
+    expect(derivePartyTotal(7400, 3, 'UNKNOWN')).toEqual({
+      partyTotalCents: 22200,
+      pricingConfidence: 'AMBIGUOUS',
+    });
   });
 });

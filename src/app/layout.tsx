@@ -1,68 +1,65 @@
-import type { Metadata, Viewport } from "next";
-import localFont from "next/font/local";
-import { LocalModeBanner } from "@/components/local-mode-banner";
-import "./globals.css";
-
-// The Labs family type, self-hosted: Inter for reading, IBM Plex Mono for codes and times.
-const sans = localFont({
-  src: "./fonts/inter-var.woff2",
-  variable: "--font-sans-loaded",
-  weight: "100 900",
-  display: "swap",
-});
-
-const mono = localFont({
-  src: [
-    { path: "./fonts/ibm-plex-mono-400.woff2", weight: "400", style: "normal" },
-    { path: "./fonts/ibm-plex-mono-500.woff2", weight: "500", style: "normal" },
-  ],
-  variable: "--font-mono-loaded",
-  display: "swap",
-});
+import type { Metadata, Viewport } from 'next';
+import { AppClient } from '@/components/AppClient';
+import { mono, sans } from './fonts';
+import './globals.css';
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://rail-drop3.vercel.app"),
   title: {
-    default: "RailDrop — Know when your train gets cheaper",
-    template: "%s · RailDrop",
+    default: 'RailDrop — Know when your train gets cheaper',
+    template: '%s · RailDrop',
   },
   description:
-    "Book the trip. RailDrop watches every bookable Amtrak rail option across your window and emails you when it actually gets cheaper.",
-  applicationName: "RailDrop",
-  keywords: ["Amtrak", "train", "fare watch", "Northeast Corridor", "Acela"],
+    'RailDrop watches Amtrak fares after you have already bought a ticket, and tells you when a materially cheaper option appears on your route.',
+  applicationName: 'RailDrop',
+  robots: { index: true, follow: true },
+  manifest: '/manifest.webmanifest',
+  appleWebApp: { capable: true, title: 'RailDrop', statusBarStyle: 'default' },
+  formatDetection: { telephone: false },
+  icons: {
+    icon: [
+      { url: '/favicon-32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180' }],
+  },
   openGraph: {
-    title: "RailDrop — Know when your train gets cheaper",
-    description: "Live Amtrak fare watch for trips you already booked.",
-    type: "website",
-    locale: "en_US",
+    type: 'website',
+    siteName: 'RailDrop',
+    title: 'RailDrop — Know when your train gets cheaper',
+    description:
+      'Watches Amtrak fares after you have already bought a ticket, and tells you when a materially cheaper option appears.',
   },
-  twitter: {
-    card: "summary_large_image",
-    title: "RailDrop",
-    description: "Know when your train gets cheaper.",
-  },
-  robots: {
-    index: true,
-    follow: true,
-  },
-  category: "travel",
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f8f6f1",
-  width: "device-width",
+  width: 'device-width',
   initialScale: 1,
-  viewportFit: "cover",
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#fbfaf8' },
+    { media: '(prefers-color-scheme: dark)', color: '#0e0d0c' },
+  ],
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+/**
+ * Applies the saved theme before first paint. Without this the page flashes the
+ * system theme for a frame before React hydrates. Static string, no interpolation.
+ */
+const THEME_BOOTSTRAP = `(function(){try{var t=localStorage.getItem('rd-theme');if(t==='dark'||t==='light'){document.documentElement.setAttribute('data-theme',t)}}catch(e){}})()`;
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${sans.variable} ${mono.variable} h-full antialiased`}>
-      <body className="relative z-0 min-h-full bg-paper text-ink">
-        <div className="relative z-10">
-          <LocalModeBanner />
-          {children}
-        </div>
+    <html lang="en" suppressHydrationWarning className={`${sans.variable} ${mono.variable}`}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
+      </head>
+      <body className="min-h-dvh antialiased">
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-invert focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-on-invert"
+        >
+          Skip to content
+        </a>
+        <AppClient>{children}</AppClient>
       </body>
     </html>
   );

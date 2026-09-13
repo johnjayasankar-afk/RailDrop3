@@ -1,122 +1,94 @@
-import { redirect } from "next/navigation";
-import { PageFrame } from "@/components/page-frame";
-import { getSessionUser, guestEntryHref } from "@/lib/auth/session";
-import { getConfig } from "@/lib/config";
-import { getRepository } from "@/lib/services";
-import { fareProviderStatus } from "@/lib/providers/create-provider";
-import { ConnectLiveFares } from "@/components/connect-live-fares";
-import { Flap } from "@/components/flap";
-import { localIsoDate } from "@/lib/domain/timezone";
-import Link from "next/link";
+import { redirect } from 'next/navigation';
 
-export const dynamic = "force-dynamic";
+import { AppShell, signOut } from '@/components/AppShell';
+import { DangerZone } from '@/components/DangerZone';
+import { SettingsForm, type SettingsValues } from '@/components/SettingsForm';
+import { Notice } from '@/components/ui';
+import { minutesToClock } from '@/lib/domain/quiet-hours';
+import { getCurrentUser, getServerSupabase } from '@/lib/db/server';
+import { getServerEnv, isSupabaseConfigured } from '@/lib/env';
+
+export const dynamic = 'force-dynamic';
+export const metadata = { title: 'Settings' };
 
 export default async function SettingsPage() {
-  const user = await getSessionUser();
-  if (!user) redirect(guestEntryHref("/settings"));
-  const config = getConfig();
-  const usage = await getRepository().getUsage(localIsoDate(new Date(), "America/New_York"));
-  const provider = fareProviderStatus();
-  const projected = (usage?.credits ?? 0) * 30;
-  const overBudget = projected > config.providerMonthlyCreditBudget;
+  if (!isSupabaseConfigured()) redirect('/dashboard');
+  const user = await getCurrentUser();
+  if (!user) redirect('/login?next=/settings');
+
+  const db = await getServerSupabase();
+  const { data } = await db
+    .from('profiles')
+    .select(
+      'email, email_alerts, push_alerts, quiet_hours_start, quiet_hours_end, timezone, default_min_savings_cents',
+    )
+    .eq('id', user.id)
+    .maybeSingle();
+
+  const row = data as {
+    email: string | null;
+    email_alerts: boolean | null;
+    push_alerts: boolean | null;
+    quiet_hours_start: number | null;
+    quiet_hours_end: number | null;
+    timezone: string | null;
+    default_min_savings_cents: number | null;
+  } | null;
+
+  const env = getServerEnv();
+  const initial: SettingsValues = {
+    email: row?.email ?? user.email,
+    emailAlerts: row?.email_alerts ?? true,
+    pushAlerts: row?.push_alerts ?? true,
+    quietHoursStart: minutesToClock(row?.quiet_hours_start ?? null),
+    quietHoursEnd: minutesToClock(row?.quiet_hours_end ?? null),
+    timezone: row?.timezone ?? env.defaultTimezone,
+    defaultMinSavingsCents: row?.default_min_savings_cents ?? env.alertMaterialDropCents,
+  };
 
   return (
-    <PageFrame email={user.email} isGuest={Boolean(user.isGuest)}>
-      <main id="main" className="mx-auto max-w-2xl px-4 py-8">
-        <div className="depart-strip">
-          <Flap>SET</Flap>
-          <span className="depart-strip-rule" aria-hidden />
-          <Flap>FARES</Flap>
-        </div>
-        <h1 className="serif mt-6 text-4xl">Settings</h1>
-        <p className="mt-2 text-ink-soft">
-          {user.isGuest
-            ? "Guest session — sign in only if you want an account. Alerts use the email on each watch."
-            : user.email}
+    <AppShell email={user.email} active="settings">
+      <div className="mx-auto max-w-2xl">
+        <h1 className="text-[28px] font-bold tracking-tight text-ink sm:text-[32px]">Settings</h1>
+        <p className="mt-1.5 text-[14px] text-muted">
+          How and when RailDrop reaches you, and the defaults for new trips.
         </p>
-        {user.isGuest ? (
-          <p className="mt-4 text-sm">
-            <Link href="/login" className="text-ink underline">
-              Sign in with email
-            </Link>{" "}
-            (optional)
-          </p>
+
+        {!row ? (
+          <div className="mt-5">
+            <Notice tone="warn" title="No profile row yet">
+              Your profile is created on first sign-in. If this persists, the{' '}
+              <code>on_auth_user_created</code> trigger may not be installed — run{' '}
+              <code>npm run db:verify</code>.
+            </Notice>
+          </div>
         ) : null}
-        {config.isLocal ? <ConnectLiveFares live={Boolean(config.parseApiKey)} /> : null}
-        <section className="panel mt-8 p-5 text-sm">
-          <h2 className="text-xs uppercase tracking-[0.16em] text-ink-soft">Provider usage</h2>
-          <dl className="mt-4 grid grid-cols-2 gap-3">
-            <div>
-              <dt className="text-xs uppercase tracking-[0.14em] text-ink-soft">Credits today</dt>
-              <dd className="serif text-2xl">
-                <Flap>{String(usage?.credits ?? 0)}</Flap>
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs uppercase tracking-[0.14em] text-ink-soft">
-                Successful searches
-              </dt>
-              <dd className="serif text-2xl">
-                <Flap>{String(usage?.successes ?? 0)}</Flap>
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs uppercase tracking-[0.14em] text-ink-soft">Failed searches</dt>
-              <dd className="serif text-2xl">
-                <Flap>{String(usage?.failures ?? 0)}</Flap>
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs uppercase tracking-[0.14em] text-ink-soft">Monthly budget</dt>
-              <dd className="serif text-2xl">
-                <Flap>{String(config.providerMonthlyCreditBudget)}</Flap>
-              </dd>
-            </div>
-          </dl>
-          <p className="mt-4 text-ink-soft">
-            Credits per search: {config.providerCreditsPerSearch}
-          </p>
-          {overBudget ? (
-            <p className="mt-3 text-drop">
-              Projected monthly usage may exceed the configured budget.
+
+        <div className="mt-7">
+          <SettingsForm initial={initial} />
+        </div>
+
+        {/* Account. Sign-out lives here as well as in the desktop header,
+            because on mobile the header has no room for it. */}
+        <section className="mt-8 border-t border-line pt-6">
+          <h2 className="rd-label">Account</h2>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-[13.5px] text-muted">
+              Signed in as <span className="font-semibold text-ink">{user.email}</span>
             </p>
-          ) : (
-            <p className="mt-3 text-ink-soft">Projected usage is inside the configured budget.</p>
-          )}
-          <p className="mt-2 text-ink-soft">{provider.message}</p>
+            <form action={signOut}>
+              <button
+                type="submit"
+                className="rd-btn rd-btn-secondary !min-h-11 !px-4 !text-[14px]"
+              >
+                Sign out
+              </button>
+            </form>
+          </div>
         </section>
-        <section className="panel mt-6 p-5 text-sm">
-          <h2 className="text-xs uppercase tracking-[0.16em] text-ink-soft">Keyboard</h2>
-          <ul className="mt-3 space-y-2 text-ink-soft">
-            <li>
-              <kbd>C</kbd> recheck live fares
-            </li>
-            <li>
-              <kbd>J</kbd> / <kbd>K</kbd> walk trains · <kbd>Enter</kbd> open Amtrak
-            </li>
-            <li>
-              <kbd>H</kbd> hide a train this visit · <kbd>U</kbd> undo
-            </li>
-            <li>
-              <kbd>Y</kbd> copy you vs this · <kbd>W</kbd> copy the window · <kbd>F</kbd> copy
-              Amtrak fields
-            </li>
-            <li>
-              <kbd>R</kbd> jump to I rebooked
-            </li>
-            <li>
-              <kbd>Z</kbd> zen · <kbd>G</kbd> jump to timetable · <kbd>Esc</kbd> clear filters
-            </li>
-          </ul>
-        </section>
-        <section className="panel mt-6 p-5 text-sm text-ink-soft">
-          <h2 className="text-xs uppercase tracking-[0.16em] text-ink">Honest limits</h2>
-          <p className="mt-3">
-            Listed fares come from live inventory. Confirm on Amtrak before you change a ticket. We
-            never invent a fare or change fee.
-          </p>
-        </section>
-      </main>
-    </PageFrame>
+
+        <DangerZone />
+      </div>
+    </AppShell>
   );
 }

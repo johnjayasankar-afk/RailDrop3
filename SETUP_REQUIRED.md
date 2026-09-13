@@ -1,100 +1,270 @@
-# Remaining human actions
+# SETUP_REQUIRED
 
-These are the only steps this environment could not finish. No API keys or cloud logins were available here.
+Everything that can be built, tested and verified without external credentials **has been**.
+What remains needs accounts and secrets that only you can create.
 
-## 1. Parse fare data
+Each step lists the exact command to run once you have the key.
 
-1. Create an API key at [https://parse.bot](https://parse.bot) → Settings → API Keys. The value starts with `pmx_`.
-2. Confirm marketplace API `amtrak-com-api` / scraper `f800c27d-0aaa-4ca0-864e-4dc69e20f764`.
-3. Set the secret on Vercel and locally:
+---
+
+## Status of external integrations
+
+| Integration                                | State                        | Why                                                                                                                                                                                                        |
+| ------------------------------------------ | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Fare provider (Parse.bot `amtrak-com-api`) | **Not live-verified**        | No `PARSE_API_KEY` exists on this machine. The client, error taxonomy and normalizer are fully unit-tested against realistic payloads, but no real response has been observed.                             |
+| Supabase (Postgres / Auth / Cron)          | **Not deployed**             | No Supabase project or CLI is available here. Migrations and RLS are verified against a real PostgreSQL 17 (embedded), so they are known-good SQL — they have simply not been applied to a hosted project. |
+| Resend email                               | **Not live-verified**        | No `RESEND_API_KEY`. Rendering, escaping and the transport contract are unit-tested; no real message has been sent.                                                                                        |
+| Vercel deployment                          | **Not deployed**             | No Vercel CLI or token is available here.                                                                                                                                                                  |
+| Amtrak deep link                           | **Deliberately not enabled** | No official prefill contract exists. RailDrop ships the generic handoff, which is honest and unbreakable. See ADR-003.                                                                                     |
+
+Nothing above is reported as working. See the final report for what _is_ verified.
+
+---
+
+## 1. Supabase (required)
+
+1. Create a project at <https://supabase.com/dashboard>.
+2. From **Project Settings → API**, copy the Project URL, the `anon` key and the `service_role` key.
+3. From **Project Settings → Database**, copy the connection string (session pooler is fine).
+4. Put them in `.env.local` (and later in Vercel):
+
+   ```
+   NEXT_PUBLIC_SUPABASE_URL=https://<ref>.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key>
+   SUPABASE_SERVICE_ROLE_KEY=<service role key>
+   SUPABASE_DB_URL=postgresql://postgres:<password>@<host>:5432/postgres
+   ```
+
+5. Apply the schema and seed the station catalog:
+
+   ```bash
+   npm run db:push
+   ```
+
+   (`supabase db push` works equally well if you install the CLI. `db:push` needs only
+   `SUPABASE_DB_URL`, so no CLI is required.)
+
+6. Confirm it:
+
+   ```bash
+   npm run db:verify
+   ```
+
+7. In **Authentication → URL Configuration**, add `http://localhost:3000/auth/callback` and
+   `https://<your-domain>/auth/callback` to the redirect allow-list.
+
+---
+
+## 2. Fare provider (required)
+
+1. Create an account at <https://parse.bot> and subscribe to the **Amtrak API** in the marketplace
+   (`amtrak-com-api`). The free tier is 200 credits/month at 5 requests/minute; `search_trains`
+   costs 2 credits per call.
+2. Copy your API key (it starts with `pmx_`) into `.env.local`:
+
+   ```
+   PARSE_API_KEY=pmx_...
+   ```
+
+3. **Prove you are getting live fares** (~2 credits). This is the single most important
+   command in this file:
+
+   ```bash
+   npm run verify:live -- BOS NYP 2026-10-15
+   ```
+
+   It prints every normalized journey and fare, runs plausibility checks that would catch a stale,
+   synthetic or 100x-mis-scaled feed, and then tells you exactly what to compare on amtrak.com.
+   It deliberately does not call an HTTP 200 a success — **until you have compared one fare against
+   amtrak.com with your own eyes, treat the feed as unverified.**
+
+   For a deeper schema fingerprint (~2 more credits):
+
+   ```bash
+   npm run probe:provider -- BOS NYP 2026-10-15
+   ```
+
+   This prints the field aliases the adapter matched, the first normalized journey, and writes
+   `docs/provider-schema-fingerprint.json`. If it reports a `SCHEMA` error, the response shape has
+   moved: add the new aliases to the `A` table in `src/lib/providers/parse/adapter.ts`.
+
+   Sanity-check the printed fare amounts against amtrak.com. If they are 100× off, set
+   `PROVIDER_AMOUNT_UNIT=cents`.
+
+4. **Resolve party pricing** (~4 credits). This is required before RailDrop will alert on any
+   multi-passenger trip:
+
+   ```bash
+   npm run verify:party-pricing -- BOS NYP 2026-10-15
+   ```
+
+   It prints a verdict and the exact line to set:
+
+   ```
+   PROVIDER_PRICING_BASIS=TOTAL_PARTY     # or PER_PASSENGER
+   ```
+
+   Until this is set, single-passenger watches work normally (both interpretations agree) and
+   multi-passenger watches are displayed but never emailed about. That suppression is deliberate.
+
+5. Align the budget with your plan:
+
+   ```
+   PROVIDER_CREDITS_PER_SEARCH=2
+   PROVIDER_MONTHLY_CREDIT_BUDGET=5000
+   ```
+
+6. Optionally replace the bootstrap station catalog with the provider's own (~2 credits):
+
+   ```bash
+   npm run refresh:stations
+   ```
+
+---
+
+## 3. Email (required for alerts)
+
+1. Create an account at <https://resend.com>, verify a sending domain, and create an API key.
+2. Set:
+
+   ```
+   RESEND_API_KEY=re_...
+   RESEND_FROM=RailDrop <alerts@yourdomain.com>
+   ```
+
+3. Send one real message and confirm acceptance:
+
+   ```bash
+   npm run email:test -- you@example.com
+   ```
+
+---
+
+## 4. Cron secret (already generated)
+
+A cryptographically random 256-bit `CRON_SECRET` has been generated into `.env.local`
+(git-ignored). Read it with:
 
 ```bash
-vercel env add PARSE_API_KEY production
+grep CRON_SECRET .env.local
 ```
 
-Local:
+To rotate it:
 
 ```bash
-# in .env.local
-PARSE_API_KEY=pmx_your_key
+npm run gen:cron-secret
 ```
 
-Without this key, RailDrop will not invent Amtrak fares.
+---
 
-## 2. Supabase
+## 5. Optional: push notifications
 
-1. Create a project at [https://supabase.com/dashboard](https://supabase.com/dashboard).
-2. Authentication → Providers → Email: enable magic link / OTP.
-3. Authentication → URL configuration: add `https://YOUR_DOMAIN/api/auth/callback` and `http://localhost:3000/api/auth/callback`.
-4. SQL editor: run `supabase/migrations/20260902100000_init.sql`.
-5. Copy Project URL, anon key, and service role key into Vercel / `.env.local`:
-
-```
-NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...
-SUPABASE_SERVICE_ROLE_KEY=...
-```
-
-6. Optional CLI, if you install and login later:
+Fares move faster than inboxes. Push is the channel that catches a drop while it
+still exists, and it is the reason the app is installable.
 
 ```bash
-npx supabase login
-npx supabase link --project-ref YOUR_PROJECT_REF
-npx supabase db push
+npm run gen:vapid
 ```
 
-## 3. Resend
-
-1. Create an API key at [https://resend.com](https://resend.com).
-2. Verify a sending domain, or use the onboarding sender Resend provides for testing.
-3. Set:
+Paste the three lines it prints into `.env.local` and into your Vercel
+environment variables:
 
 ```
-RESEND_API_KEY=re_...
-RESEND_FROM=RailDrop <alerts@YOUR_DOMAIN>
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=...   # the browser needs this to subscribe
+VAPID_PRIVATE_KEY=...              # server only — never a NEXT_PUBLIC_ name
+VAPID_SUBJECT=mailto:you@example.com
 ```
 
-4. Send one test from the Resend dashboard or after deploy:
+Then, in the app, open **Settings → Push notifications** and turn the switch on.
+The browser prompts once; the endpoint it returns is stored in
+`push_subscriptions` and is private to your account under RLS.
 
-Subject: `RailDrop is ready`  
-Body: `Your RailDrop fare alerts are working.`
+Leaving these unset is a supported configuration. Settings says push is
+unavailable and explains why, alerts continue to go out by email, and nothing
+fails silently.
 
-## 4. Vercel deploy
+Notes worth knowing:
 
-1. Install and login: `npm i -g vercel && vercel login`
-2. From this directory:
+- Push requires HTTPS (or `localhost`). It will not work over a plain-HTTP LAN
+  address.
+- iOS only delivers Web Push to apps added to the Home Screen. Safari →
+  Share → _Add to Home Screen_, then enable the switch from inside that app.
+- A revoked subscription (HTTP 404/410) deletes the row rather than retrying,
+  so a wiped device stops costing you delivery attempts.
+
+## 6. Deploy
 
 ```bash
-vercel link
-vercel env add NEXT_PUBLIC_SUPABASE_URL production
-vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY production
-vercel env add SUPABASE_SERVICE_ROLE_KEY production
-vercel env add PARSE_API_KEY production
-vercel env add RESEND_API_KEY production
-vercel env add RESEND_FROM production
-vercel env add CRON_SECRET production
-vercel env add NEXT_PUBLIC_APP_URL production
-vercel env add PROVIDER_CREDITS_PER_SEARCH production
-vercel env add PROVIDER_MONTHLY_CREDIT_BUDGET production
+npx vercel link
+npx vercel env add NEXT_PUBLIC_SUPABASE_URL production
+npx vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY production
+npx vercel env add SUPABASE_SERVICE_ROLE_KEY production
+npx vercel env add PARSE_API_KEY production
+npx vercel env add PROVIDER_PRICING_BASIS production
+# Omitting these three does not fail loudly — it silently stops all alerting:
+#   PROVIDER_AMOUNT_UNIT wrong  -> every fare x100, nothing is ever below benchmark
+#   budget vars unset           -> a 200-credit account runs against a 5000 default
+npx vercel env add PROVIDER_AMOUNT_UNIT production
+npx vercel env add PROVIDER_CREDITS_PER_SEARCH production
+npx vercel env add PROVIDER_MONTHLY_CREDIT_BUDGET production
+npx vercel env add RESEND_API_KEY production
+npx vercel env add RESEND_FROM production
+npx vercel env add CRON_SECRET production
+npx vercel env add NEXT_PUBLIC_APP_URL production
+npx vercel env add RAILDROP_ADMIN_EMAILS production
+npx vercel --prod
 ```
 
-3. Generate the cron secret locally, then paste it when Vercel prompts:
+Then point the scheduler at the deployment (run once in the Supabase SQL editor — this keeps the
+secret out of every migration file):
+
+```sql
+alter database postgres set app.settings.raildrop_app_url    = 'https://your-app.vercel.app';
+alter database postgres set app.settings.raildrop_cron_secret = '<CRON_SECRET>';
+```
+
+Verify the whole thing:
 
 ```bash
-openssl rand -hex 32
+curl -s https://your-app.vercel.app/api/health | jq
+npm run db:verify
 ```
 
-4. Set `NEXT_PUBLIC_APP_URL` to the Vercel URL, then:
+`/api/health` must report:
+
+- `"provider": { "live": true, "configured": true }` — if `live: false`, a simulated provider is
+  configured and RailDrop would show fake fares. Fix before anyone uses it.
+- `"amountUnit"` matching your provider. If this is wrong every fare is out by 100x and **no watch
+  will ever alert**, while everything else looks green.
+- `"cronConfigured": true` — otherwise no scheduled check can ever run, and health reports
+  `degraded`.
+- `"pricingBasis"` — `UNKNOWN` means multi-passenger watches are deliberately never alerted on.
+
+---
+
+## 7. Optional: Amtrak prefilled deep link
+
+RailDrop ships with `AMTRAK_DEEPLINK_VERIFIED=false` and uses the generic, official Amtrak booking
+handoff, with full trip details preserved in RailDrop and a **Copy trip details** action. No deep-link
+format was invented.
+
+If you obtain a documented or affiliate prefill URL, set `AMTRAK_DEEPLINK_TEMPLATE` using
+`{origin}`, `{destination}` and `{date}` placeholders, then:
 
 ```bash
-vercel --prod
+npm run verify:booking-links
 ```
 
-5. Confirm Vercel Cron has `/api/cron/dispatch` at `5 * * * *` (already in `vercel.json`). Vercel sends `Authorization: Bearer $CRON_SECRET`.
+Only set `AMTRAK_DEEPLINK_VERIFIED=true` after opening the resolved URL in a real browser and
+confirming the fields are genuinely prefilled. A 200 response is not sufficient — amtrak.com renders
+its search client-side.
 
-## 5. After keys exist
+---
 
-1. Open `/api/health` — `fareProviderConfigured` should be true.
-2. Create a BOS → NYP watch for a future date.
-3. Confirm the initial scan writes a cycle and does not show invented fares.
-4. Click **Book on Amtrak**. Expect the official Amtrak site plus copied trip details unless Parse later returns a real itinerary URL.
+## What you do **not** need to do
+
+- write or apply any SQL by hand — `npm run db:push` does it
+- configure RLS — it is in the migrations and verified by tests
+- schedule anything manually — `0004_cron.sql` installs the hourly job, and `vercel.json`
+  declares a redundant Vercel Cron
+- seed stations — the bootstrap catalog (127 stations) is applied by `db:push`

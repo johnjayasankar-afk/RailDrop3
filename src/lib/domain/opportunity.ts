@@ -1,91 +1,76 @@
-import { meetsSavingsThreshold } from "./money";
-import type { AlertDecision, OpportunityFingerprint, RankedCandidate } from "./types";
+/**
+ * OpportunityEngine — benchmark vs. every eligible candidate on every valid date.
+ *
+ * Qualification rule (from the product spec):
+ *     candidate_party_total  ≤  benchmark − minimum_savings
+ */
 
-const MEANINGFUL_PRICE_IMPROVEMENT_CENTS = 100;
+import { calendarDateFromLocalIso } from './dates';
+import type { Cents } from './money';
+import { convenienceScore, rankOpportunities } from './ranking';
+import type { Candidate, EligibilityOutcome, Opportunity, Watch } from './types';
 
-export function journeyKey(candidate: RankedCandidate): string {
-  return [
-    candidate.journey.searchedTravelDate,
-    candidate.journey.trainNumber ?? candidate.journey.serviceName ?? "unknown",
-    candidate.journey.departureAt,
-    candidate.fare.fareFamily,
-    candidate.fare.travelClass,
-    String(candidate.totalPartyPriceCents),
-  ].join("|");
+/** Stable identity of an itinerary+fare, deliberately excluding price. */
+export function opportunitySignature(candidate: Candidate): string {
+  const { journey, fare } = candidate;
+  const date = journey.travelDate || calendarDateFromLocalIso(journey.departureLocal);
+  const train = journey.trainNumber ?? journey.providerJourneyId;
+  return [date, train, journey.departureLocal, fare.family, fare.travelClass].join('|');
 }
 
-export function buildOpportunityFingerprint(
-  qualifying: RankedCandidate[],
-): OpportunityFingerprint | null {
-  if (qualifying.length === 0) return null;
-  const best = qualifying[0];
-  const sameDay = qualifying.find((candidate) => candidate.dateOffsetDays === 0) ?? null;
+export interface OpportunityInput {
+  watch: Watch;
+  benchmarkCents: Cents;
+  eligibility: EligibilityOutcome;
+}
+
+export interface OpportunityOutput {
+  /** Qualifying options, ranked. */
+  opportunities: Opportunity[];
+  /** Every eligible candidate ranked, qualifying or not — powers the fare strip. */
+  allRanked: Opportunity[];
+  /** Cheapest total per travel date, for the three-day fare strip. */
+  cheapestByDate: Map<string, Cents>;
+  bestTotalCents: Cents | null;
+}
+
+function toOpportunity(candidate: Candidate, watch: Watch, benchmarkCents: Cents): Opportunity {
+  const totalCents = candidate.fare.partyTotalCents;
   return {
-    bestJourneyKey: journeyKey(best),
-    bestPriceCents: best.totalPartyPriceCents,
-    bestTravelDate: best.journey.searchedTravelDate,
-    sameDayBestPriceCents: sameDay?.totalPartyPriceCents ?? null,
-    sameDayJourneyKey: sameDay ? journeyKey(sameDay) : null,
-    qualifyingCount: qualifying.length,
+    candidate,
+    totalCents,
+    savingsCents: benchmarkCents - totalCents,
+    displacementDays: candidate.searchDate.displacementDays,
+    convenienceScore: convenienceScore(candidate, watch),
+    signature: opportunitySignature(candidate),
+    pricingAmbiguous: candidate.fare.pricingConfidence === 'AMBIGUOUS',
   };
 }
 
-export function qualifyingCandidates(
-  ranked: RankedCandidate[],
-  bookedPriceCents: number,
-  minimumSavingsCents: number,
-): RankedCandidate[] {
-  return ranked.filter((candidate) =>
-    meetsSavingsThreshold(bookedPriceCents, candidate.totalPartyPriceCents, minimumSavingsCents),
-  );
-}
+export function buildOpportunities({
+  watch,
+  benchmarkCents,
+  eligibility,
+}: OpportunityInput): OpportunityOutput {
+  const all = eligibility.eligible.map((c) => toOpportunity(c, watch, benchmarkCents));
+  const threshold = benchmarkCents - watch.preferences.minimumSavingsCents;
 
-export function compareOpportunities(
-  previous: OpportunityFingerprint | null,
-  next: OpportunityFingerprint | null,
-): AlertDecision {
-  if (!next) {
-    return { notify: false, reason: "no_qualifying" };
-  }
-  if (!previous) {
-    return { notify: true, reason: "first_qualifying" };
-  }
-  if (next.bestPriceCents <= previous.bestPriceCents - MEANINGFUL_PRICE_IMPROVEMENT_CENTS) {
-    return { notify: true, reason: "better_price" };
-  }
-  if (isMeaningfullyMoreConvenient(previous, next)) {
-    return { notify: true, reason: "better_convenience" };
-  }
-  return { notify: false, reason: "unchanged" };
-}
+  const qualifying = all.filter((o) => o.totalCents <= threshold);
 
-function isMeaningfullyMoreConvenient(
-  previous: OpportunityFingerprint,
-  next: OpportunityFingerprint,
-): boolean {
-  if (previous.sameDayBestPriceCents !== null) return false;
-  if (next.sameDayBestPriceCents === null) return false;
-  const gap = next.sameDayBestPriceCents - next.bestPriceCents;
-  return gap <= 1000;
-}
-
-export class OpportunityComparator {
-  decide(
-    previous: OpportunityFingerprint | null,
-    ranked: RankedCandidate[],
-    bookedPriceCents: number,
-    minimumSavingsCents: number,
-  ): {
-    decision: AlertDecision;
-    fingerprint: OpportunityFingerprint | null;
-    qualifying: RankedCandidate[];
-  } {
-    const qualifying = qualifyingCandidates(ranked, bookedPriceCents, minimumSavingsCents);
-    const fingerprint = buildOpportunityFingerprint(qualifying);
-    return {
-      decision: compareOpportunities(previous, fingerprint),
-      fingerprint,
-      qualifying,
-    };
+  const cheapestByDate = new Map<string, Cents>();
+  for (const opp of all) {
+    const date = opp.candidate.journey.travelDate;
+    const current = cheapestByDate.get(date);
+    if (current === undefined || opp.totalCents < current) cheapestByDate.set(date, opp.totalCents);
   }
+
+  const ranked = rankOpportunities(qualifying, watch);
+  const allRanked = rankOpportunities(all, watch);
+
+  return {
+    opportunities: ranked,
+    allRanked,
+    cheapestByDate,
+    bestTotalCents: allRanked[0]?.totalCents ?? null,
+  };
 }
