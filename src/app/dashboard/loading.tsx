@@ -1,25 +1,18 @@
-import { AppShell } from '@/components/AppShell';
-
-/** Shown while the dashboard's queries run, so a slow DB never blanks the page. */
 export default function DashboardLoading() {
   return (
-    <AppShell active="dashboard">
-      <div className="animate-pulse" aria-busy="true" aria-label="Loading your trips">
-        <div className="h-9 w-44 rounded-lg bg-raised" />
-        <div className="mt-2 h-4 w-64 rounded bg-raised" />
-        <div className="mt-6 space-y-3">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="rd-card px-5 py-5">
-              <div className="h-6 w-48 rounded bg-raised" />
-              <div className="mt-5 flex gap-8">
-                <div className="h-9 w-24 rounded bg-raised" />
-                <div className="h-9 w-24 rounded bg-raised" />
-              </div>
-              <div className="mt-4 h-4 w-3/4 rounded bg-raised" />
-            </div>
-          ))}
-        </div>
+    <main id="main" className="mx-auto max-w-6xl px-4 py-8">
+      <div className="skeleton h-10 w-56" />
+      <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div key={index} className="skeleton h-20" />
+        ))}
       </div>
-    </AppShell>
+      <div className="depart-strip mt-8">
+        <span className="skeleton h-8 w-16 bg-[#2a241e]" />
+        <span className="depart-strip-rule" aria-hidden />
+        <span className="skeleton h-8 w-16 bg-[#2a241e]" />
+      </div>
+      <div className="skeleton mt-6 h-40" />
+    </main>
   );
 }

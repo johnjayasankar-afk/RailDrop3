@@ -1,156 +1,46 @@
-# RailDrop — Product Spec (v1)
-
-## Positioning
+# RailDrop product spec
 
 **Know when your train gets cheaper.**
+Book the flexible fare. RailDrop watches the rest.
 
-You already bought an Amtrak ticket. RailDrop watches the same route for a window after your purchase and
-tells you when a materially cheaper option appears — on your date, the day before, or the day after.
+## Who it is for
 
-RailDrop **does not** change your reservation, hold inventory, or buy anything. It observes and reports.
+A traveler who already bought an Amtrak ticket — usually Flexible — and wants to know if the same origin and destination can be ridden for less in a short window around the desired date.
 
-## Core user story
+## What it watches
 
-> "I bought an Amtrak ticket between two stations. For the next 48 hours, search three times per day across
-> my desired departure date plus one day before and one day after. If **any** Amtrak rail option between
-> those same stations becomes materially cheaper than what I paid, tell me and show me the cheapest
-> alternatives."
+Not the original train number. Not the original departure time. Not only the original service.
 
-## Watch inputs
+Default window: desired date `D` ± 1 calendar day. Architecture also supports exact date and ±2.
 
-**Required**
+Every bookable Amtrak **rail** itinerary between the chosen stations is eligible: Northeast Regional, Acela, other named trains, and connecting rail. Thruway/bus is identified and excluded unless the user opts in.
 
-| Field                  | Notes                                                               |
-| ---------------------- | ------------------------------------------------------------------- |
-| Origin station         | 3-letter Amtrak code, picked from a local catalog                   |
-| Destination station    | must differ from origin                                             |
-| Desired departure date | not in the past (in the watch timezone)                             |
-| Amount actually paid   | **canonical benchmark**, integer cents, total for the party as paid |
-| Passenger count        | 1–8                                                                 |
+Preferred departure time is optional and ranks only. Cheaper trains outside that hour still appear.
 
-**Optional**
+## Comparison
 
-| Field                                  | Default                                                    |
-| -------------------------------------- | ---------------------------------------------------------- |
-| Preferred departure time               | none (used only as ranking key #4)                         |
-| Date flexibility                       | `1` day (±1) — also `0` or `2`                             |
-| Travel class                           | `COACH`                                                    |
-| Fare family paid                       | `FLEXIBLE`                                                 |
-| Monitoring window                      | `48h` — also `24h`, `72h`, `until departure`, custom hours |
-| Timezone                               | `America/New_York`                                         |
-| Minimum savings to alert               | `$5`                                                       |
-| Include Thruway (bus)                  | off                                                        |
-| Include cheaper restricted fares       | off                                                        |
-| Original train number / departure time | recorded for context only                                  |
+Benchmark is `current_booked_price_cents` — the actual total paid. Integer cents only. Default compare is Flexible → Flexible. Restricted families can be surfaced separately and are never implied to have the same rules.
 
-The **actual paid price is canonical**. RailDrop never derives a benchmark from a formula — in particular
-it does **not** model Flexible as "10% above" anything.
+A candidate qualifies when
 
-## Monitoring behaviour
+`candidate.total_party_price_cents <= booked - minimum_savings_cents`
 
-- **One INITIAL scan immediately** on watch creation.
-- **Three scheduled scans per day** at local `08:00`, `14:00`, `20:00` in the watch's timezone.
-- `INITIAL` and `MANUAL` scans do not consume a scheduled slot.
-- Monitoring stops at the end of the window, when the desired date passes, or when the user
-  pauses/deletes the watch.
+with a $1 default threshold.
 
-A "check" is one **cycle** covering the whole travel window (all of D-1 / D / D+1), not one API call.
+## Immediate value
 
-## Service scope
-
-| Normalized type   | v1 default                                            |
-| ----------------- | ----------------------------------------------------- |
-| `DIRECT_RAIL`     | included                                              |
-| `CONNECTING_RAIL` | included                                              |
-| `THRUWAY_BUS`     | **excluded** (toggle to include; always badged "Bus") |
-| `UNKNOWN`         | excluded from alerts                                  |
-
-Non-rail transportation is never labelled rail.
-
-## Eligibility for comparison
-
-A candidate qualifies when it: matches the station route; falls on one of the valid search dates; is
-available/bookable per provider data; is inside the service scope; matches the travel class; satisfies the
-fare-family filter (default: **Flexible Coach vs. Flexible Coach**); and matches the passenger count.
-
-With "include cheaper restricted fares" on, Value/Saver candidates are included and clearly labelled
-**Restricted** with their change/refund implications noted.
-
-## Opportunity rule
-
-```
-qualifies  ⇔  candidate_party_total ≤ benchmark − minimum_savings
-```
-
-Every eligible journey on every valid date competes. The original train is not privileged.
-
-## Ranking
-
-Price first, then desired date, then smallest date displacement, then preferred-time proximity, then fewer
-transfers, then shorter duration, then stronger fare flexibility.
-
-_$59 one day early beats $120 on the exact day._
+Creating a watch runs one `INITIAL` scan immediately, then three scheduled local slots (08:00 / 14:00 / 20:00) per day until the monitoring window ends (default 48 hours after `booked_at`).
 
 ## Alerts
 
-Meaningful, not noisy. Sent on: first qualifying drop; a materially lower best price; or a
-same-price-but-materially-more-convenient option. Cooldown, dedupe key, and pricing-confidence gates apply.
+One email when a qualifying fare first appears, when the best price improves by at least $1, or when a same-day option appears within $10 of the current best after only off-day options existed. Unchanged results are silent.
 
-## Screens
+The email CTA opens the RailDrop watch. Booking continues on Amtrak with copied itinerary details.
 
-| Screen                          | Purpose                                                                                        |
-| ------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `/`                             | Marketing: what it does, honest limits                                                         |
-| `/login`                        | Supabase email magic link                                                                      |
-| `/dashboard`                    | All watches as cards: route, window, paid, best now, savings, cheapest option, last/next check |
-| `/watches/new`                  | Create form: stations, date, flexibility, paid amount, passengers, options                     |
-| `/watches/[id]`                 | Detail: header stats, 3-day fare strip, ranked cheapest options, cycle history, rebook         |
-| `/watches/[id]/book/[optionId]` | Booking transition panel + handoff                                                             |
-| `/usage`                        | Provider requests, credits, dedup savings, budget headroom                                     |
+## I rebooked
 
-### Watch card
+The previous benchmark is stored as a price event. Monitoring continues against the new total. History is never erased.
 
-```
-BOS → NYP        SEP 20 ±1 DAY
-PAID $128    BEST NOW $74    SAVE $54
-Cheapest: Sep 19 · Northeast Regional 179 · 7:05 AM
-Updated 2:02 PM        Next check 8:00 PM
-[ View 8 cheaper options ]
-```
+## Non-goals
 
-### Watch detail
-
-Header: `BOS → NYP`, `Sep 20 ±1 day`, current ticket `$128`, best now `$74`, save up to `$54`.
-
-Fare strip:
-
-```
-SEP 19        SEP 20        SEP 21
-from $74      from $81      from $86
-```
-
-A date that could not be checked shows `Not checked` with the reason — never `—` or `$0`.
-
-Cheapest options list (top 5, expandable): price, savings, date, displacement label
-("1 day earlier"), service/train, departure → arrival, duration, transfers, fare family, class,
-availability, and **Book on Amtrak** + **Copy trip details**.
-
-## Rebook
-
-**I rebooked** captures: new amount (required), and optional new date / train / time / fare family.
-It appends to `booking_price_events` (append-only history), sets the new active benchmark, bumps
-`benchmark_version`, resets alert state, and continues monitoring if still inside the window.
-Historical benchmarks are never rewritten.
-
-## Email
-
-Subject: `Fare drop: BOS → NYP from $74 — save $54`
-
-Body: current ticket → cheapest option (full detail) → up to 3 other options → `View options` CTA.
-Footer: _"Fares and availability may change. RailDrop does not automatically modify your Amtrak
-reservation."_ A `PARTIAL_SUCCESS` cycle adds a line naming the dates that could not be checked.
-
-## Non-goals for v1
-
-Automatic rebooking; holding inventory; payments; multi-city / return-trip optimisation; non-Amtrak
-carriers; scraping amtrak.com.
+Automated rebooking, scraping Amtrak, storing payment data, or inventing official deep links that have not been verified.

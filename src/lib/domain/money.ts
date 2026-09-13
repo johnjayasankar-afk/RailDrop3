@@ -1,60 +1,44 @@
-/**
- * Money is always integer cents. No floats anywhere in pricing arithmetic.
- */
-
-export type Cents = number;
-
-export class MoneyError extends Error {}
-
-export function assertCents(value: number, label = 'amount'): Cents {
-  if (!Number.isFinite(value)) throw new MoneyError(`${label} must be finite, got ${value}`);
-  if (!Number.isInteger(value))
-    throw new MoneyError(`${label} must be integer cents, got ${value}`);
-  if (value < 0) throw new MoneyError(`${label} must not be negative, got ${value}`);
-  return value;
-}
-
-/**
- * Parse a user-entered dollar string/number into integer cents.
- * Accepts "128", "128.5", "128.50", "$1,284.00". Rejects anything else.
- */
-export function dollarsToCents(input: string | number): Cents {
-  const raw = typeof input === 'number' ? String(input) : input.trim();
-  // Strip currency symbol and whitespace, but validate comma placement rather
-  // than blindly deleting commas - '1,2,3' and '12,' are typos, not amounts.
-  const stripped = raw.replace(/[$\s]/g, '');
-  const grouped = /^\d{1,3}(,\d{3})+(\.\d{1,2})?$/;
-  const plain = /^\d+(\.\d{1,2})?$/;
-  if (!grouped.test(stripped) && !plain.test(stripped)) {
-    throw new MoneyError(`Not a valid dollar amount: ${JSON.stringify(input)}`);
+export function dollarsToCents(value: string | number): number | null {
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) return null;
+    return Math.round(value * 100);
   }
-  const cleaned = stripped.replace(/,/g, '');
-  const [whole = '0', frac = ''] = cleaned.split('.');
-  const cents = frac.padEnd(2, '0');
-  return assertCents(Number(whole) * 100 + Number(cents));
+
+  const cleaned = value.replace(/[^0-9.-]/g, "").trim();
+  if (!cleaned || cleaned === "-" || cleaned === ".") return null;
+  const parsed = Number.parseFloat(cleaned);
+  if (!Number.isFinite(parsed)) return null;
+  return Math.round(parsed * 100);
 }
 
-/** Multiply cents by a whole number of passengers. Never introduces a fractional cent. */
-export function multiplyCents(amount: Cents, factor: number): Cents {
-  assertCents(amount);
-  if (!Number.isInteger(factor) || factor < 1) {
-    throw new MoneyError(`factor must be a positive integer, got ${factor}`);
+export function formatUsd(cents: number): string {
+  const sign = cents < 0 ? "-" : "";
+  const abs = Math.abs(cents);
+  const dollars = Math.floor(abs / 100);
+  const remainder = abs % 100;
+  return `${sign}$${dollars.toLocaleString("en-US")}.${remainder.toString().padStart(2, "0")}`;
+}
+
+export function formatUsdCompact(cents: number): string {
+  if (cents % 100 === 0) {
+    const sign = cents < 0 ? "-" : "";
+    return `${sign}$${Math.abs(cents / 100).toLocaleString("en-US")}`;
   }
-  return amount * factor;
+  return formatUsd(cents);
 }
 
-export function formatCents(amount: Cents, opts: { showCents?: boolean } = {}): string {
-  assertCents(amount);
-  const showCents = opts.showCents ?? amount % 100 !== 0;
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: showCents ? 2 : 0,
-    maximumFractionDigits: showCents ? 2 : 0,
-  }).format(amount / 100);
+export function savingsCents(bookedCents: number, candidateCents: number): number {
+  return bookedCents - candidateCents;
 }
 
-/** Compact form used in dense UI (cards, email subject): $74, $1,284 */
-export function formatCentsCompact(amount: Cents): string {
-  return formatCents(amount, { showCents: false });
+export function meetsSavingsThreshold(
+  bookedCents: number,
+  candidateCents: number,
+  minimumSavingsCents: number,
+): boolean {
+  return savingsCents(bookedCents, candidateCents) >= minimumSavingsCents;
+}
+
+export function partyTotalCents(perTravelerCents: number, passengerCount: number): number {
+  return perTravelerCents * passengerCount;
 }
