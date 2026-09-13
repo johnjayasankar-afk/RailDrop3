@@ -11,9 +11,9 @@ export default function DashboardLoading() {
           ))}
         </div>
         <div className="depart-strip mt-8">
-          <span className="skeleton h-8 w-16 bg-[#2a241e]" />
+          <span className="skeleton h-8 w-16 bg-board-face" />
           <span className="depart-strip-rule" aria-hidden />
-          <span className="skeleton h-8 w-16 bg-[#2a241e]" />
+          <span className="skeleton h-8 w-16 bg-board-face" />
         </div>
         <div className="skeleton mt-6 h-40" />
       </main>

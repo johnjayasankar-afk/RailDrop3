@@ -1,26 +1,27 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
+import localFont from "next/font/local";
 import { LocalModeBanner } from "@/components/local-mode-banner";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+// The Labs family type, self-hosted: Inter for reading, IBM Plex Mono for codes and times.
+const sans = localFont({
+  src: "./fonts/inter-var.woff2",
+  variable: "--font-sans-loaded",
+  weight: "100 900",
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const instrument = Instrument_Serif({
-  variable: "--font-instrument",
-  subsets: ["latin"],
-  weight: "400",
+const mono = localFont({
+  src: [
+    { path: "./fonts/ibm-plex-mono-400.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/ibm-plex-mono-500.woff2", weight: "500", style: "normal" },
+  ],
+  variable: "--font-mono-loaded",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://raildrop.app"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://rail-drop3.vercel.app"),
   title: {
     default: "RailDrop — Know when your train gets cheaper",
     template: "%s · RailDrop",
@@ -48,7 +49,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#efe8d9",
+  themeColor: "#f8f6f1",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -56,10 +57,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${instrument.variable} h-full antialiased`}
-    >
+    <html lang="en" className={`${sans.variable} ${mono.variable} h-full antialiased`}>
       <body className="relative z-0 min-h-full bg-paper text-ink">
         <div className="relative z-10">
           <LocalModeBanner />

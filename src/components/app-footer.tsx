@@ -26,6 +26,17 @@ export function AppFooter({
           <p className="max-w-md text-xs leading-relaxed">
             Listed fares · confirm on Amtrak · we never invent prices.
           </p>
+          <p className="footer-labs max-w-md text-xs leading-relaxed">
+            An independent product by{" "}
+            <a href="https://johnjayasankar.com" target="_top">
+              John Jayasankar
+            </a>
+            , part of{" "}
+            <a href="https://labs.johnjayasankar.com" target="_top">
+              Labs
+            </a>
+            .
+          </p>
         </div>
         <nav className="flex flex-wrap gap-4">
           <Link href={signedIn ? "/dashboard" : "/"} className="hover:text-ink">

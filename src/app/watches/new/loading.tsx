@@ -10,9 +10,9 @@ export default function NewWatchLoading() {
           <div className="skeleton h-[28rem]" />
           <div>
             <div className="depart-strip">
-              <span className="skeleton h-8 w-16 bg-[#2a241e]" />
+              <span className="skeleton h-8 w-16 bg-board-face" />
               <span className="text-[10px] uppercase tracking-[0.18em] opacity-70">to</span>
-              <span className="skeleton h-8 w-16 bg-[#2a241e]" />
+              <span className="skeleton h-8 w-16 bg-board-face" />
             </div>
             <div className="skeleton mt-0 h-48" />
           </div>

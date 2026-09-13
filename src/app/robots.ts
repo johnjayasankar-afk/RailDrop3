@@ -1,5 +1,10 @@
 import type { MetadataRoute } from "next";
 
+const site = (process.env.NEXT_PUBLIC_APP_URL || "https://rail-drop3.vercel.app").replace(
+  /\/$/,
+  "",
+);
+
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: [
@@ -9,6 +14,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/dashboard", "/watches", "/settings", "/api/"],
       },
     ],
-    sitemap: "https://raildrop.app/sitemap.xml",
+    sitemap: `${site}/sitemap.xml`,
   };
 }

@@ -6,11 +6,11 @@ export default function WatchDetailLoading() {
       <main id="main" className="mx-auto max-w-6xl px-4 py-8">
         <div className="skeleton h-4 w-28" />
         <div className="depart-strip mt-5">
-          <span className="skeleton h-8 w-14 bg-[#2a241e]" />
+          <span className="skeleton h-8 w-14 bg-board-face" />
           <span className="depart-strip-rule" aria-hidden />
-          <span className="skeleton h-8 w-14 bg-[#2a241e]" />
+          <span className="skeleton h-8 w-14 bg-board-face" />
           <span className="depart-strip-rule" aria-hidden />
-          <span className="skeleton h-8 w-24 bg-[#2a241e]" />
+          <span className="skeleton h-8 w-24 bg-board-face" />
         </div>
         <div className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-3">
           {Array.from({ length: 3 }).map((_, index) => (

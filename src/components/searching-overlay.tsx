@@ -81,7 +81,7 @@ export function SearchingOverlay({
     <div
       ref={rootRef}
       tabIndex={-1}
-      className="no-print fixed inset-0 z-50 flex items-center justify-center bg-[color-mix(in_srgb,var(--paper)_72%,black)] px-4"
+      className="no-print fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,23,18,0.42)] backdrop-blur-[6px] px-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="scan-title"
