@@ -5,7 +5,8 @@ describe("toAppError", () => {
   it("maps profile foreign-key failures to a guest migration hint", () => {
     const err = toAppError({
       code: "23503",
-      message: 'insert or update on table "profiles" violates foreign key constraint "profiles_id_fkey"',
+      message:
+        'insert or update on table "profiles" violates foreign key constraint "profiles_id_fkey"',
     });
     expect(err.message).toContain("guest_profiles.sql");
   });

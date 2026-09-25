@@ -6,11 +6,7 @@ import { logger } from "@/lib/logger";
 import { withRetry } from "./retry";
 import { normalizeWanderuTrips, type WanderuTrip } from "./wanderu-normalizer";
 import { wanderuSearchLabel } from "./wanderu-station-map";
-import {
-  isServerlessRuntime,
-  launchChromium,
-  sanitizeProviderError,
-} from "./playwright-launch";
+import { isServerlessRuntime, launchChromium, sanitizeProviderError } from "./playwright-launch";
 
 type PlaywrightBrowser = {
   isConnected?: () => boolean;
@@ -235,8 +231,7 @@ export class WanderuBrowserProvider implements FareProvider {
                 .__INITIAL_STATE__;
               const trips = (
                 state?.["DUCKS/TRIPS"] as
-                  | { TRIP_DATA?: { trips?: Record<string, unknown> } }
-                  | undefined
+                  { TRIP_DATA?: { trips?: Record<string, unknown> } } | undefined
               )?.TRIP_DATA?.trips;
               return Boolean(trips && Object.keys(trips).length > 0);
             },
@@ -380,7 +375,9 @@ function placeCacheKey(request: Pick<FareSearchRequest, "originCode" | "destinat
 function cachePlacesFromUrl(originCode: string, destinationCode: string, url: string): void {
   try {
     const parsed = new URL(url);
-    const match = parsed.pathname.match(/\/en-us\/depart\/([^/]+)\/([^/]+)\/(\d{4}-\d{2}-\d{2})\/?/);
+    const match = parsed.pathname.match(
+      /\/en-us\/depart\/([^/]+)\/([^/]+)\/(\d{4}-\d{2}-\d{2})\/?/,
+    );
     if (!match) return;
     const dpid = parsed.searchParams.get("dpid");
     const opid = parsed.searchParams.get("opid");

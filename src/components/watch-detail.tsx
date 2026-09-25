@@ -16,6 +16,8 @@ import { formatClock, formatBoardStamp, zonedDateTime } from "@/lib/domain/timez
 import { fareFamilyLabel, travelClassLabel } from "@/lib/domain/fare-family";
 import { serviceTypeLabel } from "@/lib/domain/service-type";
 import { formatRelativeTime, isCheckStale } from "@/lib/domain/relative-time";
+import { extensionWindow } from "@/lib/domain/monitoring";
+import { shouldHandleBoardKey } from "@/lib/domain/board-keys";
 import {
   boardCsv,
   candidateKey,
@@ -557,17 +559,19 @@ export function WatchDetail({
   }
 
   function extendMonitoring(preset: "24h" | "48h" | "72h") {
-    const hours = preset === "24h" ? 24 : preset === "48h" ? 48 : 72;
-    const end = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
     void action(`/api/watches/${watch.id}`, "PATCH", {
       status: "ACTIVE",
       monitorPreset: preset,
-      monitorStartAt: new Date().toISOString(),
-      monitorEndAt: end,
+      ...extensionWindow(preset),
     });
   }
 
+  // Re-seeds the settings form after a save, once the server round-trip brings
+  // the persisted values back through props. The proper shape for this is a
+  // keyed <WatchSettingsForm/> that remounts with fresh defaults; that arrives
+  // when the settings panel becomes its own component in the decomposition.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- see above
     setSettingsEmail(watch.alertEmail);
     setSettingsThreshold(String(Math.round(watch.minimumSavingsCents / 100)));
     setSettingsRestricted(watch.includeRestrictedFares);
@@ -698,7 +702,10 @@ export function WatchDetail({
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       const target = event.target as HTMLElement | null;
-      if (target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) return;
+      // Declines anything the browser, the OS, or an IME already owns. Without
+      // it, Cmd+C both swallowed the copy and spent a provider credit on a
+      // recheck, and Cmd+R / Cmd+P / Cmd+F were unusable on this page.
+      if (!shouldHandleBoardKey(event)) return;
       if (
         (event.key === "c" || event.key === "C") &&
         watch.status === "ACTIVE" &&
@@ -721,7 +728,9 @@ export function WatchDetail({
         event.preventDefault();
         setRebookOpen(true);
         window.setTimeout(() => {
-          document.getElementById("rebook")?.scrollIntoView({ behavior: "smooth", block: "center" });
+          document
+            .getElementById("rebook")
+            ?.scrollIntoView({ behavior: "smooth", block: "center" });
           rebookRef.current?.focus();
         }, 80);
       }

@@ -54,7 +54,11 @@ export function sanitizeProviderError(message: string): string {
   if (lower.includes("wanderu returned no trip data")) {
     return "No live trips came back for this window. Recheck in a minute.";
   }
-  if (lower.includes("net::err") || lower.includes("cloudflare") || lower.includes("just a moment")) {
+  if (
+    lower.includes("net::err") ||
+    lower.includes("cloudflare") ||
+    lower.includes("just a moment")
+  ) {
     return "Live fare site blocked this check. Recheck in a minute.";
   }
   // Never dump stack / box-drawing installer essays into the UI.
@@ -212,7 +216,10 @@ type PuppeteerPageLike = {
   setUserAgent?: (ua: string) => Promise<void>;
   setExtraHTTPHeaders?: (headers: Record<string, string>) => Promise<void>;
   setViewport?: (viewport: { width: number; height: number }) => Promise<void>;
-  goto: (url: string, options?: { waitUntil?: string | string[]; timeout?: number }) => Promise<unknown>;
+  goto: (
+    url: string,
+    options?: { waitUntil?: string | string[]; timeout?: number },
+  ) => Promise<unknown>;
   waitForFunction: (
     fn: (...args: unknown[]) => unknown,
     options?: { timeout?: number },
@@ -274,13 +281,13 @@ function wrapPuppeteerPage(page: PuppeteerPageLike) {
         waitUntil: (options?.waitUntil as "domcontentloaded") ?? "domcontentloaded",
         timeout: options?.timeout ?? 45000,
       }),
-    waitForFunction: (
-      fn: () => unknown,
-      _arg?: unknown,
-      options?: { timeout?: number },
-    ) => page.waitForFunction(fn, { timeout: options?.timeout ?? 35000 }),
+    waitForFunction: (fn: () => unknown, _arg?: unknown, options?: { timeout?: number }) =>
+      page.waitForFunction(fn, { timeout: options?.timeout ?? 35000 }),
     evaluate: <T>(fn: () => T) => page.evaluate(fn),
-    on: (event: "response", handler: (response: { url: () => string; json: () => Promise<unknown> }) => void) => {
+    on: (
+      event: "response",
+      handler: (response: { url: () => string; json: () => Promise<unknown> }) => void,
+    ) => {
       page.on("response", (response: unknown) => {
         const res = response as {
           url: () => string;

@@ -72,8 +72,8 @@ export function LoginForm({
         options: { emailRedirectTo: `${window.location.origin}/api/auth/callback` },
       });
       if (error) throw error;
-          setSent(true);
-          setMessage("Check your email and click Sign in. You usually won’t get a separate code.");
+      setSent(true);
+      setMessage("Check your email and click Sign in. You usually won’t get a separate code.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not start sign-in");
     } finally {

@@ -76,7 +76,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <div className="relative z-10">
           <LocalModeBanner />
           {children}
-        <LabsUI />
+          <LabsUI />
         </div>
       </body>
     </html>

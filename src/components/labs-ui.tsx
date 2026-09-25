@@ -14,7 +14,12 @@ export function LabsUI() {
     const ui = initLabsUI({
       observe: true,
       glass: [
-        { sel: "header.site-header, header.masthead", spec: 1, lens: [13, 52, 9, 1.95], vars: { "--gl-tint": ".5" } },
+        {
+          sel: "header.site-header, header.masthead",
+          spec: 1,
+          lens: [13, 52, 9, 1.95],
+          vars: { "--gl-tint": ".5" },
+        },
         { sel: ".panel", lens: [12, 34, 8, 1.7], vars: { "--gl-tint": ".62" } },
       ],
       headings: "h1, h2",

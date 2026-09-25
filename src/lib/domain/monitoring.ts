@@ -53,6 +53,24 @@ export function resolveMonitoringWindow(input: {
   };
 }
 
+/**
+ * The window an "extend by 24h/48h/72h" button asks for.
+ *
+ * Lives here rather than in the component because reading the clock inside a
+ * React render body is an impurity the compiler is right to reject — and
+ * because a window computation is domain logic that deserves a test.
+ */
+export function extensionWindow(
+  preset: keyof typeof MONITOR_PRESET_HOURS,
+  now: Date = new Date(),
+): { monitorStartAt: string; monitorEndAt: string } {
+  const hours = MONITOR_PRESET_HOURS[preset];
+  return {
+    monitorStartAt: now.toISOString(),
+    monitorEndAt: new Date(now.getTime() + hours * 60 * 60 * 1000).toISOString(),
+  };
+}
+
 export function shouldCompleteWatch(input: {
   now: Date;
   monitorEndAt: Date | null;

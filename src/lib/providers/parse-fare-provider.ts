@@ -190,7 +190,13 @@ export class ParseFareProvider implements FareProvider {
       const retryable = !blocked && (status === 429 || status >= 500 || status === 503);
       throw new ProviderRequestError(
         extractErrorMessage(json) ?? `Parse ${endpoint} failed with ${status}`,
-        status === 429 ? "rate_limited" : status === 401 ? "unauthorized" : blocked ? "blocked" : "http_error",
+        status === 429
+          ? "rate_limited"
+          : status === 401
+            ? "unauthorized"
+            : blocked
+              ? "blocked"
+              : "http_error",
         retryable,
         status,
         retryAfter,
@@ -231,14 +237,22 @@ function extractErrorMessage(json: unknown): string | null {
 function isParseBlocked(json: unknown): boolean {
   if (!json || typeof json !== "object") return false;
   const record = json as Record<string, unknown>;
-  const nested = record.error && typeof record.error === "object" ? (record.error as Record<string, unknown>) : record;
-  return nested.status === "blocked" || nested.block_type === "akamai" || record.status === "blocked";
+  const nested =
+    record.error && typeof record.error === "object"
+      ? (record.error as Record<string, unknown>)
+      : record;
+  return (
+    nested.status === "blocked" || nested.block_type === "akamai" || record.status === "blocked"
+  );
 }
 
 function extractRetryAfter(json: unknown): number | undefined {
   if (!json || typeof json !== "object") return undefined;
   const record = json as Record<string, unknown>;
-  const nested = record.error && typeof record.error === "object" ? (record.error as Record<string, unknown>) : record;
+  const nested =
+    record.error && typeof record.error === "object"
+      ? (record.error as Record<string, unknown>)
+      : record;
   const value = Number(nested.retry_after ?? record.retry_after);
   return Number.isFinite(value) && value > 0 ? value : undefined;
 }

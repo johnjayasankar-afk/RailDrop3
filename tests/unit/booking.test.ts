@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { AMTRAK_HOME, BookingLinkResolver, buildCopyText } from "@/lib/booking/booking-link-resolver";
+import {
+  AMTRAK_HOME,
+  BookingLinkResolver,
+  buildCopyText,
+} from "@/lib/booking/booking-link-resolver";
 import type { FareOption, JourneyOption } from "@/lib/domain/types";
 
 const journey = {

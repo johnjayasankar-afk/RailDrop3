@@ -12,7 +12,9 @@ test("visual scan at key widths", async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await expect(page.getByText("Book on Amtrak").first()).toBeVisible();
     await expect(page.getByText("Copy trip details").first()).toBeVisible();
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2,
+    );
     expect(overflow, `horizontal overflow at ${width}`).toBe(false);
   }
 });

@@ -28,19 +28,19 @@ Replace `YOUR_USERNAME` with your GitHub username.
 3. Framework: Next.js. Leave the build command as `next build`.
 4. Add these environment variables before the first production deploy:
 
-| Name | Value |
-| --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL` | from Supabase project settings |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | from Supabase project settings |
-| `SUPABASE_SERVICE_ROLE_KEY` | from Supabase project settings |
-| `PARSE_API_KEY` | from parse.bot, starts with `pmx_` |
-| `RESEND_API_KEY` | from resend.com |
-| `RESEND_FROM` | `RailDrop <alerts@YOUR_DOMAIN>` |
-| `CRON_SECRET` | output of `openssl rand -hex 32` |
-| `NEXT_PUBLIC_APP_URL` | your Vercel URL, e.g. `https://raildrop.vercel.app` |
-| `PROVIDER_CREDITS_PER_SEARCH` | `2` |
-| `PROVIDER_MONTHLY_CREDIT_BUDGET` | `1000` |
-| `PARSE_SCRAPER_ID` | `f800c27d-0aaa-4ca0-864e-4dc69e20f764` |
+| Name                             | Value                                               |
+| -------------------------------- | --------------------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`       | from Supabase project settings                      |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY`  | from Supabase project settings                      |
+| `SUPABASE_SERVICE_ROLE_KEY`      | from Supabase project settings                      |
+| `PARSE_API_KEY`                  | from parse.bot, starts with `pmx_`                  |
+| `RESEND_API_KEY`                 | from resend.com                                     |
+| `RESEND_FROM`                    | `RailDrop <alerts@YOUR_DOMAIN>`                     |
+| `CRON_SECRET`                    | output of `openssl rand -hex 32`                    |
+| `NEXT_PUBLIC_APP_URL`            | your Vercel URL, e.g. `https://raildrop.vercel.app` |
+| `PROVIDER_CREDITS_PER_SEARCH`    | `2`                                                 |
+| `PROVIDER_MONTHLY_CREDIT_BUDGET` | `1000`                                              |
+| `PARSE_SCRAPER_ID`               | `f800c27d-0aaa-4ca0-864e-4dc69e20f764`              |
 
 Never set `RAILDROP_LOCAL` or `E2E_TEST` on Vercel.
 

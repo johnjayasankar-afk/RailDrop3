@@ -19,8 +19,13 @@ export function SearchingOverlay({
   onCancel?: () => void;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
+  // Kept in a ref so the Escape listener below never has to re-subscribe, but
+  // written in an effect rather than during render: a ref mutated in the render
+  // body is read by the wrong render when React retries one.
   const cancelRef = useRef(onCancel);
-  cancelRef.current = onCancel;
+  useEffect(() => {
+    cancelRef.current = onCancel;
+  }, [onCancel]);
   const windowLabel = flexibility > 0 ? `${date} ±${flexibility}` : date;
   const progress = Math.min(95, Math.round((elapsedSeconds / 28) * 100));
 

@@ -7,6 +7,7 @@ You only need a browser. Check each box as you go. When you finish **Part A**, p
 ## Part A — Supabase (sign-in / magic link)
 
 ### A1. Create account + project
+
 1. Open **https://supabase.com/dashboard**
 2. Sign up / log in (GitHub is fine).
 3. Click **New project**.
@@ -17,6 +18,7 @@ You only need a browser. Check each box as you go. When you finish **Part A**, p
 5. Click **Create new project**. Wait until it says the project is ready (1–2 minutes).
 
 ### A2. Turn on email magic link
+
 1. Left sidebar → **Authentication**
 2. **Sign In / Providers** (or **Providers**)
 3. Open **Email**
@@ -25,6 +27,7 @@ You only need a browser. Check each box as you go. When you finish **Part A**, p
 6. Save if there’s a Save button
 
 ### A3. Allow your live site + local to finish login
+
 1. Still under **Authentication** → **URL Configuration**
 2. **Site URL:** paste your live Vercel URL, e.g. `https://raildrop-xxx.vercel.app`  
    (no trailing slash)
@@ -35,6 +38,7 @@ You only need a browser. Check each box as you go. When you finish **Part A**, p
 5. Save.
 
 ### A4. Create the database tables
+
 1. Unzip your RailDrop zip if needed.
 2. Open this file on your computer:  
    `supabase/migrations/20260902100000_init.sql`
@@ -47,15 +51,16 @@ You only need a browser. Check each box as you go. When you finish **Part A**, p
    `supabase/migrations/20260904140000_guest_profiles.sql` → copy all → New query → **Run**.
 
 ### A5. Copy your 3 keys
+
 1. Left sidebar → **Project Settings** (gear)
 2. **API**
 3. Copy these three (keep the service_role private):
 
-| Paste this name later | Where it is in Supabase |
-| --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL` | **Project URL** |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | **anon** `public` key |
-| `SUPABASE_SERVICE_ROLE_KEY` | **service_role** `secret` key |
+| Paste this name later           | Where it is in Supabase       |
+| ------------------------------- | ----------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | **Project URL**               |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | **anon** `public` key         |
+| `SUPABASE_SERVICE_ROLE_KEY`     | **service_role** `secret` key |
 
 **Stop here and paste those 3 values into the Cursor chat** (you can say “here are my Supabase keys”).  
 I’ll confirm format and tell you exactly what to put in Vercel next.
@@ -64,7 +69,7 @@ I’ll confirm format and tell you exactly what to put in Vercel next.
 
 ## Part B — Vercel env vars (fixes “Supabase is not configured”)
 
-1. Open **https://vercel.com** → your RailDrop project  
+1. Open **https://vercel.com** → your RailDrop project
 2. **Settings** → **Environment Variables**
 3. Add these for **Production** (and Preview if you want):
 
@@ -107,6 +112,7 @@ PROVIDER_MONTHLY_CREDIT_BUDGET=1000
 If they do, anyone with the repo can steal your database.
 
 What we do instead:
+
 1. You paste keys in chat (or only into Vercel yourself).
 2. I can write a local `.env.local` on your machine for local testing.
 3. The downloadable zip stays **without** secrets (safe to push).
