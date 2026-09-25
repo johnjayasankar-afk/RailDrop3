@@ -19,7 +19,8 @@
     "test:integration": "vitest run tests/integration",
     "test:e2e": "playwright test",
     "playwright:install": "PLAYWRIGHT_BROWSERS_PATH=\"$PWD/.playwright\" npx playwright install chromium",
-    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build"
+    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build",
+    "dev:qa": "E2E_TEST=1 NEXT_PUBLIC_APP_URL=http://127.0.0.1:3000 next dev --hostname 127.0.0.1 --port 3000"
   },
   "dependencies": {
     "@sparticuz/chromium": "^149.0.0",

@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "raildrop",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:qa"],
+      "port": 3000,
+      "url": "http://127.0.0.1:3000"
+    }
+  ]
+}
