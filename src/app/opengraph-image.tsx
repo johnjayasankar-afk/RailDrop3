@@ -13,7 +13,7 @@ export default function OpenGraphImage() {
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
-        backgroundColor: "#efe8d9",
+        backgroundColor: "#f8f6f1",
         color: "#16120d",
         padding: "64px 72px",
         backgroundImage:
@@ -40,7 +40,7 @@ export default function OpenGraphImage() {
         style={{ display: "flex", justifyContent: "space-between", fontSize: 22, color: "#5c554b" }}
       >
         <div>BOS → NYP · live board</div>
-        <div>raildrop.app</div>
+        <div>Amtrak fare watch</div>
       </div>
     </div>,
     { ...size },

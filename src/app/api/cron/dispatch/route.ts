@@ -1,21 +1,13 @@
 import { NextResponse } from "next/server";
 import { getConfig } from "@/lib/config";
+import { operatorAuthorized } from "@/lib/auth/operator";
 import { dispatchScheduledChecks } from "@/lib/orchestration/dispatcher";
 import { getFareProvider, getMailer, getRepository } from "@/lib/services";
 
 export const maxDuration = 300;
 
-function authorized(request: Request): boolean {
-  const config = getConfig();
-  const header = request.headers.get("authorization");
-  const query = new URL(request.url).searchParams.get("secret");
-  if (config.isOffline) return true;
-  if (!config.cronSecret) return false;
-  return header === `Bearer ${config.cronSecret}` || query === config.cronSecret;
-}
-
 export async function POST(request: Request) {
-  if (!authorized(request)) {
+  if (!operatorAuthorized(request, getConfig())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const result = await dispatchScheduledChecks({
@@ -26,6 +18,11 @@ export async function POST(request: Request) {
   return NextResponse.json(result);
 }
 
+/**
+ * Vercel Cron issues GET. It carries the same Authorization header, so the
+ * delegation is kept — but the header is required on both verbs, and a browser
+ * that simply visits this URL now gets 401 rather than triggering a dispatch.
+ */
 export async function GET(request: Request) {
   return POST(request);
 }

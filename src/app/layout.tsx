@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { Instrument_Serif } from "next/font/google";
 import { LocalModeBanner } from "@/components/local-mode-banner";
+import { appOrigin } from "@/lib/config";
 import "./globals.css";
 import "./labs-glass.css";
 import { LabsUI } from "@/components/labs-ui";
@@ -32,7 +33,10 @@ const instrument = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://raildrop.app"),
+  // Resolved, never a literal: this deployment does not serve raildrop.app, so
+  // every canonical URL and Open Graph image URL pointed at a domain that is
+  // not us — and each preview deployment claimed to be production.
+  metadataBase: new URL(appOrigin()),
   title: {
     default: "RailDrop. Know when your train gets cheaper",
     template: "%s · RailDrop",
@@ -60,7 +64,11 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#efe8d9",
+  // #efe8d9 was the old paper. The Labs re-skin moved --paper to #f8f6f1 in
+  // globals.css and this was left behind, so the browser chrome sat a shade
+  // darker than the page it framed. One source of truth, matched by the test
+  // in tests/unit/theme-color.test.ts.
+  themeColor: "#f8f6f1",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",

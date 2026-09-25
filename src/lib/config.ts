@@ -82,6 +82,28 @@ export function resetConfigCache(): void {
   cached = null;
 }
 
+/**
+ * The one origin the deployment actually answers on.
+ *
+ * metadataBase, sitemap, robots and every email CTA used to hardcode
+ * https://raildrop.app, a domain this deployment does not serve — so the
+ * canonical URLs, the sitemap and the "open your board" link in an alert all
+ * pointed somewhere else. Preview deployments were worse: every one of them
+ * claimed to be production.
+ *
+ * Resolution order is explicit config, then the Vercel-provided production
+ * domain, then localhost. Never a literal.
+ */
+export function appOrigin(): string {
+  const configured = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (configured) return configured.replace(/\/$/, "");
+
+  const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
+  if (vercel) return `https://${vercel.replace(/^https?:\/\//, "").replace(/\/$/, "")}`;
+
+  return "http://localhost:3000";
+}
+
 export function applyParseApiKey(key: string): void {
   const trimmed = key.trim();
   if (!trimmed.startsWith("pmx_")) {

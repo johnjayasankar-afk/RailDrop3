@@ -192,3 +192,83 @@ describe("check cycle orchestration", () => {
     expect(second.skippedDuplicate).toBeGreaterThan(0);
   });
 });
+
+describe("cycle deadline", () => {
+  /* On serverless the provider runs one page at a time and a single date can
+   * take most of a minute. Three of them can outlast the 300 s function
+   * ceiling, and when the platform kills the invocation nothing is written
+   * down: the traveler sees the previous check as the newest one, with no sign
+   * that anything was attempted. The cycle has to stop and record instead. */
+  function slowProvider(latencyMs: number) {
+    const inner = new FixtureFareProvider();
+    const calls: string[] = [];
+    const provider: FareProvider = {
+      id: inner.id,
+      async searchTrips(request: FareSearchRequest): Promise<FareSearchResult> {
+        calls.push(request.travelDate);
+        const result = await inner.searchTrips(request);
+        return { ...result, metadata: { ...result.metadata, latencyMs } };
+      },
+      getStations: () => inner.getStations(),
+      healthCheck: () => inner.healthCheck(),
+    };
+    return { provider, calls };
+  }
+
+  it("stops searching at the deadline and finishes as PARTIAL_SUCCESS", async () => {
+    const repo = new MemoryRepository();
+    // Room for the first search only: after it reports 60 s, the next one
+    // would not fit.
+    const { provider, calls } = slowProvider(60_000);
+    const watch = await createWatchAndScan({
+      userId: "user-1",
+      email: "john@example.com",
+      body: {
+        originCode: "BOS",
+        destinationCode: "NYP",
+        desiredTravelDate: "2026-09-20",
+        dateFlexibilityDays: 1,
+        currentBookedPriceCents: 12800,
+      },
+      repo,
+      provider,
+      mailer: new RecordingMailer(),
+      now: new Date("2026-09-05T15:00:00.000Z"),
+      searchDeadlineAt: Date.now() + 30_000,
+    });
+
+    // One attempt is always made; a cycle that tries nothing is
+    // indistinguishable from an outage.
+    expect(calls).toHaveLength(1);
+
+    const cycle = await repo.getCycle(watch.lastCheckCycleId!);
+    expect(cycle?.status).toBe("PARTIAL_SUCCESS");
+    expect(cycle?.datesSucceeded).toEqual(["2026-09-19"]);
+    // The dates it never reached are failures, not empty inventory. "No
+    // cheaper fare" is a claim this product does not make without an answer.
+    expect(cycle?.datesFailed).toEqual(["2026-09-20", "2026-09-21"]);
+    // And they cost nothing: no call was made, so no credit was spent.
+    expect(cycle?.providerRequests).toBe(1);
+  });
+
+  it("searches the whole window when there is time", async () => {
+    const repo = new MemoryRepository();
+    const { provider, calls } = slowProvider(1_000);
+    await createWatchAndScan({
+      userId: "user-2",
+      email: "b@example.com",
+      body: {
+        originCode: "BOS",
+        destinationCode: "NYP",
+        desiredTravelDate: "2026-09-20",
+        dateFlexibilityDays: 1,
+        currentBookedPriceCents: 12800,
+      },
+      repo,
+      provider,
+      mailer: new RecordingMailer(),
+      now: new Date("2026-09-05T15:00:00.000Z"),
+    });
+    expect(calls).toHaveLength(3);
+  });
+});

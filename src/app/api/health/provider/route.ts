@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getConfig } from "@/lib/config";
+import { operatorAuthorized } from "@/lib/auth/operator";
 import { getFareProvider } from "@/lib/services";
 import { fareProviderStatus } from "@/lib/providers/create-provider";
 import { isServerlessRuntime } from "@/lib/providers/playwright-launch";
@@ -11,12 +12,26 @@ export const runtime = "nodejs";
  * Live fare plumbing probe for Vercel debugging.
  * GET /api/health/provider
  * GET /api/health/provider?probe=1  — runs one real BOS→NYP search (slow)
+ *
+ * The probe spends real money. It launches Chromium and runs a live search,
+ * and on the Parse path each call bills PROVIDER_CREDITS_PER_SEARCH. Until now
+ * it was open to anyone who knew the URL: an anonymous loop against it would
+ * drain the month's credit budget and, with maxDuration 120 and 3 GB of
+ * memory, cost compute on every hit. The unauthenticated response is now
+ * limited to booleans that say whether the plumbing is configured; actually
+ * firing a search requires the operator credential.
  */
 export async function GET(request: Request) {
   const config = getConfig();
   const status = fareProviderStatus();
   const url = new URL(request.url);
   const wantProbe = url.searchParams.get("probe") === "1";
+  if (wantProbe && !operatorAuthorized(request, config)) {
+    return NextResponse.json(
+      { error: "The live probe spends provider credits and requires CRON_SECRET." },
+      { status: 401 },
+    );
+  }
   const provider = getFareProvider();
 
   const health = await provider.healthCheck();

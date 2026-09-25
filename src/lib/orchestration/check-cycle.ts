@@ -1,4 +1,4 @@
-import { getConfig } from "@/lib/config";
+import { appOrigin, getConfig } from "@/lib/config";
 import { logger } from "@/lib/logger";
 import { BookingLinkResolver } from "@/lib/booking/booking-link-resolver";
 import { generateSearchDates } from "@/lib/domain/calendar";
@@ -7,6 +7,11 @@ import { cheapestByDate, rankCandidates } from "@/lib/domain/ranking";
 import { OpportunityComparator } from "@/lib/domain/opportunity";
 import { shouldCompleteWatch, usableSearchDates } from "@/lib/domain/monitoring";
 import { canonicalSearchKey, DEFAULT_PROVIDER_ID } from "@/lib/domain/search-key";
+import {
+  DEADLINE_SKIP_MESSAGE,
+  hasTimeForAnotherSearch,
+  searchDeadline,
+} from "@/lib/domain/cycle-budget";
 import { localIsoDate, nextSlotAfter } from "@/lib/domain/timezone";
 import type {
   CycleStatus,
@@ -40,6 +45,8 @@ export async function runWatchCycle(input: {
   provider: FareProvider;
   mailer?: Mailer;
   searchCache?: Map<string, FareSearchResult>;
+  /** Epoch ms after which no new provider search is started. Tests inject it. */
+  searchDeadlineAt?: number;
 }): Promise<CycleResult> {
   const now = input.now ?? new Date();
   const config = getConfig();
@@ -105,6 +112,16 @@ export async function runWatchCycle(input: {
   // Local can fan out; Vercel keeps concurrency low (Chromium memory) but >1 when possible.
   const parallel = config.isE2E ? 1 : config.isLocal ? 3 : 1;
 
+  // With concurrency 1 on serverless, three slow dates can ask for more wall
+  // clock than the function has. Past the deadline the remaining dates are
+  // recorded as not-checked so the cycle finishes as PARTIAL_SUCCESS, instead
+  // of the platform killing the invocation with nothing written down.
+  // Wall clock, not the cycle's logical `now`: the budget is about how long
+  // this invocation has actually been running, and a backfill or a test may
+  // pass a timestamp from another day entirely.
+  const deadline = input.searchDeadlineAt ?? searchDeadline(new Date());
+  const observedMs: number[] = [];
+
   const dateResults = await mapPool(dates, parallel, async (travelDate) => {
     const request = {
       originCode: watch.originCode,
@@ -137,8 +154,38 @@ export async function runWatchCycle(input: {
       }
     }
 
+    if (!result && !hasTimeForAnotherSearch({ now: Date.now(), deadline, observedMs })) {
+      // Not attempted. Recorded as an error rather than as empty inventory:
+      // we did not get an answer for this date, and "no cheaper fare" is a
+      // claim this product does not make without one.
+      return {
+        travelDate,
+        searchKey,
+        result: {
+          request,
+          status: "PROVIDER_ERROR" as const,
+          journeys: [],
+          providerError: {
+            code: "CYCLE_DEADLINE",
+            message: DEADLINE_SKIP_MESSAGE,
+            retryable: true,
+          },
+          metadata: {
+            provider: DEFAULT_PROVIDER_ID,
+            requestId: crypto.randomUUID(),
+            retrievedAt: new Date().toISOString(),
+            latencyMs: 0,
+            creditsCharged: 0,
+          },
+        },
+        reused: false,
+        skipped: true,
+      };
+    }
+
     if (!result) {
       result = await input.provider.searchTrips(request);
+      observedMs.push(result.metadata.latencyMs);
       const requestId = result.metadata.requestId;
       await input.repo.insertProviderRequest({
         id: requestId,
@@ -178,10 +225,25 @@ export async function runWatchCycle(input: {
       });
     }
 
-    return { travelDate, searchKey, result, reused };
+    return { travelDate, searchKey, result, reused, skipped: false };
   });
 
-  for (const { travelDate, searchKey, result, reused } of dateResults) {
+  for (const { travelDate, searchKey, result, reused, skipped } of dateResults) {
+    if (skipped) {
+      // No call was made, so no credit and no provider request to count.
+      datesFailed.push(travelDate);
+      await input.repo.insertDateSnapshot({
+        id: crypto.randomUUID(),
+        cycleId,
+        watchId: watch.id,
+        travelDate,
+        status: "PROVIDER_ERROR",
+        searchKey,
+        providerRequestId: null,
+        errorMessage: DEADLINE_SKIP_MESSAGE,
+      });
+      continue;
+    }
     if (reused) {
       reusedSearches += 1;
     } else {
@@ -262,7 +324,10 @@ export async function runWatchCycle(input: {
       best: opportunity.qualifying[0],
       others: opportunity.qualifying.slice(1, 4),
       byDate: cheapest,
-      appUrl: `${config.appUrl}/watches/${watch.id}`,
+      // appOrigin() rather than config.appUrl: NEXT_PUBLIC_APP_URL defaults to
+      // localhost, and the setup docs have you set it AFTER the first deploy —
+      // so the first production alerts went out with a dead CTA.
+      appUrl: `${appOrigin()}/watches/${watch.id}`,
       checkedAt: now,
       cycleStatus: resolveCycleStatus(dates, datesSucceeded, datesFailed, allJourneys.length),
       skippedPastDates: window.skippedPastDates,

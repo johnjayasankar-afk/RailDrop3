@@ -1,21 +1,58 @@
 # Failure modes & mitigations
 
-| Scenario                    | Mitigation                                                                  |
-| --------------------------- | --------------------------------------------------------------------------- |
-| Obi down                    | Session continues with other enabled sources; UI shows Obi error locally    |
-| Curb disagrees with Obi     | Reconciler picks higher-score quote; material delta → discrepancy message   |
-| Uber result is a range      | Display full range; ranking uses midpoint internally only                   |
-| Lyft product rename         | Taxonomy fallback to OTHER until mapped                                     |
-| Empower estimate only       | Always ESTIMATE label; never “locked”                                       |
-| Quote expires on screen     | Freshness EXPIRED; excluded from ranking; refresh CTA                       |
-| Rapid refresh               | Server rate limit + short cache TTL + debounce                              |
-| Location moves              | Refresh uses new coords only after user action / refresh                    |
-| Slightly different geocodes | Single canonical geocode per session for all sources                        |
-| Unexpected currency         | Pass through ISO code; format with Intl                                     |
-| Malformed source JSON       | Zod fail → source error, no crash                                           |
-| Account-linked cache bleed  | Cache key includes account context; linked blocked from public keys         |
-| Malicious booking URL       | Allowlist reject                                                            |
-| Expensive APIs              | Usage counters, rate limits, cache, source timeouts                         |
-| Partner terms change        | Capability flags + SETUP_REQUIRED; kill-switch env flags                    |
-| 15s source latency          | Per-source timeout (default 8s); progressive UI shows early results         |
-| Production mock-only        | `assertNoSilentMocks`; `isProductionLiveCapable` banner; fixtures forbidden |
+RailDrop's promise is that it never invents a price. Most of the work in this
+document is therefore about one distinction: **a fare that does not exist** and
+**a fare we failed to look up** must never render as the same thing.
+
+The previous version of this file described Obi, Curb, Uber, Lyft and surge
+pricing. It belonged to a different product and has been replaced.
+
+## The one that matters
+
+`NO_INVENTORY` means the provider answered and there was nothing to sell.
+`PROVIDER_ERROR` means we did not get an answer. The first is a fact about
+Amtrak; the second is a fact about us. `resolveCycleStatus`
+(`src/lib/orchestration/check-cycle.ts`) keeps them apart, and the board renders
+failed dates by name rather than folding them into "no cheaper fare yet".
+
+Where that line is currently blurred is recorded honestly in the table below.
+
+## Provider
+
+| Scenario                                  | What happens now                                                                                                                                                                                                           | Mitigation / status                                                                                                                                                                                                                                                                                                             |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Wanderu DOM change**                    | The trip payload stops parsing, `fetchTrips` throws "Wanderu returned no trip data". `isRetryableWanderuError` returns false, so no retry, and the date is recorded `PROVIDER_ERROR`.                                      | Correct behaviour — it fails loudly rather than reporting an empty window. `scripts/verify-station-map.ts` probes the mapped stations so drift is visible before a traveler hits it. No synthetic canary yet (planned, Phase 4.6).                                                                                              |
+| **Chromium cold start**                   | `@sparticuz/chromium` launches per cold invocation. The browser cache path is pinned by `pinBrowsersPath()`.                                                                                                               | Fixed: that function used to join `process.cwd()`, which on Vercel is the read-only `/var/task`, so `mkdirSync` threw on every cold start. It now uses `/tmp` on Vercel.                                                                                                                                                        |
+| **Serialized page loads exceed the wall** | `MAX_CONCURRENT_PAGES` is 1 on serverless. A ±1 window is 3 dates, each up to 55 s navigation + 25 s first wait + 28 s trip wait + 5 s settle, with up to 2 attempts. Worst case is several times the 300 s `maxDuration`. | **Open.** The function is killed mid-flight and the cycle is never recorded. A hard per-cycle deadline that degrades to `PARTIAL_SUCCESS` is the fix; see `docs/AUDIT.md` §0.7.                                                                                                                                                 |
+| **Parse 429 / 5xx**                       | `isTransientProviderFailure` retries 429 and ≥500 with exponential backoff, honouring `Retry-After` up to 90 s. 400/401/404/422 are never retried.                                                                         | Working as intended. Jitter is **bounded** (`min(250ms, delay/2)`), not full jitter — a thundering herd across watches is still possible.                                                                                                                                                                                       |
+| **Parse key absent**                      | `createFareProvider` builds no secondary at all, yet `fareProviderStatus()` still reports `configured: true`.                                                                                                              | Misleading status string. The fallback chain also only engages on `PROVIDER_ERROR`, so it cannot rescue the station-map gap below.                                                                                                                                                                                              |
+| **Station map miss**                      | 20 of 189 catalog stations have a verified Wanderu id. The rest fall back to matching Wanderu's city/state strings.                                                                                                        | Partly fixed. Mismatched city names (BUF is filed under "Depew") silently yield zero trips and read as `NO_INVENTORY`. Same-city pairs (RVR/RVM) can return **the wrong station's fare**, relabeled with the requested code. The picker now labels these "coverage unverified" so the traveler is told before the watch exists. |
+| **Ambiguous station code**                | `SFA` and `OSC` are each held by two different stations in the catalog.                                                                                                                                                    | Fixed the dangerous half: one first-wins lookup is now shared by the UI and the provider, so they can no longer disagree. Deciding which station owns the code needs an authoritative Amtrak source; until then they are reported as ambiguous rather than guessed.                                                             |
+
+## Scheduling
+
+| Scenario                 | What happens now                                                                                                                                                                                                                      | Mitigation / status                                                                                                            |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| **Cron double delivery** | `scheduled_check_runs (watch_id, local_check_date, check_slot)` is unique. A duplicate loses the insert and skips.                                                                                                                    | Working. Overlapping deploys and retries are safe.                                                                             |
+| **DST slot skew**        | Slots are local wall time (08:00 / 14:00 / 20:00) resolved through `Intl` + IANA zones, never fixed UTC offsets. The hourly wake asks whether a slot has passed in the watch's timezone, so each slot is claimed once per local date. | Working. `extensionWindow()` is tested across the November transition.                                                         |
+| **Missed wake**          | Any later hourly wake claims a slot whose row is still missing while the local date is unchanged.                                                                                                                                     | Catch-up is intentional; a skipped hour does not skip the check.                                                               |
+| **Cron secret exposure** | Was accepted as `?secret=` in the query string, which lands in Vercel access logs, in referrers, and in browser history.                                                                                                              | Fixed: `Authorization: Bearer` only, compared in constant time, shared by the cron route and the credit-spending health probe. |
+
+## Delivery
+
+| Scenario                         | What happens now                                                                                                                                        | Mitigation / status                                                                                                                                   |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Resend bounce or API failure** | `ResendMailer` never throws: it returns `{status: "FAILED", errorMessage}` and the delivery row records it.                                             | Working. A failed send does not fail the cycle, and the alert is not silently marked delivered.                                                       |
+| **Resend not configured**        | The same soft failure, with "RESEND_API_KEY or RESEND_FROM is not configured".                                                                          | Working, but invisible unless someone reads the deliveries table.                                                                                     |
+| **Email CTA points nowhere**     | The link was built from `NEXT_PUBLIC_APP_URL`, which defaults to `http://localhost:3000` — and the setup docs have you set it _after_ the first deploy. | Fixed: `appOrigin()` resolves explicit config → `VERCEL_PROJECT_PRODUCTION_URL` → localhost, and a test forbids product-domain literals in `src/app`. |
+| **Duplicate alert for one drop** | `OpportunityComparator` compares against the stored fingerprint; unchanged results are silent.                                                          | Working.                                                                                                                                              |
+
+## Data & access
+
+| Scenario                             | What happens now                                                                                                                 | Mitigation / status                                                                                                          |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| **Supabase RLS denial**              | A cross-user read returns no rows rather than another traveler's watch.                                                          | Believed correct; **not yet proven by a test**. Phase 4.7 adds one that attempts a cross-user read and expects denial.       |
+| **Zero inventory vs provider error** | Distinguished end to end — see above.                                                                                            | The one exception is the station-map miss, which currently arrives as `NO_INVENTORY`. Labelled in the UI rather than hidden. |
+| **Price semantics unknown**          | A fare whose party total cannot be derived is excluded from ranking rather than guessed.                                         | Working. This is the rule the whole product rests on.                                                                        |
+| **Live probe abuse**                 | `/api/health/provider?probe=1` ran a real search for any anonymous caller, spending credits and 3 GB × 120 s of compute per hit. | Fixed: the probe requires the operator credential. The unauthenticated response is limited to configuration booleans.        |
+| **Parse key rejected but stored**    | The local key endpoint wrote the key to `.env.local` before validating it, leaving a rejected key on disk.                       | Fixed: validate first, persist second, and report a write failure as a warning rather than a 500.                            |

@@ -53,7 +53,7 @@ function renderHtml(input: Parameters<typeof sendFareDropEmail>[0]): string {
     .join("");
 
   return `<!doctype html>
-<html><body style="margin:0;background:#efe8d9;color:#16120d;font-family:Georgia,serif;">
+<html><body style="margin:0;background:#f8f6f1;color:#16120d;font-family:Georgia,serif;">
   <div style="max-width:560px;margin:0 auto;padding:32px 20px;">
     <p style="letter-spacing:.18em;text-transform:uppercase;font-size:11px;color:#7a2433;">RailDrop</p>
     <h1 style="font-size:28px;line-height:1.15;margin:8px 0 16px;">RailDrop found cheaper options.</h1>
