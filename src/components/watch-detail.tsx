@@ -21,6 +21,7 @@ import { shouldHandleBoardKey } from "@/lib/domain/board-keys";
 import { BoardRow } from "./board/BoardRow";
 import { HelpSheet } from "./board/HelpSheet";
 import { ShareSheet } from "./board/ShareSheet";
+import { WatchSettingsForm } from "./board/WatchSettingsForm";
 import { ConnectionChip } from "./board/ConnectionChip";
 import { Handoff } from "./board/Handoff";
 import { Legs } from "./board/Legs";
@@ -200,13 +201,6 @@ export function WatchDetail({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [rebookOpen, setRebookOpen] = useState(false);
   const [liveMoreOpen, setLiveMoreOpen] = useState(false);
-  const [settingsEmail, setSettingsEmail] = useState(watch.alertEmail);
-  const [settingsThreshold, setSettingsThreshold] = useState(
-    String(Math.round(watch.minimumSavingsCents / 100)),
-  );
-  const [settingsRestricted, setSettingsRestricted] = useState(watch.includeRestrictedFares);
-  const [settingsThruway, setSettingsThruway] = useState(watch.includeThruway);
-  const [settingsPreferred, setSettingsPreferred] = useState(watch.preferredDepartureTime ?? "");
   const [busy, setBusy] = useState(false);
   const [scanning, setScanning] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -576,25 +570,6 @@ export function WatchDetail({
       ...extensionWindow(preset),
     });
   }
-
-  // Re-seeds the settings form after a save, once the server round-trip brings
-  // the persisted values back through props. The proper shape for this is a
-  // keyed <WatchSettingsForm/> that remounts with fresh defaults; that arrives
-  // when the settings panel becomes its own component in the decomposition.
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- see above
-    setSettingsEmail(watch.alertEmail);
-    setSettingsThreshold(String(Math.round(watch.minimumSavingsCents / 100)));
-    setSettingsRestricted(watch.includeRestrictedFares);
-    setSettingsThruway(watch.includeThruway);
-    setSettingsPreferred(watch.preferredDepartureTime ?? "");
-  }, [
-    watch.alertEmail,
-    watch.minimumSavingsCents,
-    watch.includeRestrictedFares,
-    watch.includeThruway,
-    watch.preferredDepartureTime,
-  ]);
 
   useEffect(() => {
     busyRef.current = busy;
@@ -2095,80 +2070,21 @@ export function WatchDetail({
           Watch settings
         </button>
         {settingsOpen ? (
-          <form
-            className="panel gl mt-3 max-w-lg space-y-3 p-4 text-sm"
-            onSubmit={(event) => {
-              event.preventDefault();
-              const email = settingsEmail.trim();
-              if (!email || !email.includes("@")) {
-                setActionError("Enter a valid alert email.");
-                return;
-              }
-              const preferred = settingsPreferred.trim();
-              void action(`/api/watches/${watch.id}`, "PATCH", {
-                alertEmail: email,
-                minimumSavingsCents: Math.round(Number(settingsThreshold) * 100),
-                includeRestrictedFares: settingsRestricted,
-                includeThruway: settingsThruway,
-                preferredDepartureTime: preferred || null,
-              });
+          <WatchSettingsForm
+            // Remounts when a save brings new persisted values back, which is
+            // what replaced the re-seeding effect.
+            key={`${watch.alertEmail}|${watch.minimumSavingsCents}|${watch.includeRestrictedFares}|${watch.includeThruway}|${watch.preferredDepartureTime ?? ""}`}
+            alertEmail={watch.alertEmail}
+            minimumSavingsCents={watch.minimumSavingsCents}
+            includeRestrictedFares={watch.includeRestrictedFares}
+            includeThruway={watch.includeThruway}
+            preferredDepartureTime={watch.preferredDepartureTime}
+            busy={busy}
+            onInvalidEmail={setActionError}
+            onSave={(values) => {
+              void action(`/api/watches/${watch.id}`, "PATCH", values);
             }}
-          >
-            <label className="block">
-              Alert email
-              <input
-                type="email"
-                required
-                value={settingsEmail}
-                onChange={(event) => setSettingsEmail(event.target.value)}
-                className="field"
-              />
-            </label>
-            <label className="block">
-              Alert when savings are at least
-              <select
-                value={settingsThreshold}
-                onChange={(event) => setSettingsThreshold(event.target.value)}
-                className="field"
-              >
-                <option value="1">$1</option>
-                <option value="5">$5</option>
-                <option value="10">$10</option>
-                <option value="20">$20</option>
-              </select>
-            </label>
-            <label className="block">
-              Preferred departure · optional
-              <input
-                type="time"
-                value={settingsPreferred}
-                onChange={(event) => setSettingsPreferred(event.target.value)}
-                className="field"
-              />
-            </label>
-            <label className="block">
-              <input
-                type="checkbox"
-                checked={settingsRestricted}
-                onChange={(event) => setSettingsRestricted(event.target.checked)}
-              />{" "}
-              Also include cheaper restricted fares
-            </label>
-            <label className="block">
-              <input
-                type="checkbox"
-                checked={settingsThruway}
-                onChange={(event) => setSettingsThruway(event.target.checked)}
-              />{" "}
-              Include Amtrak Thruway / bus connections
-            </label>
-            <button type="submit" className="btn btn-primary" disabled={busy}>
-              Save settings
-            </button>
-            <p className="text-xs text-ink-soft">
-              Restricted or Thruway changes apply on the next Check now.
-            </p>
-          </form>
+          />
         ) : null}
       </div>
 
