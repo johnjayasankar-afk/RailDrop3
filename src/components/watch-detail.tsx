@@ -18,6 +18,11 @@ import { serviceTypeLabel } from "@/lib/domain/service-type";
 import { formatRelativeTime, isCheckStale } from "@/lib/domain/relative-time";
 import { extensionWindow } from "@/lib/domain/monitoring";
 import { shouldHandleBoardKey } from "@/lib/domain/board-keys";
+import { BoardRow } from "./board/BoardRow";
+import { ConnectionChip } from "./board/ConnectionChip";
+import { Handoff } from "./board/Handoff";
+import { Legs } from "./board/Legs";
+import { PriceLadder } from "./board/PriceLadder";
 import {
   boardReducer,
   clockFiltersActive,
@@ -43,8 +48,6 @@ import {
   fastestCheaper,
   isOvernight,
   sparklineValues,
-  waitMinutes,
-  connectionNote,
 } from "@/lib/domain/board-insights";
 import { BookingLinkResolver } from "@/lib/booking/booking-link-resolver";
 import type { RankedCandidate } from "@/lib/domain/types";
@@ -90,7 +93,6 @@ import {
   cheaperOptionsText,
   feeNote,
   itineraryText,
-  ladderPercent,
   matchesTrainQuery,
   missedBestNote,
   neighborDepartures,
@@ -109,7 +111,6 @@ import {
   minutesUntilDepart,
 } from "@/lib/domain/board-act";
 import {
-  durationShare,
   hassleNote,
   monitorRemaining,
   moveLabel,
@@ -2049,7 +2050,7 @@ export function WatchDetail({
                 <span className="board-cell-actions">Book</span>
               </div>
               {board.map((candidate, index) => (
-                <TimetableRow
+                <BoardRow
                   key={candidateKey(candidate)}
                   candidate={candidate}
                   index={index}
@@ -2575,268 +2576,5 @@ export function WatchDetail({
         Confirm on Amtrak.
       </p>
     </main>
-  );
-}
-
-function PriceLadder({
-  ladder,
-}: {
-  ladder: { min: number; max: number; booked: number; marks: number[] };
-}) {
-  if (ladder.marks.length === 0) return null;
-  const you = ladderPercent(ladder.booked, ladder.min, ladder.max);
-  return (
-    <section className="panel gl mt-4 p-4">
-      <p className="text-xs uppercase tracking-[0.16em] text-ink-soft">Where you sit</p>
-      <div className="ladder mt-4" aria-hidden>
-        <span className="ladder-rail" />
-        {ladder.marks.map((cents) => (
-          <i
-            key={cents}
-            className={`ladder-dot ${cents < ladder.booked ? "is-save" : ""}`}
-            style={{ left: `${ladderPercent(cents, ladder.min, ladder.max)}%` }}
-          />
-        ))}
-        <span className="ladder-you" style={{ left: `${you}%` }}>
-          You
-        </span>
-      </div>
-      <p className="mt-5 text-xs text-ink-soft">
-        Listed from {formatUsdCompact(ladder.min)} to {formatUsdCompact(ladder.max)} · you paid{" "}
-        {formatUsdCompact(ladder.booked)}
-      </p>
-    </section>
-  );
-}
-
-function ConnectionChip({ candidate }: { candidate: RankedCandidate }) {
-  const note = connectionNote(candidate);
-  const extra =
-    note.quality === "tight" ? "chip-tight" : note.quality === "long" ? "chip-long" : "";
-  return <span className={`chip ${extra}`}>{note.label}</span>;
-}
-
-function TimetableRow({
-  candidate,
-  index,
-  yours,
-  preferred,
-  maxDuration,
-  picked,
-  pinned,
-  passengers,
-  feeCents,
-  focused,
-  beats,
-  departed,
-  resolver,
-  onTogglePick,
-  onTogglePin,
-  onHide,
-  onFocus,
-}: {
-  candidate: RankedCandidate;
-  index: number;
-  yours: RankedCandidate | null;
-  preferred: RankedCandidate | null;
-  maxDuration: number;
-  picked: boolean;
-  pinned: boolean;
-  passengers: number;
-  feeCents: number;
-  focused: boolean;
-  beats: boolean;
-  departed: boolean;
-  resolver: BookingLinkResolver;
-  onTogglePick: () => void;
-  onTogglePin: () => void;
-  onHide: () => void;
-  onFocus: () => void;
-}) {
-  const duration = formatDurationMinutes(candidate.journey.durationMinutes);
-  const mine = yours ? candidateIsSame(candidate, yours) : false;
-  const hourly = centsPerHour(candidate.totalPartyPriceCents, candidate.journey.durationMinutes);
-  const each = perPersonCents(candidate.totalPartyPriceCents, passengers);
-  const overnight = arrivalDateNote(candidate.journey.departureAt, candidate.journey.arrivalAt);
-  const vsRide =
-    yours && !mine ? formatDurationDelta(durationDeltaMinutes(yours, candidate)) : null;
-  return (
-    <div
-      id={optionAnchor(candidate)}
-      role="button"
-      tabIndex={0}
-      className={`board-row board-grid border-t border-line px-4 py-4 ${picked ? "board-row-on" : ""} ${mine ? "your-train" : ""} ${pinned ? "board-row-pin" : ""} ${focused ? "board-row-focus" : ""} ${departed ? "is-departed" : ""}`}
-      onClick={(event) => {
-        const target = event.target as HTMLElement | null;
-        if (target?.closest("a, button, input, select, textarea, label")) return;
-        onFocus();
-      }}
-      onKeyDown={(event) => {
-        if (event.key !== "Enter" && event.key !== " ") return;
-        const target = event.target as HTMLElement | null;
-        if (target !== event.currentTarget) return;
-        event.preventDefault();
-        onFocus();
-      }}
-    >
-      <p className="board-cell-index board-index">{String(index + 1).padStart(2, "0")}</p>
-      <div className="board-cell-depart">
-        <p className="board-mobile-label">Depart</p>
-        <p className="price serif text-2xl md:text-xl">
-          <Flap>{formatClock(candidate.journey.departureAt)}</Flap>
-        </p>
-      </div>
-      <div className="board-cell-arrive">
-        <p className="board-mobile-label">Arrive</p>
-        <p className="price serif text-2xl md:text-xl">
-          <Flap>{formatClock(candidate.journey.arrivalAt)}</Flap>
-        </p>
-        {overnight ? (
-          <p className="text-[10px] uppercase tracking-[0.12em] text-ink-soft">{overnight}</p>
-        ) : null}
-      </div>
-      <div className="board-cell-train min-w-0">
-        <p>
-          {candidate.journey.serviceName} {candidate.journey.trainNumber}
-        </p>
-        <p className="text-sm text-ink-soft">
-          {formatDisplayDate(candidate.journey.searchedTravelDate)} ·{" "}
-          {serviceTypeLabel(candidate.journey.serviceType)}
-        </p>
-        {candidate.journey.durationMinutes != null ? (
-          <div className="duration-bar" aria-hidden>
-            <span
-              style={{
-                width: `${durationShare(candidate.journey.durationMinutes, maxDuration)}%`,
-              }}
-            />
-          </div>
-        ) : null}
-        <div className="mt-2 flex flex-wrap gap-2">
-          <ConnectionChip candidate={candidate} />
-          {isAcela(candidate) ? <span className="chip">Acela</span> : null}
-          {isOvernight(candidate.journey.departureAt, candidate.journey.arrivalAt) ? (
-            <span className="chip">Overnight</span>
-          ) : null}
-          {hourly != null ? <span className="chip">{formatUsdCompact(hourly)}/hr</span> : null}
-          {mine ? <span className="chip">Your train</span> : null}
-          {preferred && candidateIsSame(preferred, candidate) ? (
-            <span className="chip">Preferred time</span>
-          ) : null}
-          {candidate.fare.availability === "LIMITED" ? (
-            <span className="chip">Limited seats</span>
-          ) : null}
-          {candidate.fare.fareFamilyRaw !== "WANDERU_LISTED" ? (
-            <span className="chip">{fareFamilyLabel(candidate.fare.fareFamily)}</span>
-          ) : null}
-          {pinned ? <span className="chip">Pinned</span> : null}
-          {beats ? <span className="chip chip-beats">Beats yours</span> : null}
-        </div>
-        <Legs candidate={candidate} />
-        <div className="mt-2 flex flex-wrap gap-3 no-print">
-          <button
-            type="button"
-            className={`text-xs underline ${pinned ? "text-ink" : "text-ink-soft"}`}
-            onClick={onTogglePin}
-          >
-            {pinned ? "Unpin" : "Pin"}
-          </button>
-          <button
-            type="button"
-            className={`text-xs underline ${picked ? "text-ink" : "text-ink-soft"}`}
-            onClick={onTogglePick}
-          >
-            {picked ? "Remove from compare" : "Compare"}
-          </button>
-          <button type="button" className="text-xs underline text-ink-soft" onClick={onHide}>
-            Hide
-          </button>
-        </div>
-      </div>
-      <div className="board-cell-dur">
-        <p className="board-mobile-label">Dur</p>
-        <p className="text-sm">{duration ?? "—"}</p>
-        {vsRide ? (
-          <p className="text-[10px] uppercase tracking-[0.12em] opacity-70">{vsRide}</p>
-        ) : null}
-      </div>
-      <div className="board-cell-price">
-        <p className="board-mobile-label">Price</p>
-        <p className="price serif text-2xl md:text-xl">
-          <Flap>{formatUsdCompact(candidate.totalPartyPriceCents)}</Flap>
-        </p>
-        {each ? <p className="text-xs opacity-70">{formatUsdCompact(each)} / person</p> : null}
-      </div>
-      <div className="board-cell-save">
-        <p className="board-mobile-label">Save</p>
-        <p className={candidate.savingsCents > 0 ? "text-sm text-save" : "text-sm opacity-70"}>
-          {candidate.savingsCents > 0 ? formatUsdCompact(candidate.savingsCents) : "—"}
-        </p>
-        {feeCents > 0 && candidate.savingsCents > 0 ? (
-          <p className="text-xs opacity-70">
-            {netAfterFee(candidate.savingsCents, feeCents) > 0
-              ? `${formatUsdCompact(netAfterFee(candidate.savingsCents, feeCents))} after fee`
-              : "fee may wipe this"}
-          </p>
-        ) : null}
-      </div>
-      <div className="board-cell-actions no-print">
-        <Handoff candidate={candidate} resolver={resolver} compact />
-      </div>
-    </div>
-  );
-}
-
-function Legs({ candidate }: { candidate: RankedCandidate }) {
-  if (candidate.journey.legs.length < 2) return null;
-  return (
-    <ol className="legs">
-      {candidate.journey.legs.map((leg, index) => {
-        const next = candidate.journey.legs[index + 1];
-        const wait = next ? waitMinutes(leg.arrivalAt, next.departureAt) : null;
-        return (
-          <li key={`${leg.departureAt}-${index}`}>
-            <span className="station-code">
-              {leg.originCode} → {leg.destinationCode}
-            </span>{" "}
-            {formatClock(leg.departureAt)} {leg.serviceName ?? "Train"} {leg.trainNumber ?? ""} →{" "}
-            {formatClock(leg.arrivalAt)}
-            {wait != null ? ` · ${wait}m wait` : ""}
-          </li>
-        );
-      })}
-    </ol>
-  );
-}
-
-function Handoff({
-  candidate,
-  resolver,
-  compact = false,
-}: {
-  candidate: RankedCandidate;
-  resolver: BookingLinkResolver;
-  compact?: boolean;
-}) {
-  const [copied, setCopied] = useState(false);
-  const handoff = resolver.resolve({ journey: candidate.journey, fare: candidate.fare });
-  return (
-    <div className={`space-y-2 text-sm ${compact ? "max-w-full" : ""}`}>
-      <a href={handoff.url} target="_blank" rel="noreferrer" className="btn btn-primary">
-        {handoff.label}
-      </a>
-      {compact ? null : <p className="max-w-xs text-xs text-ink-soft">{handoff.copyText}</p>}
-      <button
-        type="button"
-        className="underline"
-        onClick={async () => {
-          await navigator.clipboard.writeText(handoff.copyText);
-          setCopied(true);
-          window.setTimeout(() => setCopied(false), 1600);
-        }}
-      >
-        {copied ? "Copied" : "Copy trip details"}
-      </button>
-    </div>
   );
 }
