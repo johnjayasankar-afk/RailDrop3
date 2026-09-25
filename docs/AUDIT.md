@@ -304,10 +304,16 @@ Three problems, of increasing importance:
    gold rules and split-flap. The glass layer is a different product's language
    wearing this one's colours.
 
-I have **not** removed it. It is recent, deliberate work of yours, and choosing
-between "make the glass static CSS and keep the look" and "drop the layer and
-stay with paper and split-flap" is a design decision, not a bug fix. It is the
-first question in the hand-back. The hydration error stays open until you pick.
+**Resolved:** you chose to keep the look and drop the script. The `gl` class and
+its tint are now declared in the markup and the stylesheet exactly as the script
+used to inject them, `labs-ui.tsx` and `labs-ui.js` are deleted, and the
+JS-only rules (`.gl-on`, the `.wd` word-reveal block) are pruned.
+
+Verified live on a clean tab: **no console output at all** on `/watches/new`,
+and computed styles are identical to what the script produced — header
+`--gl-tint: .5`, panels `.62`, both `blur(16px) saturate(1.8)` with the same
+rim shadow; zero `.wd` spans and zero injected attributes. What is lost is the
+scroll-reveal and the per-word heading arrival; the material is unchanged.
 
 ---
 

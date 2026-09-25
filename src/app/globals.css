@@ -121,6 +121,21 @@ button:focus-visible {
   padding-top: env(safe-area-inset-top);
 }
 
+/* The Labs material, declared rather than injected.
+   labs-ui.js used to add .gl and an inline --gl-tint to these surfaces in a
+   useEffect, after the server HTML had already been sent. React hydrated,
+   found classes and inline styles it had not rendered, and reported a mismatch
+   it "won't patch up". The same script rewrote every h1 and h2 into per-word
+   spans, which is both the hydration hazard and a select/copy and screen
+   reader one. The look is unchanged; only the delivery moved into CSS. */
+.site-header {
+  --gl-tint: 0.5;
+}
+
+.panel {
+  --gl-tint: 0.62;
+}
+
 .brand-lockup {
   text-decoration: none;
   color: inherit;

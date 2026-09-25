@@ -227,7 +227,7 @@ export function WatchList({ watches, today }: { watches: WatchRecord[]; today: s
         </p>
       ) : null}
       {attention.length > 0 ? (
-        <div className="panel attention-edge mt-6 p-4">
+        <div className="panel gl attention-edge mt-6 p-4">
           <p className="text-xs uppercase tracking-[0.16em] text-ink-soft">Needs a look</p>
           <ul className="mt-3 space-y-2 text-sm">
             {attention.map((watch) => {

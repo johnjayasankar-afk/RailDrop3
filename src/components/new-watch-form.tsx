@@ -158,7 +158,7 @@ export function NewWatchForm({
         </p>
         <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_16rem]">
           <form onSubmit={onSubmit} className="space-y-8">
-            <section className="panel space-y-4 p-5">
+            <section className="panel gl space-y-4 p-5">
               <h2 className="text-xs uppercase tracking-[0.16em] text-ink-soft">Journey</h2>
               <StationField label="Origin station" value={origin} onChange={setOrigin} />
               <div className="flex flex-wrap items-center gap-3">
@@ -233,7 +233,7 @@ export function NewWatchForm({
                 />
               </label>
             </section>
-            <section className="panel space-y-4 p-5">
+            <section className="panel gl space-y-4 p-5">
               <h2 className="text-xs uppercase tracking-[0.16em] text-ink-soft">
                 Current reservation
               </h2>
@@ -299,7 +299,7 @@ export function NewWatchForm({
                 />
               </label>
             </section>
-            <section className="panel space-y-4 p-5">
+            <section className="panel gl space-y-4 p-5">
               <h2 className="text-xs uppercase tracking-[0.16em] text-ink-soft">
                 Compare & monitor
               </h2>

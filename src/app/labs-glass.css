@@ -107,9 +107,11 @@ picture {
     );
 }
 /* the lens takes over from the plain blur; set last so it wins over the tints above */
-.gl-on {
-  --gl-fx: var(--lg);
-}
+/* .gl-on and the .wd word-reveal rules lived here. Both were only ever
+   activated by labs-ui.js mutating the DOM after render, which cost a React
+   hydration mismatch on every page. This app applies the material in its own
+   stylesheet instead, so the frosted-glass path below is what every browser
+   gets. */
 /* a glass control presses in: the bevel flattens, the tint drops */
 .gl:active,
 .gl--flat:active {
@@ -139,34 +141,6 @@ a.gl--flat:active {
   opacity: 0;
   transform: translateY(16px);
   filter: blur(3px);
-}
-
-/* a heading arrives one word after another: craft, rather than motion for its own sake */
-.wd {
-  display: inline-block;
-}
-.labs-reveal .wds .wd {
-  transition:
-    opacity 0.5s var(--ease, cubic-bezier(0.32, 0.72, 0, 1)),
-    transform 0.7s var(--ease, cubic-bezier(0.32, 0.72, 0, 1));
-  transition-delay: calc(var(--wd, 0) * 30ms);
-}
-.labs-reveal [data-labs-reveal]:not(.is-in) .wds .wd,
-.labs-reveal .wds--io:not(.is-in) .wd {
-  opacity: 0.06;
-  transform: translateY(0.34em);
-}
-/* a heading already on screen plays on load, and starts visible so it still counts as
-   the page's main content */
-.wds--load .wd {
-  animation: labs-wdrise 0.7s var(--ease, cubic-bezier(0.32, 0.72, 0, 1)) both;
-  animation-delay: calc(var(--wd, 0) * 24ms);
-}
-@keyframes labs-wdrise {
-  from {
-    opacity: 0.12;
-    transform: translateY(0.34em);
-  }
 }
 
 /* ---- less motion, less transparency ----------------------------------------------- */

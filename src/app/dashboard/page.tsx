@@ -107,7 +107,7 @@ export default async function DashboardPage() {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="panel p-4">
+    <div className="panel gl p-4">
       <p className="text-xs uppercase tracking-[0.14em] text-ink-soft">{label}</p>
       <p className="serif mt-1 text-2xl">
         <Flap>{value}</Flap>

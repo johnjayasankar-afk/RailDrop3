@@ -158,7 +158,7 @@ export default async function HomePage() {
           ].map(([value, label], index) => (
             <div
               key={label}
-              className="panel reveal px-3 py-4 sm:px-4"
+              className="panel gl reveal px-3 py-4 sm:px-4"
               style={{ animationDelay: `${90 + index * 50}ms` }}
             >
               <p className="serif text-xl sm:text-2xl">{value}</p>
@@ -181,7 +181,7 @@ export default async function HomePage() {
           ].map(([num, title, copy], index) => (
             <article
               key={title}
-              className="panel reveal p-5"
+              className="panel gl reveal p-5"
               style={{ animationDelay: `${120 + index * 70}ms` }}
             >
               <p className="font-mono text-xs text-gold">{num}</p>

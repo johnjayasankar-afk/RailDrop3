@@ -1361,7 +1361,7 @@ export function WatchDetail({
         </p>
       ) : null}
       {watch.status === "COMPLETED" ? (
-        <div className="panel mt-3 p-4 no-print">
+        <div className="panel gl mt-3 p-4 no-print">
           <p className="text-sm text-ink-soft">Monitoring ended.</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {(["24h", "48h", "72h"] as const).map((preset) => (
@@ -1611,7 +1611,7 @@ export function WatchDetail({
       ) : null}
 
       {neighbors.length > 0 ? (
-        <section className="mt-4 panel p-4">
+        <section className="mt-4 panel gl p-4">
           <p className="eyebrow">Nearby departures</p>
           <ul className="mt-3 space-y-2">
             {neighbors.slice(0, 4).map((candidate) => (
@@ -1640,7 +1640,7 @@ export function WatchDetail({
       ) : null}
 
       {contrast ? (
-        <section className="analysis panel mt-4 p-4 text-sm">
+        <section className="analysis panel gl mt-4 p-4 text-sm">
           <p className="eyebrow">Acela vs Regional</p>
           <p className="mt-2">
             {trainLabel(contrast.acela)} is {formatUsdCompact(Math.abs(contrast.extraCents))}
@@ -1791,7 +1791,7 @@ export function WatchDetail({
           </div>
         </section>
       ) : (
-        <section className="panel mt-8 p-6">
+        <section className="panel gl mt-8 p-6">
           <h2 className="serif text-2xl">No trains on the board yet.</h2>
           <p className="mt-2 text-sm text-ink-soft">
             Check now to search live inventory for this window.
@@ -2221,7 +2221,7 @@ export function WatchDetail({
       ) : null}
 
       {best ? (
-        <section className="analysis panel mt-6 p-4 text-sm">
+        <section className="analysis panel gl mt-6 p-4 text-sm">
           <p className="eyebrow">Stay or switch</p>
           <details className="mt-2">
             <summary className="cursor-pointer text-ink-soft">{verdict.copy}</summary>
@@ -2252,7 +2252,7 @@ export function WatchDetail({
         </button>
         {settingsOpen ? (
           <form
-            className="panel mt-3 max-w-lg space-y-3 p-4 text-sm"
+            className="panel gl mt-3 max-w-lg space-y-3 p-4 text-sm"
             onSubmit={(event) => {
               event.preventDefault();
               const email = settingsEmail.trim();
@@ -2337,7 +2337,7 @@ export function WatchDetail({
       {analysisOpen ? (
         <div className="stack-grid analysis">
           {yours && best && !candidateIsSame(yours, best) ? (
-            <section className="panel your-train p-4">
+            <section className="panel gl your-train p-4">
               <p className="eyebrow">Your train</p>
               <p className="serif mt-2 text-2xl">{trainLabel(yours)}</p>
               <p className="mt-1 text-sm">
@@ -2355,7 +2355,7 @@ export function WatchDetail({
           ) : null}
 
           {best ? (
-            <section className="panel p-4 text-sm">
+            <section className="panel gl p-4 text-sm">
               <p className="eyebrow">Text a friend</p>
               <p className="friend-text mt-3">{share}</p>
               <div className="quiet-row">
@@ -2367,7 +2367,7 @@ export function WatchDetail({
           ) : null}
 
           {best && best.savingsCents > 0 ? (
-            <section className="panel p-4 text-sm">
+            <section className="panel gl p-4 text-sm">
               <p className="eyebrow">Alert preview</p>
               <p className="mt-2 text-ink-soft">
                 {watch.originCode} → {watch.destinationCode} from{" "}
@@ -2409,7 +2409,7 @@ export function WatchDetail({
             </section>
           ) : null}
 
-          <section className="panel p-4">
+          <section className="panel gl p-4">
             <p className="eyebrow">What moved</p>
             {moves.length === 0 ? (
               <p className="mt-3 text-sm text-ink-soft">
@@ -2433,7 +2433,7 @@ export function WatchDetail({
             )}
           </section>
 
-          <section className="panel p-4">
+          <section className="panel gl p-4">
             <h2 className="eyebrow">Price history</h2>
             <p className="mt-2 text-sm">
               Current booked benchmark {formatUsdCompact(watch.currentBookedPriceCents)}
@@ -2456,7 +2456,7 @@ export function WatchDetail({
           </section>
 
           {alerts.length > 0 ? (
-            <section className="panel p-4">
+            <section className="panel gl p-4">
               <h2 className="eyebrow">Alerts sent</h2>
               <ul className="mt-3 space-y-2 text-sm">
                 {alerts.map((alert) => (
@@ -2629,7 +2629,7 @@ function PriceLadder({
   if (ladder.marks.length === 0) return null;
   const you = ladderPercent(ladder.booked, ladder.min, ladder.max);
   return (
-    <section className="panel mt-4 p-4">
+    <section className="panel gl mt-4 p-4">
       <p className="text-xs uppercase tracking-[0.16em] text-ink-soft">Where you sit</p>
       <div className="ladder mt-4" aria-hidden>
         <span className="ladder-rail" />

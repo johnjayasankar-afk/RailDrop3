@@ -5,7 +5,6 @@ import { LocalModeBanner } from "@/components/local-mode-banner";
 import { appOrigin } from "@/lib/config";
 import "./globals.css";
 import "./labs-glass.css";
-import { LabsUI } from "@/components/labs-ui";
 
 // The Labs family faces, from files in this repo: no build-time fetch, and the
 // same two faces every other product in the family sets its words in. The
@@ -84,7 +83,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <div className="relative z-10">
           <LocalModeBanner />
           {children}
-          <LabsUI />
         </div>
       </body>
     </html>
