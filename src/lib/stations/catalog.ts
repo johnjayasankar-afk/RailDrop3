@@ -91,7 +91,6 @@ export const STATIONS: StationSeed[] = [
   { code: "NPV", name: "Naperville", city: "Naperville", state: "IL" },
   { code: "JOL", name: "Joliet", city: "Joliet", state: "IL" },
   { code: "MKE", name: "Milwaukee Intermodal", city: "Milwaukee", state: "WI" },
-  { code: "MKA", name: "Milwaukee Airport", city: "Milwaukee", state: "WI" },
   { code: "MSP", name: "St. Paul Union Depot", city: "St. Paul", state: "MN" },
   { code: "MSC", name: "Michigan City", city: "Michigan City", state: "IN" },
   { code: "NBU", name: "New Buffalo", city: "New Buffalo", state: "MI" },
@@ -99,10 +98,8 @@ export const STATIONS: StationSeed[] = [
   { code: "BTL", name: "Battle Creek", city: "Battle Creek", state: "MI" },
   { code: "LNS", name: "East Lansing", city: "East Lansing", state: "MI" },
   { code: "DET", name: "Detroit", city: "Detroit", state: "MI" },
-  { code: "PTH", name: "Port Huron", city: "Port Huron", state: "MI" },
   { code: "GRR", name: "Grand Rapids", city: "Grand Rapids", state: "MI" },
   { code: "IND", name: "Indianapolis", city: "Indianapolis", state: "IN" },
-  { code: "CIN", name: "Cincinnati", city: "Cincinnati", state: "OH" },
   { code: "CLE", name: "Cleveland", city: "Cleveland", state: "OH" },
   { code: "TOL", name: "Toledo", city: "Toledo", state: "OH" },
   { code: "PIT", name: "Pittsburgh", city: "Pittsburgh", state: "PA" },
@@ -202,12 +199,37 @@ export const STATIONS: StationSeed[] = [
   { code: "WPB", name: "West Palm Beach", city: "West Palm Beach", state: "FL" },
 ];
 
+/* One lookup, first-wins.
+ *
+ * There used to be two. This map took the LAST entry for a code while
+ * `stationByCode` in the provider layer used `STATIONS.find` and took the
+ * FIRST. For the codes that appear twice they disagreed, so the picker said
+ * "St. Albans, VT" while the provider searched San Francisco, CA — and the
+ * fares that came back were relabeled with the traveler's own code. A price
+ * for a station nobody chose, presented as theirs.
+ *
+ * Every lookup in the product now comes through here, and duplicates are
+ * reported rather than silently resolved.
+ */
 const unique = new Map<string, StationSeed>();
+const duplicates = new Set<string>();
 for (const station of STATIONS) {
+  if (unique.has(station.code)) {
+    duplicates.add(station.code);
+    continue;
+  }
   unique.set(station.code, station);
 }
 
 export const STATION_BY_CODE = unique;
+
+/**
+ * Codes held by two genuinely different stations (SFA is both San Francisco
+ * and St. Albans; OSC is both Ottumwa and Osceola). Resolving these needs an
+ * authoritative Amtrak source, so until then the product declines to guess:
+ * they are surfaced as ambiguous rather than quietly picking one.
+ */
+export const DUPLICATE_CODES: ReadonlySet<string> = duplicates;
 
 export function stationLabel(code: string): string {
   const station = STATION_BY_CODE.get(code.toUpperCase());

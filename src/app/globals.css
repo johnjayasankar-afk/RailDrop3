@@ -1671,6 +1671,28 @@ a.depart-strip:hover {
   box-shadow: inset 3px 0 0 var(--gold);
 }
 
+/* Coverage, stated in the picker. The drop colour is the product's "this is
+   not as good as it looks" tone; it is already what a risen price wears. */
+.coverage-tag {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0.1rem 0.32rem;
+  color: var(--drop);
+  border: 1px solid color-mix(in srgb, var(--drop) 45%, transparent);
+  background: color-mix(in srgb, var(--drop) 8%, transparent);
+}
+
+.coverage-note {
+  margin-top: 0.4rem;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--drop);
+  padding-left: 0.5rem;
+  box-shadow: inset 2px 0 0 var(--drop);
+}
+
 .station-list .station-code {
   font-size: 0.78rem;
 }

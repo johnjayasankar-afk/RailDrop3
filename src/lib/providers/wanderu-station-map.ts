@@ -1,4 +1,4 @@
-import { STATIONS, type StationSeed } from "@/lib/stations/catalog";
+import { STATION_BY_CODE, type StationSeed } from "@/lib/stations/catalog";
 
 /** Wanderu station IDs we have verified against Amtrak codes. */
 export const WANDERU_STATION_IDS: Record<string, string[]> = {
@@ -42,7 +42,9 @@ export function isAmtrakCarrier(
 }
 
 export function stationByCode(code: string): StationSeed | undefined {
-  return STATIONS.find((station) => station.code === code.toUpperCase());
+  // Was `STATIONS.find(...)`, which disagreed with STATION_BY_CODE on every
+  // duplicated code and searched a different city than the picker displayed.
+  return STATION_BY_CODE.get(code.toUpperCase());
 }
 
 export function wanderuSearchLabel(code: string): { city: string; state: string } {

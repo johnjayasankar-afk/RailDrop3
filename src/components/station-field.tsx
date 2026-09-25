@@ -2,7 +2,34 @@
 
 import { KeyboardEvent, useEffect, useId, useRef, useState } from "react";
 
-type Station = { code: string; name: string; city: string; state: string };
+type Coverage = "verified" | "unverified" | "ambiguous" | "unknown";
+type Station = {
+  code: string;
+  name: string;
+  city: string;
+  state: string;
+  coverage?: Coverage;
+};
+
+/* What the provider can actually reach, said before a watch is created.
+ *
+ * 169 of the 189 catalog stations have no verified provider id. For those the
+ * search falls back to matching city names, which either returns nothing (and
+ * reads as "no cheaper fare") or returns the other station in the same city.
+ * Neither is something to discover after 48 hours of silent monitoring. */
+const COVERAGE_NOTE: Record<Coverage, string | null> = {
+  verified: null,
+  unverified: "Coverage unverified — live results are not guaranteed for this station",
+  ambiguous: "Two stations share this code — results may be for the other one",
+  unknown: "RailDrop does not recognise this station",
+};
+
+const COVERAGE_TAG: Record<Coverage, string | null> = {
+  verified: null,
+  unverified: "unverified",
+  ambiguous: "ambiguous",
+  unknown: "unknown",
+};
 
 export function StationField({
   label,
@@ -16,6 +43,8 @@ export function StationField({
   const [query, setQuery] = useState(value);
   const [results, setResults] = useState<Station[]>([]);
   const [active, setActive] = useState(0);
+  /** Coverage of the station currently chosen, kept after the list closes. */
+  const [chosen, setChosen] = useState<Coverage | null>(null);
   const lastValue = useRef(value);
   const root = useRef<HTMLLabelElement>(null);
   const listId = useId();
@@ -38,6 +67,12 @@ export function StationField({
       const json = (await response.json()) as { stations: Station[] };
       setResults(json.stations);
       setActive(0);
+      // A bare three-letter code typed by hand is accepted as a station code,
+      // so if the catalog has never heard of it, say so rather than letting a
+      // watch be created against a station that can never return a fare.
+      if (/^[A-Za-z]{3}$/.test(q) && json.stations.length === 0) {
+        setChosen("unknown");
+      }
     }, 180);
     return () => clearTimeout(handle);
   }, [query, value]);
@@ -62,6 +97,7 @@ export function StationField({
     onChange(station.code);
     setQuery(`${station.name} (${station.code})`);
     setResults([]);
+    setChosen(station.coverage ?? null);
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -89,11 +125,14 @@ export function StationField({
         aria-expanded={results.length > 0}
         aria-controls={listId}
         aria-autocomplete="list"
-        aria-activedescendant={results[active] ? `${listId}-${results[active].code}` : undefined}
+        aria-activedescendant={
+          results[active] ? `${listId}-${results[active].code}-${active}` : undefined
+        }
         onKeyDown={onKeyDown}
         onChange={(event) => {
           setQuery(event.target.value);
           setResults([]);
+          setChosen(null);
           if (/^[A-Za-z]{3}$/.test(event.target.value)) {
             onChange(event.target.value.toUpperCase());
           }
@@ -104,26 +143,40 @@ export function StationField({
       />
       {results.length > 0 ? (
         <ul id={listId} role="listbox" className="station-list absolute z-20 mt-1 w-full">
-          {results.map((station, index) => (
-            <li key={station.code} role="presentation">
-              <button
-                type="button"
-                id={`${listId}-${station.code}`}
-                role="option"
-                aria-selected={index === active}
-                className={`station-option w-full px-3 py-2.5 text-left ${index === active ? "is-active" : ""}`}
-                onMouseEnter={() => setActive(index)}
-                onClick={() => pick(station)}
-              >
-                <span className="station-code">{station.code}</span>
-                <span className="mt-0.5 block">{station.name}</span>
-                <span className="text-xs opacity-70">
-                  {station.city}, {station.state}
-                </span>
-              </button>
-            </li>
-          ))}
+          {results.map((station, index) => {
+            const tag = station.coverage ? COVERAGE_TAG[station.coverage] : null;
+            return (
+              // Index is part of the key: five codes are held by two different
+              // stations, so the code alone is not unique.
+              <li key={`${station.code}-${index}`} role="presentation">
+                <button
+                  type="button"
+                  id={`${listId}-${station.code}-${index}`}
+                  role="option"
+                  aria-selected={index === active}
+                  className={`station-option w-full px-3 py-2.5 text-left ${index === active ? "is-active" : ""}`}
+                  onMouseEnter={() => setActive(index)}
+                  onClick={() => pick(station)}
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="station-code">{station.code}</span>
+                    {tag ? <span className="coverage-tag">{tag}</span> : null}
+                  </span>
+                  <span className="mt-0.5 block">{station.name}</span>
+                  <span className="text-xs opacity-70">
+                    {station.city}, {station.state}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
         </ul>
+      ) : null}
+
+      {chosen && COVERAGE_NOTE[chosen] ? (
+        <p className="coverage-note" role="status">
+          {COVERAGE_NOTE[chosen]}
+        </p>
       ) : null}
     </label>
   );
