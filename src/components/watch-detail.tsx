@@ -19,6 +19,8 @@ import { formatRelativeTime, isCheckStale } from "@/lib/domain/relative-time";
 import { extensionWindow } from "@/lib/domain/monitoring";
 import { shouldHandleBoardKey } from "@/lib/domain/board-keys";
 import { BoardRow } from "./board/BoardRow";
+import { HelpSheet } from "./board/HelpSheet";
+import { ShareSheet } from "./board/ShareSheet";
 import { ConnectionChip } from "./board/ConnectionChip";
 import { Handoff } from "./board/Handoff";
 import { Legs } from "./board/Legs";
@@ -1070,92 +1072,7 @@ export function WatchDetail({
           onCancel={cancelScan}
         />
       ) : null}
-      {helpOpen ? (
-        <div
-          className="help-sheet no-print"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="help-title"
-          onClick={() => setHelpOpen(false)}
-        >
-          <div className="help-card" onClick={(event) => event.stopPropagation()}>
-            <p id="help-title" className="text-[10px] uppercase tracking-[0.18em] text-gold">
-              Board shortcuts
-            </p>
-            <ul className="help-grid mt-4 text-sm">
-              <li>
-                <kbd>C</kbd> Recheck live fares
-              </li>
-              <li>
-                <kbd>T</kbd> Copy a one-liner for a friend
-              </li>
-              <li>
-                <kbd>J</kbd> / <kbd>K</kbd> Move down / up the board
-              </li>
-              <li>
-                <kbd>I</kbd> Copy the focused itinerary
-              </li>
-              <li>
-                <kbd>Enter</kbd> Open Book on Amtrak for the focused train
-              </li>
-              <li>
-                <kbd>P</kbd> Pin the focused train
-              </li>
-              <li>
-                <kbd>Z</kbd> Zen: ticket and board only
-              </li>
-              <li>
-                <kbd>H</kbd> Hide the focused train this visit
-              </li>
-              <li>
-                <kbd>U</kbd> Undo last hide
-              </li>
-              <li>
-                <kbd>Y</kbd> Copy you vs this train
-              </li>
-              <li>
-                <kbd>W</kbd> Copy the cheapest listed train on each day
-              </li>
-              <li>
-                <kbd>G</kbd> Jump to the timetable
-              </li>
-              <li>
-                <kbd>B</kbd> Jump to a train that beats yours
-              </li>
-              <li>
-                <kbd>N</kbd> Next cheaper listed train
-              </li>
-              <li>
-                <kbd>F</kbd> Copy Amtrak search fields
-              </li>
-              <li>
-                <kbd>/</kbd> Find a train number
-              </li>
-              <li>
-                <kbd>R</kbd> Jump to I rebooked
-              </li>
-              <li>
-                <kbd>?</kbd> Close this sheet
-              </li>
-              <li>
-                <kbd>Esc</kbd> Close sheets, then clear filters
-              </li>
-            </ul>
-            <p className="mt-4 text-xs opacity-70">
-              Pins and change-fee estimates stay on this browser only. We never invent an Amtrak
-              fee.
-            </p>
-            <button
-              type="button"
-              id="help-close"
-              className="mt-4 underline"
-              onClick={() => setHelpOpen(false)}
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      ) : null}
+      {helpOpen ? <HelpSheet onClose={() => setHelpOpen(false)} /> : null}
       <BackLink>Your watches</BackLink>
       <h1 className="sr-only">
         {stationLabel(watch.originCode)} to {stationLabel(watch.destinationCode)}{" "}
@@ -1207,44 +1124,13 @@ export function WatchDetail({
         </div>
       </div>
       {shareOpen ? (
-        <div id="share-sheet" className="share-sheet no-print" role="group" aria-label="Share">
-          <button
-            type="button"
-            onClick={() => {
-              void copyFriend();
-              setShareOpen(false);
-            }}
-          >
-            Text a friend
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              void copyWindow();
-              setShareOpen(false);
-            }}
-          >
-            Copy window
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              void copyPacket();
-              setShareOpen(false);
-            }}
-          >
-            Decision packet
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              void copyShare();
-              setShareOpen(false);
-            }}
-          >
-            Copy link
-          </button>
-        </div>
+        <ShareSheet
+          onClose={() => setShareOpen(false)}
+          copyFriend={copyFriend}
+          copyWindow={copyWindow}
+          copyPacket={copyPacket}
+          copyShare={copyShare}
+        />
       ) : null}
       <p className="mt-3 text-sm text-ink-soft">
         {stationLabel(watch.originCode)} → {stationLabel(watch.destinationCode)}
