@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { Route } from "next";
@@ -18,6 +18,13 @@ import { serviceTypeLabel } from "@/lib/domain/service-type";
 import { formatRelativeTime, isCheckStale } from "@/lib/domain/relative-time";
 import { extensionWindow } from "@/lib/domain/monitoring";
 import { shouldHandleBoardKey } from "@/lib/domain/board-keys";
+import {
+  boardReducer,
+  clockFiltersActive,
+  filtersActive,
+  focusAfterMove,
+  initialBoardState,
+} from "@/lib/domain/board-state";
 import {
   boardCsv,
   candidateKey,
@@ -112,6 +119,12 @@ import {
 } from "@/lib/domain/board-moves";
 import type { FareFamily } from "@/lib/domain/types";
 
+/** Keeps the smooth-scroll out of the reducer, which owns state only. */
+function scrollToOption(key: string | null) {
+  if (!key) return;
+  document.getElementById(`opt-${key}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
 export function WatchDetail({
   watch,
   ranked,
@@ -144,29 +157,36 @@ export function WatchDetail({
   scans: Array<{ id: string; status: string; at: string }>;
 }) {
   const router = useRouter();
-  const [showAll, setShowAll] = useState(false);
-  const [dateFilter, setDateFilter] = useState<string | "all">("all");
-  const [service, setService] = useState<ServiceFilter>("all");
-  const [bucket, setBucket] = useState<TimeBucket | "all">("all");
-  const [savingsOnly, setSavingsOnly] = useState(false);
-  const [sort, setSort] = useState<BoardSort>("rank");
-  const [picked, setPicked] = useState<string[]>([]);
-  const [pins, setPins] = useState<string[]>([]);
-  const [pinnedOnly, setPinnedOnly] = useState(false);
-  const [trainQuery, setTrainQuery] = useState("");
-  const [departAfter, setDepartAfter] = useState("");
-  const [arriveBefore, setArriveBefore] = useState("");
-  const [durationCap, setDurationCap] = useState<number | null>(null);
-  const [arriveBuffer, setArriveBuffer] = useState(false);
+  // One reducer for how the board is being looked at: filters, sort, pins,
+  // hidden rows, the compare pair, zen and focus. Each transition is written
+  // once and tested in tests/unit/board-state.test.ts; before this they were
+  // eighteen useState calls whose keyboard and click paths had drifted apart.
+  const [view, dispatch] = useReducer(boardReducer, initialBoardState);
+  const {
+    showAll,
+    dateFilter,
+    service,
+    bucket,
+    savingsOnly,
+    sort,
+    picked,
+    pins,
+    pinnedOnly,
+    trainQuery,
+    departAfter,
+    arriveBefore,
+    durationCap,
+    arriveBuffer,
+    zen,
+    hiddenKeys,
+    hideDeparted,
+    focusKey,
+  } = view;
   const [stayDays, setStayDays] = useState(2);
-  const [zen, setZen] = useState(false);
-  const [hiddenKeys, setHiddenKeys] = useState<string[]>([]);
-  const [hideDeparted, setHideDeparted] = useState(false);
   const [boardNow, setBoardNow] = useState<{
     minutes: number;
     label: string;
   } | null>(null);
-  const [focusKey, setFocusKey] = useState<string | null>(null);
   const [feeDollars, setFeeDollars] = useState("");
   const [helpOpen, setHelpOpen] = useState(false);
   const [rebookPrice, setRebookPrice] = useState("");
@@ -201,6 +221,7 @@ export function WatchDetail({
   const beatsKeyRef = useRef<string[]>([]);
   const hiddenRef = useRef<string[]>([]);
   const stripRef = useRef("");
+  const pinsLoaded = useRef(false);
   const didFocus = useRef(false);
   const resolver = useMemo(() => new BookingLinkResolver(), []);
   const best = ranked[0];
@@ -352,20 +373,7 @@ export function WatchDetail({
       ranked,
     ],
   );
-  const filtersOn =
-    dateFilter !== "all" ||
-    service !== "all" ||
-    bucket !== "all" ||
-    savingsOnly ||
-    pinnedOnly ||
-    sort !== "rank" ||
-    Boolean(trainQuery.trim()) ||
-    Boolean(departAfter) ||
-    Boolean(arriveBefore) ||
-    durationCap != null ||
-    arriveBuffer ||
-    hiddenKeys.length > 0 ||
-    hideDeparted;
+  const filtersOn = filtersActive(view);
 
   const filteredSorted = useMemo(() => {
     const base = sortBoard(
@@ -461,7 +469,7 @@ export function WatchDetail({
     }
     return items.map(candidateKey);
   })();
-  const clockOn = Boolean(departAfter || arriveBefore || durationCap);
+  const clockOn = clockFiltersActive(view);
   const fitPool = schedulePool.filter((candidate) => !hiddenKeys.includes(candidateKey(candidate)));
   const earliest = earliestDeparture(fitPool);
   const latest = lastDeparture(fitPool);
@@ -649,8 +657,8 @@ export function WatchDetail({
     const start = yours ?? best ?? ranked[0];
     if (!start) return;
     didFocus.current = true;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- start on your train once per watch
-    setFocusKey(candidateKey(start));
+    // dispatch, not setState: the reducer made the suppression unnecessary
+    dispatch({ type: "SET_FOCUS", key: candidateKey(start) });
   }, [yours, best, ranked]);
 
   useEffect(() => {
@@ -666,9 +674,22 @@ export function WatchDetail({
     } catch {
       next = [];
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- pin list is local-only; never write storage before read
-    setPins(next);
+    dispatch({ type: "LOAD_PINS", pins: next });
+    pinsLoaded.current = true;
   }, [watch.id]);
+
+  // The reducer is pure, so writing pins is an effect of the state changing
+  // rather than something each of the three pin call sites does for itself.
+  // Guarded on the read above: without it the first render would persist an
+  // empty list over whatever was stored.
+  useEffect(() => {
+    if (!pinsLoaded.current) return;
+    try {
+      window.localStorage.setItem(`raildrop.pins.${watch.id}`, JSON.stringify(pins));
+    } catch {
+      // private mode / quota
+    }
+  }, [pins, watch.id]);
 
   useEffect(() => {
     let next = "";
@@ -742,25 +763,15 @@ export function WatchDetail({
         event.preventDefault();
         const keys = navRef.current;
         if (keys.length === 0) return;
-        const idx = focusRef.current ? keys.indexOf(focusRef.current) : -1;
-        const next = keys[Math.min(keys.length - 1, idx + 1)] ?? keys[0]!;
-        setFocusKey(next);
-        document.getElementById(`opt-${next}`)?.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
+        dispatch({ type: "MOVE_FOCUS", direction: "next", keys });
+        scrollToOption(focusAfterMove(keys, focusRef.current, "next"));
       }
       if ((event.key === "k" || event.key === "K") && !busyRef.current) {
         event.preventDefault();
         const keys = navRef.current;
         if (keys.length === 0) return;
-        const idx = focusRef.current ? keys.indexOf(focusRef.current) : keys.length;
-        const next = keys[Math.max(0, idx - 1)] ?? keys[0]!;
-        setFocusKey(next);
-        document.getElementById(`opt-${next}`)?.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
+        dispatch({ type: "MOVE_FOCUS", direction: "previous", keys });
+        scrollToOption(focusAfterMove(keys, focusRef.current, "previous"));
       }
       if ((event.key === "i" || event.key === "I") && !busyRef.current) {
         event.preventDefault();
@@ -774,7 +785,7 @@ export function WatchDetail({
       }
       if ((event.key === "z" || event.key === "Z") && !busyRef.current) {
         event.preventDefault();
-        setZen((value) => !value);
+        dispatch({ type: "TOGGLE_ZEN" });
       }
       if ((event.key === "p" || event.key === "P") && !busyRef.current) {
         event.preventDefault();
@@ -784,17 +795,7 @@ export function WatchDetail({
           window.setTimeout(() => setNotice(null), 1600);
           return;
         }
-        setPins((current) => {
-          const next = current.includes(key)
-            ? current.filter((item) => item !== key)
-            : [...current, key];
-          try {
-            window.localStorage.setItem(`raildrop.pins.${watch.id}`, JSON.stringify(next));
-          } catch {
-            // private mode / quota
-          }
-          return next;
-        });
+        dispatch({ type: "TOGGLE_PIN", key });
         setNotice("Pin updated");
         window.setTimeout(() => setNotice(null), 1600);
       }
@@ -806,16 +807,9 @@ export function WatchDetail({
           window.setTimeout(() => setNotice(null), 1600);
           return;
         }
-        setHiddenKeys((current) => (current.includes(key) ? current : [...current, key]));
-        const keys = navRef.current.filter((item) => item !== key);
-        const next = keys[0] ?? null;
-        setFocusKey(next);
-        if (next) {
-          document.getElementById(`opt-${next}`)?.scrollIntoView({
-            behavior: "smooth",
-            block: "center",
-          });
-        }
+        const next = navRef.current.filter((item) => item !== key)[0] ?? null;
+        dispatch({ type: "HIDE", key, nextFocus: next });
+        if (next) scrollToOption(next);
         setNotice("Hidden this visit");
         window.setTimeout(() => setNotice(null), 1600);
       }
@@ -828,12 +822,8 @@ export function WatchDetail({
           window.setTimeout(() => setNotice(null), 1600);
           return;
         }
-        setHiddenKeys(stack.slice(0, -1));
-        setFocusKey(last);
-        document.getElementById(`opt-${last}`)?.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
+        dispatch({ type: "UNDO_HIDE" });
+        scrollToOption(last);
         setNotice("Unhidden");
         window.setTimeout(() => setNotice(null), 1600);
       }
@@ -873,11 +863,8 @@ export function WatchDetail({
           window.setTimeout(() => setNotice(null), 1600);
           return;
         }
-        setFocusKey(next);
-        document.getElementById(`opt-${next}`)?.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
+        dispatch({ type: "SET_FOCUS", key: next });
+        scrollToOption(next);
       }
       if ((event.key === "n" || event.key === "N") && !busyRef.current) {
         event.preventDefault();
@@ -887,11 +874,8 @@ export function WatchDetail({
           window.setTimeout(() => setNotice(null), 1600);
           return;
         }
-        setFocusKey(next);
-        document.getElementById(`opt-${next}`)?.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
+        dispatch({ type: "SET_FOCUS", key: next });
+        scrollToOption(next);
       }
       if ((event.key === "f" || event.key === "F") && !busyRef.current) {
         event.preventDefault();
@@ -926,21 +910,7 @@ export function WatchDetail({
           setShareOpen(false);
           return;
         }
-        setDateFilter("all");
-        setService("all");
-        setBucket("all");
-        setSavingsOnly(false);
-        setPinnedOnly(false);
-        setSort("rank");
-        setTrainQuery("");
-        setDepartAfter("");
-        setArriveBefore("");
-        setDurationCap(null);
-        setArriveBuffer(false);
-        setHiddenKeys([]);
-        setHideDeparted(false);
-        setPicked([]);
-        setFocusKey(null);
+        dispatch({ type: "RESET_VIEW" });
       }
     }
     window.addEventListener("keydown", onKey);
@@ -958,23 +928,11 @@ export function WatchDetail({
   ]);
 
   function togglePick(key: string) {
-    setPicked((current) =>
-      current.includes(key) ? current.filter((item) => item !== key) : [...current, key].slice(-2),
-    );
+    dispatch({ type: "TOGGLE_PICK", key });
   }
 
   function togglePin(key: string) {
-    setPins((current) => {
-      const next = current.includes(key)
-        ? current.filter((item) => item !== key)
-        : [...current, key];
-      try {
-        window.localStorage.setItem(`raildrop.pins.${watch.id}`, JSON.stringify(next));
-      } catch {
-        // private mode / quota
-      }
-      return next;
-    });
+    dispatch({ type: "TOGGLE_PIN", key });
   }
 
   function persistFee(value: string) {
@@ -993,7 +951,7 @@ export function WatchDetail({
 
   function jumpTo(candidate: RankedCandidate) {
     const key = candidateKey(candidate);
-    setFocusKey(key);
+    dispatch({ type: "SET_FOCUS", key });
     document.getElementById(optionAnchor(candidate))?.scrollIntoView({
       behavior: "smooth",
       block: "center",
@@ -1045,20 +1003,10 @@ export function WatchDetail({
   }
 
   function clearFilters() {
-    setDateFilter("all");
-    setService("all");
-    setBucket("all");
-    setSavingsOnly(false);
-    setPinnedOnly(false);
-    setSort("rank");
-    setTrainQuery("");
-    setDepartAfter("");
-    setArriveBefore("");
-    setDurationCap(null);
-    setArriveBuffer(false);
-    setHiddenKeys([]);
-    setHideDeparted(false);
-    setFocusKey(null);
+    // Deliberately CLEAR_FILTERS, not RESET_VIEW: the button leaves the
+    // compare pair in place where Escape drops it. Pre-existing difference,
+    // recorded in docs/AUDIT.md rather than silently unified here.
+    dispatch({ type: "CLEAR_FILTERS" });
   }
 
   async function copyPacket() {
@@ -1094,11 +1042,11 @@ export function WatchDetail({
   }
 
   function hideTrain(key: string) {
-    setHiddenKeys((current) => (current.includes(key) ? current : [...current, key]));
-    if (focusKey === key) {
-      const next = navKeys.filter((item) => item !== key)[0] ?? null;
-      setFocusKey(next);
-    }
+    // Focus only moves if the hidden row was the focused one — the click path
+    // has always differed from the H key here, which always moves focus.
+    const nextFocus =
+      focusKey === key ? (navKeys.filter((item) => item !== key)[0] ?? null) : focusKey;
+    dispatch({ type: "HIDE", key, nextFocus });
     setNotice("Hidden this visit");
     window.setTimeout(() => setNotice(null), 1600);
   }
@@ -1240,7 +1188,7 @@ export function WatchDetail({
         ) : null}
         <div className="trip-rail-tools">
           <a href="#board">Board</a>
-          <button type="button" onClick={() => setZen((value) => !value)}>
+          <button type="button" onClick={() => dispatch({ type: "TOGGLE_ZEN" })}>
             {zen ? "Full" : "Zen"}
           </button>
           <button
@@ -1459,7 +1407,7 @@ export function WatchDetail({
             <button
               type="button"
               key={date}
-              onClick={() => setDateFilter(selected ? "all" : date)}
+              onClick={() => dispatch({ type: "SET_DATE", date: selected ? "all" : date })}
               className={`date-card px-3 py-3 text-left ${desired || selected ? "is-on" : ""}`}
             >
               <p className="eyebrow opacity-70">
@@ -1528,7 +1476,7 @@ export function WatchDetail({
                   className={`date-card same-train-cell px-3 py-3 ${desired ? "is-on" : ""}`}
                   onClick={() => {
                     if (candidate) jumpTo(candidate);
-                    else setDateFilter(date);
+                    else dispatch({ type: "SET_DATE", date });
                   }}
                 >
                   <p className="eyebrow opacity-70">
@@ -1565,7 +1513,7 @@ export function WatchDetail({
               key={label}
               type="button"
               className={`date-card px-3 py-2 text-left ${bucket === key ? "is-on" : ""}`}
-              onClick={() => setBucket(bucket === key ? "all" : key)}
+              onClick={() => dispatch({ type: "TOGGLE_BUCKET", bucket: key })}
             >
               <p className="eyebrow opacity-70">{label}</p>
               <p className="price serif text-lg">
@@ -1838,12 +1786,12 @@ export function WatchDetail({
               </button>
             ) : null}
             {dateFilter !== "all" ? (
-              <button type="button" onClick={() => setDateFilter("all")}>
+              <button type="button" onClick={() => dispatch({ type: "SET_DATE", date: "all" })}>
                 Show every date
               </button>
             ) : null}
             {withoutHero.length > 5 ? (
-              <button type="button" onClick={() => setShowAll((value) => !value)}>
+              <button type="button" onClick={() => dispatch({ type: "TOGGLE_SHOW_ALL" })}>
                 {showAll ? "Show top 5" : "Show all options"}
               </button>
             ) : null}
@@ -1865,7 +1813,7 @@ export function WatchDetail({
                 type="button"
                 className={`chip ${service === value ? "chip-on" : ""}`}
                 aria-pressed={service === value}
-                onClick={() => setService(value)}
+                onClick={() => dispatch({ type: "SET_SERVICE", service: value })}
               >
                 {label}
               </button>
@@ -1874,7 +1822,7 @@ export function WatchDetail({
               type="button"
               className={`chip ${savingsOnly ? "chip-save" : ""}`}
               aria-pressed={savingsOnly}
-              onClick={() => setSavingsOnly((value) => !value)}
+              onClick={() => dispatch({ type: "TOGGLE_SAVINGS_ONLY" })}
             >
               Savings only
             </button>
@@ -1883,7 +1831,7 @@ export function WatchDetail({
                 type="button"
                 className={`chip ${pinnedOnly ? "chip-on" : ""}`}
                 aria-pressed={pinnedOnly}
-                onClick={() => setPinnedOnly((value) => !value)}
+                onClick={() => dispatch({ type: "TOGGLE_PINNED_ONLY" })}
               >
                 Pinned
               </button>
@@ -1904,7 +1852,7 @@ export function WatchDetail({
                 type="button"
                 className={`chip ${bucket === value ? "chip-on" : ""}`}
                 aria-pressed={bucket === value}
-                onClick={() => setBucket(value)}
+                onClick={() => dispatch({ type: "SET_BUCKET", bucket: value })}
               >
                 {label}
               </button>
@@ -1915,11 +1863,13 @@ export function WatchDetail({
                 className={`chip ${departAfter === watch.preferredDepartureTime ? "chip-on" : ""}`}
                 aria-pressed={departAfter === watch.preferredDepartureTime}
                 onClick={() =>
-                  setDepartAfter((value) =>
-                    value === watch.preferredDepartureTime
-                      ? ""
-                      : (watch.preferredDepartureTime ?? ""),
-                  )
+                  dispatch({
+                    type: "SET_DEPART_AFTER",
+                    time:
+                      departAfter === watch.preferredDepartureTime
+                        ? ""
+                        : (watch.preferredDepartureTime ?? ""),
+                  })
                 }
               >
                 From preferred
@@ -1940,7 +1890,7 @@ export function WatchDetail({
               <button
                 type="button"
                 className={`chip ${hideDeparted ? "chip-on" : ""}`}
-                onClick={() => setHideDeparted((value) => !value)}
+                onClick={() => dispatch({ type: "TOGGLE_HIDE_DEPARTED" })}
               >
                 {hideDeparted ? "Show departed" : `Hide ${departedCount} departed`}
               </button>
@@ -1953,7 +1903,9 @@ export function WatchDetail({
               <input
                 type="time"
                 value={departAfter}
-                onChange={(event) => setDepartAfter(event.target.value)}
+                onChange={(event) =>
+                  dispatch({ type: "SET_DEPART_AFTER", time: event.target.value })
+                }
                 className="field mt-0 ml-2 w-auto py-1"
                 aria-label="Leave after"
               />
@@ -1963,7 +1915,9 @@ export function WatchDetail({
               <input
                 type="time"
                 value={arriveBefore}
-                onChange={(event) => setArriveBefore(event.target.value)}
+                onChange={(event) =>
+                  dispatch({ type: "SET_ARRIVE_BEFORE", time: event.target.value })
+                }
                 className="field mt-0 ml-2 w-auto py-1"
                 aria-label="Arrive by"
               />
@@ -1972,7 +1926,7 @@ export function WatchDetail({
               <button
                 type="button"
                 className={`chip ${arriveBuffer ? "chip-on" : ""}`}
-                onClick={() => setArriveBuffer((value) => !value)}
+                onClick={() => dispatch({ type: "TOGGLE_ARRIVE_BUFFER" })}
               >
                 +30m buffer
               </button>
@@ -1988,7 +1942,7 @@ export function WatchDetail({
                 key={label}
                 type="button"
                 className={`chip ${durationCap === value ? "chip-on" : ""}`}
-                onClick={() => setDurationCap(value)}
+                onClick={() => dispatch({ type: "SET_DURATION_CAP", minutes: value })}
               >
                 {label}
               </button>
@@ -1999,24 +1953,25 @@ export function WatchDetail({
             <input
               ref={findRef}
               value={trainQuery}
-              onChange={(event) => setTrainQuery(event.target.value)}
+              onChange={(event) => dispatch({ type: "SET_TRAIN_QUERY", query: event.target.value })}
               placeholder="Find train"
               aria-label="Find train"
               className="field mt-0 max-w-[9rem] py-1"
             />
             {hiddenKeys.length > 0 ? (
               <>
-                <button type="button" className="chip chip-on" onClick={() => setHiddenKeys([])}>
+                <button
+                  type="button"
+                  className="chip chip-on"
+                  onClick={() => dispatch({ type: "UNHIDE_ALL" })}
+                >
                   Show {hiddenKeys.length} hidden
                 </button>
                 <button
                   type="button"
                   className="chip"
                   onClick={() => {
-                    const last = hiddenKeys[hiddenKeys.length - 1];
-                    if (!last) return;
-                    setHiddenKeys(hiddenKeys.slice(0, -1));
-                    setFocusKey(last);
+                    dispatch({ type: "UNDO_HIDE" });
                   }}
                 >
                   Undo hide
@@ -2028,7 +1983,9 @@ export function WatchDetail({
               <select
                 className="field mt-0 ml-2 w-auto py-1"
                 value={sort}
-                onChange={(event) => setSort(event.target.value as BoardSort)}
+                onChange={(event) =>
+                  dispatch({ type: "SET_SORT", sort: event.target.value as BoardSort })
+                }
               >
                 <option value="rank">Best match</option>
                 <option value="price">Price</option>
@@ -2115,7 +2072,7 @@ export function WatchDetail({
                   onTogglePick={() => togglePick(candidateKey(candidate))}
                   onTogglePin={() => togglePin(candidateKey(candidate))}
                   onHide={() => hideTrain(candidateKey(candidate))}
-                  onFocus={() => setFocusKey(candidateKey(candidate))}
+                  onFocus={() => dispatch({ type: "SET_FOCUS", key: candidateKey(candidate) })}
                 />
               ))}
             </>
