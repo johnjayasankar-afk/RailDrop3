@@ -39,7 +39,12 @@ export function sanitizeProviderError(message: string): string {
     lower.includes("npx playwright install") ||
     lower.includes("could not find chromium") ||
     lower.includes("libnss3") ||
-    lower.includes("error while loading shared libraries")
+    lower.includes("error while loading shared libraries") ||
+    // Read-only filesystem on a serverless cold start: the browser cache could
+    // not be created. Operationally the same thing as "not installed yet".
+    lower.includes("mkdir") ||
+    lower.includes("erofs") ||
+    lower.includes("read-only file system")
   ) {
     return "Browser for live fares is still setting up. Recheck in a minute.";
   }
@@ -292,17 +297,33 @@ function wrapPuppeteerPage(page: PuppeteerPageLike) {
 }
 
 export function pinBrowsersPath(): string {
-  const local = path.join(process.cwd(), ".playwright");
   const current = process.env.PLAYWRIGHT_BROWSERS_PATH;
   if (current && browserTreeLooksReady(current)) {
     return current;
   }
+
+  // On Vercel the deployment bundle is mounted read-only at /var/task, which is
+  // also the working directory. Joining cwd there produced /var/task/.playwright
+  // and mkdirSync threw EROFS/ENOENT on every cold start — the live-fare path
+  // failed before a browser was ever launched. Only /tmp is writable.
+  const onVercel = process.env.VERCEL === "1" || Boolean(process.env.VERCEL_ENV);
+  const local = onVercel
+    ? path.join("/tmp", ".playwright")
+    : path.join(process.cwd(), ".playwright");
+
   if (browserTreeLooksReady(local)) {
     process.env.PLAYWRIGHT_BROWSERS_PATH = local;
     return local;
   }
-  // Prefer the durable project folder over Cursor's temp sandbox cache.
-  fs.mkdirSync(local, { recursive: true });
+
+  // Prefer the durable project folder over a temp sandbox cache. A failure here
+  // is not fatal: Playwright may still find a browser through its own defaults,
+  // and the launch error is the honest place to report it.
+  try {
+    fs.mkdirSync(local, { recursive: true });
+  } catch {
+    // read-only filesystem — fall through with the path set anyway
+  }
   process.env.PLAYWRIGHT_BROWSERS_PATH = local;
   return local;
 }
