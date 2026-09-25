@@ -13,6 +13,7 @@ import type {
   WatchRecord,
 } from "./models";
 import type { RailDropRepository, WatchUpdate } from "./repository";
+import { isExpired } from "@/lib/domain/run-lease";
 
 export class MemoryRepository implements RailDropRepository {
   profiles = new Map<string, Profile>();
@@ -103,11 +104,113 @@ export class MemoryRepository implements RailDropRepository {
       .sort((a, b) => b.startedAt.localeCompare(a.startedAt));
   }
 
-  async claimScheduledRun(run: ScheduledCheckRun): Promise<ScheduledCheckRun | null> {
-    const key = `${run.watchId}:${run.localCheckDate}:${run.checkSlot}`;
-    if (this.scheduled.has(key)) return null;
+  async leaseScheduledRun(input: {
+    id: string;
+    watchId: string;
+    localCheckDate: string;
+    checkSlot: ScheduledCheckRun["checkSlot"];
+    now: Date;
+    leaseExpiresAt: string;
+  }): Promise<ScheduledCheckRun | null> {
+    const key = `${input.watchId}:${input.localCheckDate}:${input.checkSlot}`;
+    const existing = this.scheduled.get(key);
+
+    if (existing) {
+      // Finished means finished. Anything else is either live work or a slot
+      // handed back by the reaper, and only the latter may be taken.
+      if (existing.status === "DONE" || existing.status === "ABANDONED") return null;
+      if (existing.status === "RUNNING" && !isExpired(existing, input.now)) return null;
+      const taken: ScheduledCheckRun = {
+        ...existing,
+        status: "RUNNING",
+        attempts: existing.attempts + 1,
+        claimedAt: input.now.toISOString(),
+        startedAt: input.now.toISOString(),
+        leaseExpiresAt: input.leaseExpiresAt,
+      };
+      this.scheduled.set(key, taken);
+      return taken;
+    }
+
+    const run: ScheduledCheckRun = {
+      id: input.id,
+      watchId: input.watchId,
+      localCheckDate: input.localCheckDate,
+      checkSlot: input.checkSlot,
+      cycleId: null,
+      createdAt: input.now.toISOString(),
+      status: "RUNNING",
+      attempts: 1,
+      claimedAt: input.now.toISOString(),
+      startedAt: input.now.toISOString(),
+      finishedAt: null,
+      leaseExpiresAt: input.leaseExpiresAt,
+      failureReason: null,
+    };
     this.scheduled.set(key, run);
     return run;
+  }
+
+  async finishScheduledRun(
+    id: string,
+    result: { status: "DONE" | "FAILED"; cycleId?: string | null; failureReason?: string | null },
+  ): Promise<void> {
+    for (const [key, run] of this.scheduled) {
+      if (run.id !== id) continue;
+      this.scheduled.set(key, {
+        ...run,
+        status: result.status,
+        cycleId: result.cycleId ?? run.cycleId,
+        failureReason: result.failureReason ?? null,
+        finishedAt: new Date().toISOString(),
+        leaseExpiresAt: null,
+      });
+      return;
+    }
+  }
+
+  async listExpiredRuns(now: Date): Promise<ScheduledCheckRun[]> {
+    return [...this.scheduled.values()].filter((run) => isExpired(run, now));
+  }
+
+  async reclaimScheduledRun(id: string, attempts: number): Promise<void> {
+    for (const [key, run] of this.scheduled) {
+      if (run.id !== id) continue;
+      this.scheduled.set(key, {
+        ...run,
+        status: "PENDING",
+        attempts,
+        leaseExpiresAt: null,
+        startedAt: null,
+      });
+      return;
+    }
+  }
+
+  async abandonScheduledRun(id: string, reason: string): Promise<void> {
+    for (const [key, run] of this.scheduled) {
+      if (run.id !== id) continue;
+      this.scheduled.set(key, {
+        ...run,
+        status: "ABANDONED",
+        failureReason: reason,
+        finishedAt: new Date().toISOString(),
+        leaseExpiresAt: null,
+      });
+      return;
+    }
+  }
+
+  async listRunsForDates(localDates: readonly string[]): Promise<ScheduledCheckRun[]> {
+    const wanted = new Set(localDates);
+    return [...this.scheduled.values()].filter((run) => wanted.has(run.localCheckDate));
+  }
+
+  async listScheduledRuns(watchId: string, limit = 50): Promise<ScheduledCheckRun[]> {
+    return [...this.scheduled.values()]
+      .filter((run) => run.watchId === watchId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, limit);
   }
 
   async insertProviderRequest(request: ProviderRequestRecord): Promise<ProviderRequestRecord> {

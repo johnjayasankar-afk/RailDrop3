@@ -138,11 +138,21 @@ export interface BookingPriceEvent {
   createdAt: string;
 }
 
+export type ScheduledRunStatus = "PENDING" | "RUNNING" | "DONE" | "FAILED" | "ABANDONED";
+
 export interface ScheduledCheckRun {
   id: string;
   watchId: string;
   localCheckDate: string;
   checkSlot: CheckSlot;
-  cycleId: string;
+  /** Null until the run finishes. It used to be the string "pending" forever. */
+  cycleId: string | null;
   createdAt: string;
+  status: ScheduledRunStatus;
+  attempts: number;
+  claimedAt: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  leaseExpiresAt: string | null;
+  failureReason: string | null;
 }

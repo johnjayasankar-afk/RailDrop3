@@ -49,7 +49,43 @@ export interface RailDropRepository {
   updateCycle(id: string, patch: Partial<FareCheckCycleRecord>): Promise<FareCheckCycleRecord>;
   getCycle(id: string): Promise<FareCheckCycleRecord | null>;
   listCyclesForWatch(watchId: string): Promise<FareCheckCycleRecord[]>;
-  claimScheduledRun(run: ScheduledCheckRun): Promise<ScheduledCheckRun | null>;
+  /**
+   * Take the lease on a slot, or return null if someone else holds it.
+   *
+   * Replaces the old insert-as-claim: a row now means "being worked on", not
+   * "spent". Only finishScheduledRun makes the slot permanently consumed, so a
+   * dispatch that dies partway through leaves its unreached slots reclaimable
+   * instead of silently skipping those travelers forever.
+   */
+  leaseScheduledRun(input: {
+    id: string;
+    watchId: string;
+    localCheckDate: string;
+    checkSlot: CheckSlot;
+    now: Date;
+    leaseExpiresAt: string;
+  }): Promise<ScheduledCheckRun | null>;
+  /** Mark a leased run finished, successfully or not. */
+  finishScheduledRun(
+    id: string,
+    result: { status: "DONE" | "FAILED"; cycleId?: string | null; failureReason?: string | null },
+  ): Promise<void>;
+  /** RUNNING rows whose lease has expired — evidence of a crashed worker. */
+  listExpiredRuns(now: Date): Promise<ScheduledCheckRun[]>;
+  /** Hand an expired slot back, counting the attempt. */
+  reclaimScheduledRun(id: string, attempts: number): Promise<void>;
+  /** Give up on a slot, with a reason that can be read later. */
+  abandonScheduledRun(id: string, reason: string): Promise<void>;
+  /**
+   * Every run row for the given local dates.
+   *
+   * One query so the enqueue step can drop slots that are already finished
+   * before it picks a batch. Without it a batch can fill up with watches that
+   * were checked hours ago, and the wake makes no progress at all.
+   */
+  listRunsForDates(localDates: readonly string[]): Promise<ScheduledCheckRun[]>;
+  /** Run rows for one watch, newest first — the audit trail for a slot. */
+  listScheduledRuns(watchId: string, limit?: number): Promise<ScheduledCheckRun[]>;
   insertProviderRequest(request: ProviderRequestRecord): Promise<ProviderRequestRecord>;
   findFreshSearch(searchKey: string, notBeforeIso: string): Promise<ProviderRequestRecord | null>;
   getProviderRequest(id: string): Promise<ProviderRequestRecord | null>;

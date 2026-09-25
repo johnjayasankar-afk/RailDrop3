@@ -4,7 +4,7 @@ import { RecordingMailer } from "@/lib/notifications/resend-mailer";
 import { FixtureFareProvider } from "@/lib/providers/fixture-fare-provider";
 import { createWatchAndScan } from "@/lib/watches/create-watch";
 import { runWatchCycle } from "@/lib/orchestration/check-cycle";
-import { dispatchScheduledChecks } from "@/lib/orchestration/dispatcher";
+import { dispatchScheduledChecks, runLeasedWatch } from "@/lib/orchestration/dispatcher";
 import type { FareSearchRequest, FareSearchResult } from "@/lib/domain/types";
 import type { FareProvider } from "@/lib/providers/fare-provider";
 
@@ -178,18 +178,23 @@ describe("check cycle orchestration", () => {
       mailer: new RecordingMailer(),
       now: new Date("2026-09-05T12:00:00.000Z"),
     });
-    const first = await dispatchScheduledChecks({
-      repo,
-      provider,
-      now: new Date("2026-09-06T12:10:00.000Z"),
-    });
-    const second = await dispatchScheduledChecks({
-      repo,
-      provider,
-      now: new Date("2026-09-06T12:20:00.000Z"),
-    });
-    expect(first.claimed).toBeGreaterThan(0);
-    expect(second.skippedDuplicate).toBeGreaterThan(0);
+    const runAll = (now: Date) =>
+      dispatchScheduledChecks({
+        repo,
+        now,
+        invokeWorker: (job) =>
+          runLeasedWatch({ repo, provider, ...job, now }).then(() => undefined),
+      });
+    const first = await runAll(new Date("2026-09-06T12:10:00.000Z"));
+    const second = await runAll(new Date("2026-09-06T12:20:00.000Z"));
+    expect(first.leased).toBeGreaterThan(0);
+    expect(first.executed).toBe(first.leased);
+    // A finished slot stays finished, and the second wake does not even try to
+    // lease it: settled slots are filtered out before a batch is chosen, so
+    // `skipped` is 0 rather than counting a refused attempt.
+    expect(second.leased).toBe(0);
+    expect(second.executed).toBe(0);
+    expect(second.skipped).toBe(0);
   });
 });
 

@@ -121,23 +121,136 @@ export class SupabaseRepository implements RailDropRepository {
     return (data ?? []).map(mapCycle);
   }
 
-  async claimScheduledRun(run: ScheduledCheckRun): Promise<ScheduledCheckRun | null> {
-    const { data, error } = await this.db
+  async leaseScheduledRun(input: {
+    id: string;
+    watchId: string;
+    localCheckDate: string;
+    checkSlot: ScheduledCheckRun["checkSlot"];
+    now: Date;
+    leaseExpiresAt: string;
+  }): Promise<ScheduledCheckRun | null> {
+    const nowIso = input.now.toISOString();
+
+    // First try to create the row. The unique key makes this the atomic
+    // "nobody has this slot yet" path.
+    const created = await this.db
       .from("scheduled_check_runs")
       .insert({
-        id: run.id,
-        watch_id: run.watchId,
-        local_check_date: run.localCheckDate,
-        check_slot: run.checkSlot,
-        cycle_id: run.cycleId,
+        id: input.id,
+        watch_id: input.watchId,
+        local_check_date: input.localCheckDate,
+        check_slot: input.checkSlot,
+        cycle_id: null,
+        status: "RUNNING",
+        attempts: 1,
+        claimed_at: nowIso,
+        started_at: nowIso,
+        lease_expires_at: input.leaseExpiresAt,
       })
       .select("*")
       .maybeSingle();
-    if (error) {
-      if (error.code === "23505") return null;
-      throw error;
-    }
-    return data ? run : null;
+
+    if (!created.error && created.data) return mapScheduledRun(created.data);
+    if (created.error && created.error.code !== "23505") throw created.error;
+
+    // The row exists. Take it over only if it is genuinely reclaimable — still
+    // PENDING, or RUNNING with a lease that has already expired. The status and
+    // lease conditions are part of the UPDATE, so two workers racing here
+    // cannot both win: the second one matches no rows.
+    const taken = await this.db
+      .from("scheduled_check_runs")
+      .update({
+        status: "RUNNING",
+        claimed_at: nowIso,
+        started_at: nowIso,
+        lease_expires_at: input.leaseExpiresAt,
+      })
+      .eq("watch_id", input.watchId)
+      .eq("local_check_date", input.localCheckDate)
+      .eq("check_slot", input.checkSlot)
+      .or(`status.eq.PENDING,and(status.eq.RUNNING,lease_expires_at.lte.${nowIso})`)
+      .select("*")
+      .maybeSingle();
+
+    if (taken.error) throw taken.error;
+    if (!taken.data) return null;
+
+    const row = mapScheduledRun(taken.data);
+    // attempts is incremented separately so the update above stays a single
+    // conditional statement rather than a read-modify-write.
+    const attempts = row.attempts + 1;
+    await this.db.from("scheduled_check_runs").update({ attempts }).eq("id", row.id);
+    return { ...row, attempts };
+  }
+
+  async finishScheduledRun(
+    id: string,
+    result: { status: "DONE" | "FAILED"; cycleId?: string | null; failureReason?: string | null },
+  ): Promise<void> {
+    const { error } = await this.db
+      .from("scheduled_check_runs")
+      .update({
+        status: result.status,
+        cycle_id: result.cycleId ?? null,
+        failure_reason: result.failureReason ?? null,
+        finished_at: new Date().toISOString(),
+        lease_expires_at: null,
+      })
+      .eq("id", id);
+    if (error) throw error;
+  }
+
+  async listExpiredRuns(now: Date): Promise<ScheduledCheckRun[]> {
+    const { data, error } = await this.db
+      .from("scheduled_check_runs")
+      .select("*")
+      .eq("status", "RUNNING")
+      .lte("lease_expires_at", now.toISOString())
+      .limit(200);
+    if (error) throw error;
+    return (data ?? []).map(mapScheduledRun);
+  }
+
+  async reclaimScheduledRun(id: string, attempts: number): Promise<void> {
+    const { error } = await this.db
+      .from("scheduled_check_runs")
+      .update({ status: "PENDING", attempts, lease_expires_at: null, started_at: null })
+      .eq("id", id);
+    if (error) throw error;
+  }
+
+  async abandonScheduledRun(id: string, reason: string): Promise<void> {
+    const { error } = await this.db
+      .from("scheduled_check_runs")
+      .update({
+        status: "ABANDONED",
+        failure_reason: reason,
+        finished_at: new Date().toISOString(),
+        lease_expires_at: null,
+      })
+      .eq("id", id);
+    if (error) throw error;
+  }
+
+  async listRunsForDates(localDates: readonly string[]): Promise<ScheduledCheckRun[]> {
+    if (localDates.length === 0) return [];
+    const { data, error } = await this.db
+      .from("scheduled_check_runs")
+      .select("*")
+      .in("local_check_date", [...localDates]);
+    if (error) throw error;
+    return (data ?? []).map(mapScheduledRun);
+  }
+
+  async listScheduledRuns(watchId: string, limit = 50): Promise<ScheduledCheckRun[]> {
+    const { data, error } = await this.db
+      .from("scheduled_check_runs")
+      .select("*")
+      .eq("watch_id", watchId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    return (data ?? []).map(mapScheduledRun);
   }
 
   async insertProviderRequest(request: ProviderRequestRecord): Promise<ProviderRequestRecord> {
@@ -569,5 +682,23 @@ function mapSnapshot(row: Record<string, unknown>): DateSnapshotRecord {
     searchKey: String(row.search_key),
     providerRequestId: (row.provider_request_id as string | null) ?? null,
     errorMessage: (row.error_message as string | null) ?? null,
+  };
+}
+
+function mapScheduledRun(row: Record<string, unknown>): ScheduledCheckRun {
+  return {
+    id: String(row.id),
+    watchId: String(row.watch_id),
+    localCheckDate: String(row.local_check_date),
+    checkSlot: row.check_slot as ScheduledCheckRun["checkSlot"],
+    cycleId: (row.cycle_id as string | null) ?? null,
+    createdAt: String(row.created_at),
+    status: (row.status as ScheduledCheckRun["status"]) ?? "PENDING",
+    attempts: Number(row.attempts ?? 0),
+    claimedAt: (row.claimed_at as string | null) ?? null,
+    startedAt: (row.started_at as string | null) ?? null,
+    finishedAt: (row.finished_at as string | null) ?? null,
+    leaseExpiresAt: (row.lease_expires_at as string | null) ?? null,
+    failureReason: (row.failure_reason as string | null) ?? null,
   };
 }
