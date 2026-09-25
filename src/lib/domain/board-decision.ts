@@ -118,7 +118,7 @@ export function decisionBrief(input: {
     const extra = input.yours.totalPartyPriceCents - input.best.totalPartyPriceCents;
     const time = formatDurationDelta(durationDeltaMinutes(input.best, input.yours));
     lines.push(
-      `Your train ${input.bookedTrainNumber} is listed at ${formatUsdCompact(input.yours.totalPartyPriceCents)}${extra > 0 ? ` — ${formatUsdCompact(extra)} more than the cheapest` : ""}${time ? `, ${time}` : ""}.`,
+      `Your train ${input.bookedTrainNumber} is listed at ${formatUsdCompact(input.yours.totalPartyPriceCents)}${extra > 0 ? ` · ${formatUsdCompact(extra)} more than the cheapest` : ""}${time ? `, ${time}` : ""}.`,
     );
   } else if (input.bookedTrainNumber) {
     lines.push(`Train ${input.bookedTrainNumber} is not on this live board.`);
@@ -133,7 +133,7 @@ export function decisionBrief(input: {
       `Same day cheapest: ${trainLabel(input.sameDay)} at ${formatUsdCompact(input.sameDay.totalPartyPriceCents)}.`,
     );
   }
-  lines.push("Listed fare — confirm on Amtrak before you change anything.");
+  lines.push("Listed fare: confirm on Amtrak before you change anything.");
   return lines.join(" ");
 }
 

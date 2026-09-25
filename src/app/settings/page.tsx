@@ -30,7 +30,7 @@ export default async function SettingsPage() {
         <h1 className="serif mt-6 text-4xl">Settings</h1>
         <p className="mt-2 text-ink-soft">
           {user.isGuest
-            ? "Guest session — sign in only if you want an account. Alerts use the email on each watch."
+            ? "Guest session: sign in only if you want an account. Alerts use the email on each watch."
             : user.email}
         </p>
         {user.isGuest ? (

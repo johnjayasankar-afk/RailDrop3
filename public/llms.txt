@@ -1,0 +1,21 @@
+# RailDrop
+
+> Know when your train gets cheaper. Book the trip, then RailDrop watches every
+> bookable Amtrak rail option across your window and says when a listed fare drops
+> below what you paid.
+
+If the live board is down, it says so. It never guesses a fare, a change fee or an
+itinerary, and the final price is always confirmed on Amtrak.
+
+## How it works
+
+- Give it the stations, the date and what you paid.
+- It opens a live fare board for the day before, your travel day and the day after.
+- It checks about three times a day while a watch is open, and emails you only when
+  a cheaper bookable option actually exists.
+
+## Elsewhere
+
+- [Labs](https://labs.johnjayasankar.com/)
+- [Case study](https://johnjayasankar.com/work/raildrop)
+- Contact: johnjayasankar@gmail.com

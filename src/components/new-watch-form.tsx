@@ -121,7 +121,7 @@ export function NewWatchForm({
       router.push(`/watches/${json.watch.id}`);
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
-        setError("Scan dismissed — create again when you are ready.");
+        setError("Scan dismissed: create again when you are ready.");
         setBusy(false);
         return;
       }

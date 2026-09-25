@@ -184,7 +184,7 @@ export function windowStrip(input: {
   ];
   for (const day of input.days) {
     if (!day.candidate) {
-      parts.push(`${formatDisplayDate(day.date)} —`);
+      parts.push(`${formatDisplayDate(day.date)} ·`);
       continue;
     }
     parts.push(
@@ -206,7 +206,7 @@ export function switchVerdict(input: {
     return {
       kind: "keep",
       label: "Keep your ticket",
-      copy: "No cheaper listed fare — yet.",
+      copy: "No cheaper listed fare: yet.",
     };
   }
   const net = netAfterFee(input.best.savingsCents, input.feeCents);
@@ -227,7 +227,7 @@ export function switchVerdict(input: {
   return {
     kind: "look",
     label: "Look closer",
-    copy: "Cheaper listed — check time and the real fee on Amtrak.",
+    copy: "Cheaper listed: check time and the real fee on Amtrak.",
   };
 }
 

@@ -28,7 +28,7 @@ export default function ErrorPage({
         <RouteRibbon origin="BOS" destination="NYP" compact />
       </div>
       <p className="mt-3 text-ink-soft">
-        Live fares are still out there. Try again — this is usually a brief hitch, not a lost watch.
+        Live fares are still out there. Try again: this is usually a brief hitch, not a lost watch.
       </p>
       <button type="button" className="btn btn-primary mt-8" onClick={() => retry()}>
         Try again

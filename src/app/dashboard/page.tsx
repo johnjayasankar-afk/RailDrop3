@@ -37,7 +37,7 @@ export default async function DashboardPage() {
             <h1 className="serif text-4xl">Your watches</h1>
             <p className="text-ink-soft">
               {user.isGuest
-                ? "Browsing as a guest — add an alert email on a trip if you want updates."
+                ? "Browsing as a guest: add an alert email on a trip if you want updates."
                 : "Trips you already booked."}
             </p>
           </div>
@@ -91,7 +91,7 @@ export default async function DashboardPage() {
             <p className="kicker">Empty board</p>
             <h2 className="serif mt-3 text-3xl">Watch a trip you already booked.</h2>
             <p className="mt-2 max-w-lg text-ink-soft">
-              Enter stations and what you paid — we search your window for a cheaper listed fare.
+              Enter stations and what you paid: we search your window for a cheaper listed fare.
             </p>
             <Link href="/watches/new" className="btn btn-primary mt-6">
               Create first watch

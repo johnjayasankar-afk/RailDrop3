@@ -112,7 +112,7 @@ export function LoginForm({
         <p className="mt-2 text-ink-soft">
           {localMode
             ? "Local mode: enter any email to continue, or skip."
-            : "Optional. Sign in for an account — or skip and watch prices without one."}
+            : "Optional. Sign in for an account, or skip and watch prices without one."}
         </p>
         {!supabaseUrl || !supabaseAnonKey ? (
           <p className="mt-4 text-sm text-danger" role="alert">
@@ -142,7 +142,7 @@ export function LoginForm({
         </form>
         <p className="mt-4 text-center text-sm">
           <a href="/api/auth/guest?next=%2Fwatches%2Fnew" className="text-ink underline">
-            Skip — watch a trip without signing in
+            Skip · watch a trip without signing in
           </a>
         </p>
         {sent ? (

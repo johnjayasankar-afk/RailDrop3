@@ -359,7 +359,7 @@ export function WatchList({ watches, today }: { watches: WatchRecord[]; today: s
                     </p>
                     {travelUrgency(dateOffsetDays(today, watch.desiredTravelDate)).level ===
                     "now" ? (
-                      <p className="mt-1 text-xs text-drop">Act soon — travel is immediate.</p>
+                      <p className="mt-1 text-xs text-drop">Act soon · travel is immediate.</p>
                     ) : null}
                   </div>
                   <div className="flex flex-wrap items-start gap-2">

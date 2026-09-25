@@ -27,7 +27,7 @@ export async function sendFareDropEmail(input: {
   cycleStatus: CycleStatus;
   skippedPastDates: string[];
 }): Promise<MailerResult> {
-  const subject = `Fare drop: ${input.watch.originCode} → ${input.watch.destinationCode} from ${formatUsdCompact(input.best.totalPartyPriceCents)} — save ${formatUsdCompact(input.best.savingsCents)}`;
+  const subject = `Fare drop: ${input.watch.originCode} → ${input.watch.destinationCode} from ${formatUsdCompact(input.best.totalPartyPriceCents)} · save ${formatUsdCompact(input.best.savingsCents)}`;
   const html = renderHtml(input);
   const text = renderText(input);
   return input.mailer.send({ to: input.to, subject, html, text });

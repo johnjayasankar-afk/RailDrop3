@@ -94,7 +94,7 @@ export function travelUrgency(daysUntil: number): { level: UrgencyLevel; copy: s
   if (daysUntil <= 1) {
     return {
       level: "now",
-      copy: "Travels today or tomorrow — confirm on Amtrak if you switch.",
+      copy: "Travels today or tomorrow: confirm on Amtrak if you switch.",
     };
   }
   if (daysUntil <= 5) {
@@ -122,7 +122,7 @@ export function hassleNote(input: {
     return "A small save this close to departure may not be worth changing a ticket. Confirm fees on Amtrak.";
   }
   if (input.savingsCents >= 5000) {
-    return "This is a meaningful listed drop — still confirm the ticket and any change rules on Amtrak.";
+    return "This is a meaningful listed drop: still confirm the ticket and any change rules on Amtrak.";
   }
   return null;
 }
@@ -132,7 +132,7 @@ export function changeRuleNote(family: FareFamily): string {
     case "FLEXIBLE":
       return "Flexible is usually easiest to change. We never calculate Amtrak fees.";
     case "VALUE":
-      return "Value often has change fees — confirm on Amtrak.";
+      return "Value often has change fees: confirm on Amtrak.";
     case "SAVER":
       return "Saver is often restrictive. Confirm you can change it on Amtrak.";
     default:

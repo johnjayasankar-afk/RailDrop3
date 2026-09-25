@@ -52,7 +52,7 @@ export function ConnectLiveFares({ live }: { live: boolean }) {
       <h2 className="text-xs uppercase tracking-[0.16em] text-ink-soft">Live Amtrak fares</h2>
       <p className="mt-3 text-ink-soft">
         Local searches already use live Amtrak fares from Wanderu on this machine. A Parse key is
-        optional here — it is required for production on Vercel.
+        optional here, but it is required for production on Vercel.
       </p>
       <ol className="mt-3 list-decimal space-y-1 pl-5 text-ink-soft">
         <li>Stay signed in on parse.bot.</li>

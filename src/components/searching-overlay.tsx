@@ -96,10 +96,10 @@ export function SearchingOverlay({
         </h2>
         <p className="mt-3 text-sm text-ink-soft">
           {elapsedSeconds >= 40
-            ? "Still reading the live board — Wanderu can take a minute on slow days. Stay here, or dismiss and leave the scan running."
+            ? "Still reading the live board. Wanderu can take a minute on slow days. Stay here, or dismiss and leave the scan running."
             : flexibility > 0
-              ? "Live board for your date window. Stay here — this can take about 20–40 seconds."
-              : "This usually takes 15–30 seconds. Stay on this page — we are opening a live fare board, not inventing prices."}
+              ? "Live board for your date window. Stay here: this can take about 20 to 40 seconds."
+              : "This usually takes 15 to 30 seconds. Stay on this page: we are opening a live fare board, not inventing prices."}
         </p>
         <div className="scan-line mt-6">
           <span />

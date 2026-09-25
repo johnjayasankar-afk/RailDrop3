@@ -1,12 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --paper: #efe8d9;
-  --paper-elevated: #f7f1e4;
-  --ink: #16120d;
-  --ink-soft: #5c554b;
-  --line: #d6ccbb;
-  --save: #1b6a44;
+  /* RailDrop on the Labs ground: porcelain and forest ink, with the maroon rail
+     and the departure board kept exactly as they were. Those are the product. */
+  --paper: #f8f6f1;
+  --paper-elevated: #ffffff;
+  --ink: #0f1712;
+  --ink-soft: #48524c;
+  --line: rgba(28, 51, 38, 0.16);
+  --save: #1f6b4a;
   --drop: #9a4a12;
   --danger: #8a2d2d;
   --rail: #7a2433;

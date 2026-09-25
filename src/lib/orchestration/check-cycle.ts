@@ -353,7 +353,7 @@ function buildAlertSubject(
 ): string {
   const price = (best.totalPartyPriceCents / 100).toFixed(0);
   const save = (best.savingsCents / 100).toFixed(0);
-  return `Fare drop: ${watch.originCode} → ${watch.destinationCode} from $${price} — save $${save}`;
+  return `Fare drop: ${watch.originCode} → ${watch.destinationCode} from $${price} · save $${save}`;
 }
 
 function emptyCompletedCycle(watchId: string, trigger: CycleTrigger): FareCheckCycleRecord {

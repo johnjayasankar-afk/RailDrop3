@@ -21,7 +21,7 @@ const FAQ = [
   ],
   [
     "Do you invent Amtrak prices?",
-    "No. If the live board is down, you see that — never a guessed fare. Confirm on Amtrak before you change a ticket.",
+    "No. If the live board is down, you see that: never a guessed fare. Confirm on Amtrak before you change a ticket.",
   ],
   [
     "Will you rebook for me?",
@@ -29,7 +29,7 @@ const FAQ = [
   ],
   [
     "What does ±1 day mean?",
-    "The day before, your travel day, and the day after — every bookable rail option, not just the train you bought.",
+    "The day before, your travel day, and the day after: every bookable rail option, not just the train you bought.",
   ],
   [
     "How often do you check?",
@@ -45,7 +45,7 @@ const FAQ = [
   ],
   [
     "Can I send this to someone else on the trip?",
-    "Yes. Copy a one-liner with T — stations, cheapest listed train, and what you paid. They still confirm on Amtrak.",
+    "Yes. Copy a one-liner with T: stations, cheapest listed train, and what you paid. They still confirm on Amtrak.",
   ],
   [
     "Do you subtract the Amtrak change fee?",
@@ -53,11 +53,11 @@ const FAQ = [
   ],
   [
     "Can I filter by when I need to leave or arrive?",
-    "Yes — leave after, arrive by, duration cap, and a 30-minute arrive buffer. Filters stay on this visit only.",
+    "Yes: leave after, arrive by, duration cap, and a 30-minute arrive buffer. Filters stay on this visit only.",
   ],
   [
     "What does Beats your train mean?",
-    "Cheaper and not slower than yours — or faster and not more expensive. Press Z for ticket-and-board only. Confirm on Amtrak.",
+    "Cheaper and not slower than yours, or faster and not more expensive. Press Z for ticket-and-board only. Confirm on Amtrak.",
   ],
   [
     "How do I walk the board without drowning in panels?",
@@ -174,7 +174,7 @@ export default async function HomePage() {
             [
               "01",
               "Same stations, every train",
-              "Regional, Acela, connections — not just the train you already bought.",
+              "Regional, Acela, connections: not just the train you already bought.",
             ],
             ["02", "±1 day by default", "If tomorrow is cheaper than today, you should know."],
             ["03", "One precise alert", "Email only when the opportunity actually improves."],
@@ -211,7 +211,7 @@ export default async function HomePage() {
           <div>
             <h2 className="serif text-3xl">What we will not do</h2>
             <ul className="mt-6 space-y-4 text-sm text-ink-soft">
-              <li>Invent Amtrak prices. If the live board is down, you see that — not a guess.</li>
+              <li>Invent Amtrak prices. If the live board is down, you see that: not a guess.</li>
               <li>Deep-link into a fake Amtrak itinerary. You copy trip details and book there.</li>
               <li>Spam you. Alerts fire only when the opportunity actually improves.</li>
             </ul>

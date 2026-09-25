@@ -518,7 +518,7 @@ export function WatchDetail({
         if (status === "PROVIDER_ERROR") {
           setActionError("Live fares are unavailable right now. Recheck in a minute.");
         } else if (status === "PARTIAL_SUCCESS") {
-          setNotice("Board partially refreshed — some dates missed");
+          setNotice("Board partially refreshed: some dates missed");
           window.setTimeout(() => setNotice(null), 2200);
         } else {
           const count = payload?.rankedCount;
@@ -534,7 +534,7 @@ export function WatchDetail({
       return true;
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
-        setNotice("Scan dismissed — board may still refresh in the background");
+        setNotice("Scan dismissed: board may still refresh in the background");
         window.setTimeout(() => setNotice(null), 2200);
         return false;
       }
@@ -1144,7 +1144,7 @@ export function WatchDetail({
                 <kbd>P</kbd> Pin the focused train
               </li>
               <li>
-                <kbd>Z</kbd> Zen — ticket and board only
+                <kbd>Z</kbd> Zen: ticket and board only
               </li>
               <li>
                 <kbd>H</kbd> Hide the focused train this visit
@@ -1330,7 +1330,7 @@ export function WatchDetail({
         </div>
       ) : null}
       {stale ? (
-        <p className="mt-3 text-sm text-drop">Board is stale — recheck for current listed fares.</p>
+        <p className="mt-3 text-sm text-drop">Board is stale: recheck for current listed fares.</p>
       ) : null}
       {cycleStatus === "PARTIAL_SUCCESS" ? (
         <p className="mt-3 text-sm text-drop">
@@ -2362,7 +2362,7 @@ export function WatchDetail({
               <p className="eyebrow">Alert preview</p>
               <p className="mt-2 text-ink-soft">
                 {watch.originCode} → {watch.destinationCode} from{" "}
-                {formatUsdCompact(best.totalPartyPriceCents)} — save{" "}
+                {formatUsdCompact(best.totalPartyPriceCents)} · save{" "}
                 {formatUsdCompact(best.savingsCents)}. {watch.alertEmail}
               </p>
             </section>

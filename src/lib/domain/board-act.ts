@@ -74,7 +74,7 @@ export function feeNote(savingsCents: number, feeCents: number): string | null {
   const net = netAfterFee(savingsCents, feeCents);
   const fee = formatUsdCompact(feeCents);
   if (net > 0) {
-    return `About ${formatUsdCompact(net)} after a ${fee} change fee — confirm the real fee on Amtrak.`;
+    return `About ${formatUsdCompact(net)} after a ${fee} change fee: confirm the real fee on Amtrak.`;
   }
   if (net === 0) {
     return `A ${fee} change fee would wipe the listed savings. Confirm on Amtrak.`;
