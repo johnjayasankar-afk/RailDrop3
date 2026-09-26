@@ -68,15 +68,32 @@ function renderHtml(input: Parameters<typeof sendFareDropEmail>[0]): string {
     )
     .join("");
 
+  const preheader = `${formatUsdCompact(best.totalPartyPriceCents)} on ${formatDisplayDate(best.journey.searchedTravelDate)} — ${formatUsdCompact(best.savingsCents)} below what you paid.`;
+
   return `<!doctype html>
-<html><body style="margin:0;background:#f8f6f1;color:#0f1712;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif;">
+<html><head><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark">
+<style>
+  /* The paper palette inverts badly in a dark client: near-white panels on a
+     dark chrome, with ink that the client then tries to lighten. Clients that
+     support this get the board's own dark values; everyone else keeps the
+     inline light styles below, which stay authoritative. */
+  @media (prefers-color-scheme: dark) {
+    .rd-body { background:#0f1d15 !important; color:#f0f7f3 !important; }
+    .rd-card { background:#1f382b !important; border-color:#2b4a39 !important; }
+    .rd-muted { color:#a3b8ac !important; }
+    .rd-ink { color:#f0f7f3 !important; }
+  }
+</style></head>
+<body class="rd-body" style="margin:0;background:#f8f6f1;color:#0f1712;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif;">
+  <!-- Inbox preview text. Without it the preview showed the "RAILDROP" eyebrow. -->
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${preheader}</div>
   <div style="max-width:560px;margin:0 auto;padding:32px 20px;">
     <p style="font-family:'SF Mono',Menlo,Consolas,monospace;letter-spacing:.1em;text-transform:uppercase;font-size:11px;color:#8c2f39;">RailDrop</p>
     <h1 style="font-size:28px;line-height:1.15;font-weight:500;letter-spacing:-.02em;margin:8px 0 16px;">RailDrop found cheaper options.</h1>
     <p style="font-family:'SF Mono',Menlo,Consolas,monospace;font-size:16px;font-weight:600;letter-spacing:.06em;">${input.watch.originCode} → ${input.watch.destinationCode}</p>
     <p style="color:#5f6862;">Your current booking · ${formatDisplayDate(input.watch.desiredTravelDate)} · ${formatUsdCompact(input.watch.currentBookedPriceCents)}${input.watch.bookedTrainNumber ? ` · train ${input.watch.bookedTrainNumber}` : ""}</p>
     ${partial}
-    <div style="background:#ffffff;border:1px solid #e2e3dd;border-radius:16px;padding:20px;margin:24px 0;">
+    <div class="rd-card" style="background:#ffffff;border:1px solid #e2e3dd;border-radius:16px;padding:20px;margin:24px 0;">
       <p style="font-family:'SF Mono',Menlo,Consolas,monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#5f6862;">Cheapest option</p>
       <p style="font-size:42px;font-weight:500;letter-spacing:-.03em;margin:8px 0 0;">${formatUsdCompact(best.totalPartyPriceCents)}</p>
       <p style="color:#1f6b4a;font-size:16px;margin:4px 0 16px;">Save ${formatUsdCompact(best.savingsCents)}</p>
@@ -95,7 +112,7 @@ ${formatClock(best.journey.departureAt)} → ${formatClock(best.journey.arrivalA
     <h2 style="font-family:'SF Mono',Menlo,Consolas,monospace;font-size:12px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:#5f6862;">Other cheap options</h2>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${others}</table>
     <p style="margin-top:28px;color:#5f6862;font-size:13px;">Listed fares can change. Confirm on Amtrak before you change a ticket. RailDrop does not modify your reservation.</p>
-    <p style="color:#5f6862;font-size:12px;">Checked ${formatInWatchZone(input.checkedAt, input.watch.timezone)}</p>
+    <p class="rd-muted" style="color:#5f6862;font-size:12px;">Checked ${formatInWatchZone(input.checkedAt, input.watch.timezone)}</p>
   </div>
 </body></html>`;
 }
