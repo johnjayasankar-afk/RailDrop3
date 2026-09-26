@@ -32,6 +32,9 @@ export function AppFooter({
           >
             Watch a trip
           </Link>
+          <Link href="/how-it-works" className="hover:text-ink">
+            How it works
+          </Link>
           {signedIn && !isGuest ? (
             <Link href="/settings" className="hover:text-ink">
               Settings

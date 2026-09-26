@@ -2468,3 +2468,21 @@ a.depart-strip:hover {
   margin-top: 0.5rem;
   color: var(--ink-soft);
 }
+
+/* The methodology page reads as prose, not as an interface. */
+.method-prose {
+  font-size: 0.95rem;
+  line-height: 1.65;
+}
+
+.method-prose ul {
+  margin-top: 0.25rem;
+  display: grid;
+  gap: 0.6rem;
+  padding-left: 1.1rem;
+  list-style: disc;
+}
+
+.method-prose strong {
+  color: var(--ink);
+}
