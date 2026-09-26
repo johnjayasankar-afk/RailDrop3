@@ -132,9 +132,7 @@ describe("rankCommands", () => {
   it("highlights nothing when the match was on a keyword", () => {
     // The matched characters are not in the text being looked at, so drawing
     // them would highlight arbitrary letters.
-    const found = rankCommands(commands, "sort").find(
-      (item) => item.spec.id === "cheapest",
-    );
+    const found = rankCommands(commands, "sort").find((item) => item.spec.id === "cheapest");
     expect(found?.positions).toEqual([]);
   });
 
@@ -180,9 +178,7 @@ describe("flattenRanked", () => {
 
   it("is not simply the ranked order, because grouping reorders it", () => {
     const ranked = rankCommands(commands, "");
-    expect(flattenRanked(ranked).map((i) => i.spec.id)).not.toEqual(
-      ranked.map((i) => i.spec.id),
-    );
+    expect(flattenRanked(ranked).map((i) => i.spec.id)).not.toEqual(ranked.map((i) => i.spec.id));
   });
 
   it("keeps every command", () => {

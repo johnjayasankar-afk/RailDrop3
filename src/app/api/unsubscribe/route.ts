@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getRepository } from "@/lib/services";
 import { unsubscribeTokenValid } from "@/lib/notifications/unsubscribe";
 import { logger } from "@/lib/logger";
+import { routeGuard } from "@/lib/api/respond";
 
 /**
  * RFC 8058 one-click. A mail client POSTs here with no session and no body it
@@ -23,6 +24,10 @@ export async function GET(request: Request) {
 }
 
 async function handle(watchId: string | null, token: string | null): Promise<NextResponse> {
+  return routeGuard({ route: "/api/unsubscribe" }, () => act(watchId, token));
+}
+
+async function act(watchId: string | null, token: string | null): Promise<NextResponse> {
   if (!watchId || !token || !unsubscribeTokenValid(watchId, token)) {
     // Deliberately vague: a precise error would let someone probe which watch
     // ids exist.

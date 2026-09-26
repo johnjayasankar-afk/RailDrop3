@@ -37,6 +37,14 @@ export type AppConfig = {
   providerDailySearchBudget: number;
   isE2E: boolean;
   isLocal: boolean;
+  /**
+   * True when local mode was inferred rather than asked for.
+   *
+   * The banner and the health endpoint say so, because a developer who thinks
+   * they are talking to Supabase and is actually writing a JSON file should
+   * find that out from the app rather than from a missing row.
+   */
+  localByDefault: boolean;
   isOffline: boolean;
   isProduction: boolean;
 };
@@ -49,9 +57,52 @@ export function getConfig(): AppConfig {
   const isE2E = parsed.E2E_TEST === "1";
   // Never treat Vercel / cloud builds as local, even if a laptop .env.local is present.
   const onVercel = process.env.VERCEL === "1" || Boolean(parsed.VERCEL_ENV);
-  const isLocal =
+  const askedForLocal =
     !onVercel && (parsed.RAILDROP_LOCAL === "1" || parsed.NEXT_PUBLIC_RAILDROP_LOCAL === "1");
   const isProduction = parsed.NODE_ENV === "production" || parsed.VERCEL_ENV === "production";
+
+  /* `npm run dev` should start a working app.
+   *
+   * It did not. With no .env.local the first write threw "Supabase service role
+   * is not configured", so the one thing the product does — put a trip on a
+   * board — failed on a clean checkout, and the fix was an environment variable
+   * documented nowhere the error mentioned. The app already ships a complete
+   * file-backed store for exactly this; it was simply never reached unless you
+   * knew to ask for it.
+   *
+   * Narrow on purpose. Only off Vercel, only outside production, and only when
+   * there is no Supabase to talk to — so a real deployment with a broken or
+   * missing credential still fails loudly instead of quietly writing a trip
+   * into a JSON file nobody will look at again. */
+  /* Any mention of Supabase, not a complete one.
+   *
+   * Someone who has put a project URL in .env.local intends to use Supabase.
+   * If the service role key is missing they are midway through setup, and
+   * quietly diverting their trips into a JSON file would hide the exact thing
+   * they need to fix. The fallback is for "nothing is configured", which is a
+   * clean checkout, not "something is configured wrong". */
+  const supabaseMentioned = Boolean(
+    parsed.NEXT_PUBLIC_SUPABASE_URL ||
+    parsed.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    parsed.SUPABASE_SERVICE_ROLE_KEY,
+  );
+  /* Development only, and never NODE_ENV=test.
+   *
+   * The unit and integration suites construct their own repositories and
+   * providers and pass them in, so they have no need of this — and inferring it
+   * there is not harmless. `isLocal` also sets the cycle's search concurrency
+   * (check-cycle.ts: 3 in local mode, 1 otherwise), so switching it on under
+   * vitest made the deadline test fire three searches before the budget could
+   * decline the second. A convenience for `npm run dev` must not change what
+   * the tests are testing. */
+  const localByDefault =
+    parsed.NODE_ENV === "development" &&
+    !onVercel &&
+    !isProduction &&
+    !isE2E &&
+    !askedForLocal &&
+    !supabaseMentioned;
+  const isLocal = askedForLocal || localByDefault;
 
   if (isProduction && isE2E) {
     throw new Error("E2E_TEST cannot be enabled in production");
@@ -76,6 +127,7 @@ export function getConfig(): AppConfig {
     providerDailySearchBudget: parsed.PROVIDER_DAILY_SEARCH_BUDGET,
     isE2E,
     isLocal,
+    localByDefault,
     isOffline: (isE2E || isLocal) && !isProduction,
     isProduction,
   };

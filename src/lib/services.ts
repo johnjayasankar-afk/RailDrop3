@@ -12,9 +12,11 @@ import { FixtureFareProvider } from "@/lib/providers/fixture-fare-provider";
 import { WanderuBrowserProvider } from "@/lib/providers/wanderu-browser-provider";
 import { FallbackFareProvider } from "@/lib/providers/fallback-fare-provider";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { logger } from "@/lib/logger";
 
 const globalStore = globalThis as unknown as {
   __raildropMemory?: MemoryRepository;
+  __raildropSaidLocal?: boolean;
   __raildropMailer?: RecordingMailer;
   __raildropFareProvider?: FareProvider;
 };
@@ -22,6 +24,17 @@ const globalStore = globalThis as unknown as {
 export function getRepository(): RailDropRepository {
   const config = getConfig();
   if (config.isOffline) {
+    if (config.localByDefault && !globalStore.__raildropSaidLocal) {
+      globalStore.__raildropSaidLocal = true;
+      // Once, loudly. Falling back is better than refusing to start, but a
+      // developer who thinks they are writing to Supabase must not find out
+      // from a missing row.
+      logger.warn("config.local_by_default", {
+        reason: "No NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY in this environment",
+        using: ".data/raildrop-local.json",
+        note: "Set them in .env.local to use Supabase, or RAILDROP_LOCAL=1 to keep this on purpose.",
+      });
+    }
     globalStore.__raildropMemory ??=
       config.isLocal && !config.isE2E
         ? createPersistedMemoryRepository(path.join(process.cwd(), ".data/raildrop-local.json"))

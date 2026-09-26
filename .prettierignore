@@ -1,0 +1,8 @@
+# Generated or scratch, not source.
+.next/
+.data/
+test-results/
+playwright-report/
+coverage/
+.playwright/
+*.min.js

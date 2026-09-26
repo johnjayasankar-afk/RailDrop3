@@ -111,10 +111,7 @@ export function fuzzyMatch(
  * is the thing a first-time reader actually wants: everything the board can do,
  * grouped, with the keys next to it.
  */
-export function rankCommands(
-  commands: readonly CommandSpec[],
-  query: string,
-): RankedCommand[] {
+export function rankCommands(commands: readonly CommandSpec[], query: string): RankedCommand[] {
   const needle = query.trim();
   if (!needle) {
     return commands.map((spec) => ({ spec, score: 0, positions: [] }));
