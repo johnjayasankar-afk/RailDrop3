@@ -627,6 +627,11 @@ function mapWatch(row: Record<string, unknown>): WatchRecord {
     bestPriceCents: (row.best_price_cents as number | null) ?? null,
     bestSavingsCents: (row.best_savings_cents as number | null) ?? null,
     lastOpportunity: (row.last_opportunity as WatchRecord["lastOpportunity"]) ?? null,
+    lastAlertedOpportunity:
+      (row.last_alerted_opportunity as WatchRecord["lastAlertedOpportunity"]) ?? null,
+    opportunityLostNotified: Boolean(row.opportunity_lost_notified),
+    departureAlertSent: Boolean(row.departure_alert_sent),
+    alertImprovementCents: (row.alert_improvement_cents as number | null) ?? null,
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
   };
@@ -658,6 +663,10 @@ function watchToRow(watch: WatchRecord) {
     alert_email: watch.alertEmail,
     status: watch.status,
     last_opportunity: watch.lastOpportunity,
+    last_alerted_opportunity: watch.lastAlertedOpportunity,
+    opportunity_lost_notified: watch.opportunityLostNotified,
+    departure_alert_sent: watch.departureAlertSent,
+    alert_improvement_cents: watch.alertImprovementCents,
   };
 }
 
@@ -677,6 +686,13 @@ function watchPatchToRow(patch: WatchUpdate) {
   if (patch.bestPriceCents !== undefined) row.best_price_cents = patch.bestPriceCents;
   if (patch.bestSavingsCents !== undefined) row.best_savings_cents = patch.bestSavingsCents;
   if (patch.lastOpportunity !== undefined) row.last_opportunity = patch.lastOpportunity;
+  if (patch.lastAlertedOpportunity !== undefined)
+    row.last_alerted_opportunity = patch.lastAlertedOpportunity;
+  if (patch.opportunityLostNotified !== undefined)
+    row.opportunity_lost_notified = patch.opportunityLostNotified;
+  if (patch.departureAlertSent !== undefined) row.departure_alert_sent = patch.departureAlertSent;
+  if (patch.alertImprovementCents !== undefined)
+    row.alert_improvement_cents = patch.alertImprovementCents;
   if (patch.monitorEndAt !== undefined) row.monitor_end_at = patch.monitorEndAt;
   if (patch.monitorPreset !== undefined) row.monitor_preset = patch.monitorPreset;
   if (patch.monitorStartAt !== undefined) row.monitor_start_at = patch.monitorStartAt;

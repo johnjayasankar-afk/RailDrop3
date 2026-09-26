@@ -54,6 +54,10 @@ function watch(id: string, origin: string, dest: string, savings: number): Watch
     bestPriceCents: 3600,
     bestSavingsCents: savings,
     lastOpportunity: null,
+    lastAlertedOpportunity: null,
+    opportunityLostNotified: false,
+    departureAlertSent: false,
+    alertImprovementCents: null,
     createdAt: "2026-09-02T00:00:00Z",
     updatedAt: "2026-09-02T00:00:00Z",
   };

@@ -37,6 +37,10 @@ function stubWatch(id: string): WatchRecord {
     bestPriceCents: null,
     bestSavingsCents: null,
     lastOpportunity: null,
+    lastAlertedOpportunity: null,
+    opportunityLostNotified: false,
+    departureAlertSent: false,
+    alertImprovementCents: null,
     createdAt: "2026-09-03T00:00:00.000Z",
     updatedAt: "2026-09-03T00:00:00.000Z",
   };

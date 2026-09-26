@@ -26,6 +26,10 @@ export interface WatchUpdate {
   bestPriceCents?: number | null;
   bestSavingsCents?: number | null;
   lastOpportunity?: OpportunityFingerprint | null;
+  lastAlertedOpportunity?: OpportunityFingerprint | null;
+  opportunityLostNotified?: boolean;
+  departureAlertSent?: boolean;
+  alertImprovementCents?: number | null;
   monitorEndAt?: string | null;
   monitorPreset?: WatchRecord["monitorPreset"];
   monitorStartAt?: string;

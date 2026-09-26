@@ -121,3 +121,86 @@ function renderText(input: Parameters<typeof sendFareDropEmail>[0]): string {
     `Checked ${input.checkedAt.toISOString()}`,
   ].join("\n");
 }
+
+/**
+ * "The fare we told you about is gone."
+ *
+ * Its own email because there is no better option to show — that is the whole
+ * message. Sending the fare-drop template with an empty body, or saying
+ * nothing at all, both leave the traveler holding a price that no longer
+ * exists. Nothing here states a fare we have not observed: the lost price is
+ * the one we previously sent them, and the current cheapest is included only
+ * when there is one.
+ */
+export async function sendOpportunityLostEmail(input: {
+  mailer: Mailer;
+  to: string;
+  watch: WatchRecord;
+  lostPriceCents: number;
+  /** The cheapest listed fare now, if anything is listed at all. */
+  currentCheapestCents: number | null;
+  appUrl: string;
+  checkedAt: Date;
+}): Promise<MailerResult> {
+  const { originCode: from, destinationCode: to } = input.watch;
+  const lost = formatUsdCompact(input.lostPriceCents);
+  const now =
+    input.currentCheapestCents === null
+      ? "Nothing cheaper than your booking is listed right now."
+      : `The cheapest listed fare now is ${formatUsdCompact(input.currentCheapestCents)}.`;
+
+  const subject = `Sold out: the ${lost} on ${from} → ${to} is gone`;
+  const html = `<!doctype html>
+<html><body style="margin:0;background:#f8f6f1;color:#0f1712;font-family:-apple-system,Segoe UI,Roboto,sans-serif;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${lost} is no longer listed. ${now}</div>
+  <div style="max-width:560px;margin:0 auto;padding:32px 20px;">
+    <p style="letter-spacing:.18em;text-transform:uppercase;font-size:11px;color:#8c2f39;margin:0;">RailDrop</p>
+    <h1 style="font-size:24px;line-height:1.2;margin:10px 0 14px;">The ${lost} option is no longer listed.</h1>
+    <p style="font-size:15px;line-height:1.55;margin:0 0 12px;">
+      We told you about a ${lost} fare on ${from} → ${to}. It is not showing any more. ${now}
+    </p>
+    <p style="font-size:15px;line-height:1.55;margin:0 0 20px;">
+      Your booking is untouched and we are still watching. We will write again if something
+      qualifies.
+    </p>
+    <p style="margin:0 0 24px;">
+      <a href="${input.appUrl}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#1c3326;color:#ffffff;font-weight:600;text-decoration:none;">Open board · confirm on Amtrak</a>
+    </p>
+    <p style="font-size:12px;color:#5f6862;margin:0;">
+      Checked ${formatInWatchZone(input.checkedAt, input.watch.timezone)}. Fares and availability
+      change constantly — always confirm on Amtrak.
+    </p>
+  </div>
+</body></html>`;
+
+  const text = [
+    `The ${lost} option on ${from} → ${to} is no longer listed.`,
+    now,
+    "Your booking is untouched and we are still watching.",
+    `Open board: ${input.appUrl}`,
+    `Checked ${formatInWatchZone(input.checkedAt, input.watch.timezone)}.`,
+  ].join("\n");
+
+  return input.mailer.send({ to: input.to, subject, html, text });
+}
+
+/**
+ * A timestamp a person can read, in the timezone of their trip.
+ *
+ * The fare-drop template rendered a raw UTC ISO string into a consumer email.
+ */
+export function formatInWatchZone(at: Date, timeZone: string): string {
+  try {
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZoneName: "short",
+    }).format(at);
+  } catch {
+    // An unusable zone must not cost the traveler their email.
+    return at.toISOString();
+  }
+}

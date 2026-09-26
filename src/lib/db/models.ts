@@ -49,7 +49,20 @@ export interface WatchRecord {
   nextCheckAtLabel: string | null;
   bestPriceCents: number | null;
   bestSavingsCents: number | null;
+  /** The most recent observation. */
   lastOpportunity: OpportunityFingerprint | null;
+  /**
+   * The fare the traveler was actually told about.
+   *
+   * A different fact from lastOpportunity, and the only one a "worth another
+   * email?" comparison may use. Conflating them is what left travelers holding
+   * an email about a fare that had sold out.
+   */
+  lastAlertedOpportunity: OpportunityFingerprint | null;
+  opportunityLostNotified: boolean;
+  departureAlertSent: boolean;
+  /** Null means the default. Per-watch re-alert threshold. */
+  alertImprovementCents: number | null;
   createdAt: string;
   updatedAt: string;
 }

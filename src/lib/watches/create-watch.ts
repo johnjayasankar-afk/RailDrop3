@@ -80,6 +80,10 @@ export async function createWatchAndScan(input: {
     bestPriceCents: null,
     bestSavingsCents: null,
     lastOpportunity: null,
+    lastAlertedOpportunity: null,
+    opportunityLostNotified: false,
+    departureAlertSent: false,
+    alertImprovementCents: null,
     createdAt: now.toISOString(),
     updatedAt: now.toISOString(),
   };

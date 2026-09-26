@@ -5,6 +5,9 @@ import { generateSearchDates } from "@/lib/domain/calendar";
 import { collectEligibleFares } from "@/lib/domain/eligibility";
 import { cheapestByDate, rankCandidates } from "@/lib/domain/ranking";
 import { OpportunityComparator } from "@/lib/domain/opportunity";
+import { decideAlert } from "@/lib/domain/alert-policy";
+import { formatUsdCompact } from "@/lib/domain/money";
+import { sendOpportunityLostEmail } from "@/lib/notifications/send-alert";
 import { shouldCompleteWatch, usableSearchDates } from "@/lib/domain/monitoring";
 import { canonicalSearchKey, DEFAULT_PROVIDER_ID } from "@/lib/domain/search-key";
 import { PEER_POLL_INTERVAL_MS, planSearch } from "@/lib/domain/search-dedup";
@@ -380,6 +383,20 @@ export async function runWatchCycle(input: {
     watch.minimumSavingsCents,
   );
 
+  /* Whether to speak is decided against what the traveler was TOLD, not
+   * against what we last saw. Those were one column until now, which is why a
+   * sold-out $47 could silence a perfectly good $60. */
+  const alertPolicy = decideAlert({
+    state: {
+      lastAlerted: watch.lastAlertedOpportunity,
+      lostNotified: watch.opportunityLostNotified,
+      imminentNotified: watch.departureAlertSent,
+    },
+    observed: opportunity.fingerprint,
+    hoursToDeparture: hoursUntilDeparture(watch, now),
+    improvementCents: watch.alertImprovementCents ?? undefined,
+  });
+
   await input.repo.insertJourneys(
     allJourneys.map((option) => ({
       id: crypto.randomUUID(),
@@ -392,7 +409,45 @@ export async function runWatchCycle(input: {
 
   let alertSent = false;
   const alertTo = watch.alertEmail?.trim() ?? "";
-  if (opportunity.decision.notify && opportunity.fingerprint && input.mailer && alertTo) {
+  /* The lost notice is its own email: there is no better option to show,
+   * which is the entire message. Sending the fare-drop template with an empty
+   * body — or saying nothing — both leave the traveler holding a price that no
+   * longer exists. */
+  if (alertPolicy.notify && alertPolicy.reason === "opportunity_lost" && input.mailer && alertTo) {
+    const lost = watch.lastAlertedOpportunity;
+    if (lost) {
+      // Recorded as an alert like any other, so the history on the watch shows
+      // what the traveler was told and when — including the bad news.
+      const alert = await input.repo.insertAlert({
+        id: crypto.randomUUID(),
+        watchId: watch.id,
+        cycleId,
+        fingerprint: lost,
+        subject: `Sold out: the ${formatUsdCompact(lost.bestPriceCents)} on ${watch.originCode} → ${watch.destinationCode} is gone`,
+        createdAt: now.toISOString(),
+      });
+      const delivery = await sendOpportunityLostEmail({
+        mailer: input.mailer,
+        to: alertTo,
+        watch,
+        lostPriceCents: lost.bestPriceCents,
+        currentCheapestCents: ranked[0]?.totalPartyPriceCents ?? null,
+        appUrl: `${appOrigin()}/watches/${watch.id}`,
+        checkedAt: now,
+      });
+      await input.repo.insertNotification({
+        id: crypto.randomUUID(),
+        alertId: alert.id,
+        watchId: watch.id,
+        toEmail: alertTo,
+        status: delivery.status,
+        providerMessageId: delivery.providerMessageId,
+        errorMessage: delivery.errorMessage,
+        createdAt: now.toISOString(),
+      });
+      alertSent = delivery.status === "ACCEPTED";
+    }
+  } else if (alertPolicy.notify && opportunity.fingerprint && input.mailer && alertTo) {
     const cheapest = cheapestByDate(opportunity.qualifying);
     const subject = buildAlertSubject(watch, opportunity.qualifying[0]);
     const alert = await input.repo.insertAlert({
@@ -451,7 +506,15 @@ export async function runWatchCycle(input: {
     nextCheckAtLabel: next.label,
     bestPriceCents: best?.totalPartyPriceCents ?? null,
     bestSavingsCents: best && best.savingsCents > 0 ? best.savingsCents : null,
-    lastOpportunity: opportunity.fingerprint ?? watch.lastOpportunity,
+    // The observation is recorded as observed — null when nothing qualifies,
+    // which is the truth. Keeping the old value here is what made a
+    // disappeared fare invisible.
+    lastOpportunity: opportunity.fingerprint,
+    lastAlertedOpportunity: alertSent ? alertPolicy.nextAlerted : watch.lastAlertedOpportunity,
+    opportunityLostNotified: alertSent
+      ? alertPolicy.nextLostNotified
+      : watch.opportunityLostNotified,
+    departureAlertSent: alertSent ? alertPolicy.nextImminentNotified : watch.departureAlertSent,
   });
 
   // reusedSearches is recorded too: without it the cost model in
@@ -499,6 +562,17 @@ function resolveCycleStatus(
   if (journeyCount === 0) return "NO_AVAILABLE_ITINERARIES";
   if (succeeded.length === requested.length) return "SUCCESS";
   return "PARTIAL_SUCCESS";
+}
+
+/** Hours until the booked departure, or null when it is not known. */
+function hoursUntilDeparture(
+  watch: { bookedDepartureAt: string | null; desiredTravelDate: string },
+  now: Date,
+): number | null {
+  const iso = watch.bookedDepartureAt ?? `${watch.desiredTravelDate}T12:00:00.000Z`;
+  const at = Date.parse(iso);
+  if (Number.isNaN(at)) return null;
+  return (at - now.getTime()) / 3_600_000;
 }
 
 function buildAlertSubject(
