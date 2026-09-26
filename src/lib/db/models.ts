@@ -91,7 +91,14 @@ export interface ProviderRequestRecord {
   destinationCode: string;
   travelDate: string;
   passengerCount: number;
-  status: DateSearchStatus;
+  /**
+   * A date-search outcome, or IN_FLIGHT while a worker is running it.
+   *
+   * IN_FLIGHT is a provider-request fact, not a date outcome: it never reaches
+   * a snapshot or a cycle status, and findFreshSearch filters it out so it can
+   * never be served as a result with no journeys behind it.
+   */
+  status: DateSearchStatus | "IN_FLIGHT";
   creditsConsumed: number | null;
   latencyMs: number;
   errorMessage: string | null;

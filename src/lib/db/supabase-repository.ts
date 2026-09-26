@@ -282,12 +282,45 @@ export class SupabaseRepository implements RailDropRepository {
       .eq("search_key", searchKey)
       .is("reused_from_id", null)
       .neq("status", "PROVIDER_ERROR")
+      // An in-flight marker has no journeys yet; serving it would render
+      // "still searching" as "nothing available".
+      .neq("status", "IN_FLIGHT")
       .gte("created_at", notBeforeIso)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
     if (error) throw error;
     return data ? mapProviderRequest(data) : null;
+  }
+
+  async findNewestSearch(searchKey: string): Promise<ProviderRequestRecord | null> {
+    const { data, error } = await this.db
+      .from("provider_requests")
+      .select("*")
+      .eq("search_key", searchKey)
+      .is("reused_from_id", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? mapProviderRequest(data) : null;
+  }
+
+  async markSearchInFlight(row: ProviderRequestRecord): Promise<void> {
+    const { error } = await this.db.from("provider_requests").insert({
+      id: row.id,
+      search_key: row.searchKey,
+      cycle_id: row.cycleId,
+      origin_code: row.originCode,
+      destination_code: row.destinationCode,
+      travel_date: row.travelDate,
+      passenger_count: row.passengerCount,
+      status: row.status,
+      credits_consumed: 0,
+      latency_ms: 0,
+      reused_from_id: null,
+    });
+    if (error) throw error;
   }
 
   async getProviderRequest(id: string): Promise<ProviderRequestRecord | null> {
@@ -451,6 +484,7 @@ export class SupabaseRepository implements RailDropRepository {
     requests: number,
     successes: number,
     failures: number,
+    reused = 0,
   ): Promise<void> {
     const { error } = await this.db.rpc("increment_provider_usage", {
       usage_day: day,
@@ -458,6 +492,7 @@ export class SupabaseRepository implements RailDropRepository {
       add_requests: requests,
       add_successes: successes,
       add_failures: failures,
+      add_reused: reused,
     });
     if (error) throw error;
   }
@@ -476,6 +511,7 @@ export class SupabaseRepository implements RailDropRepository {
           requests: data.requests,
           successes: data.successes,
           failures: data.failures,
+          reused: data.reused ?? 0,
         }
       : null;
   }

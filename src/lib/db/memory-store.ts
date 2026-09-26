@@ -29,7 +29,14 @@ export class MemoryRepository implements RailDropRepository {
   priceEvents: BookingPriceEvent[] = [];
   usage = new Map<
     string,
-    { day: string; credits: number; requests: number; successes: number; failures: number }
+    {
+      day: string;
+      credits: number;
+      requests: number;
+      successes: number;
+      failures: number;
+      reused: number;
+    }
   >();
   stations = STATIONS.map((station) => ({ ...station }));
 
@@ -229,10 +236,25 @@ export class MemoryRepository implements RailDropRepository {
             request.searchKey === searchKey &&
             request.reusedFromId === null &&
             request.status !== "PROVIDER_ERROR" &&
+            // An in-flight marker has no journeys yet; serving it would render
+            // "still searching" as "nothing available".
+            request.status !== "IN_FLIGHT" &&
             request.createdAt >= notBeforeIso,
         )
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ?? null
     );
+  }
+
+  async findNewestSearch(searchKey: string): Promise<ProviderRequestRecord | null> {
+    return (
+      [...this.providerRequests.values()]
+        .filter((r) => r.searchKey === searchKey && !r.reusedFromId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ?? null
+    );
+  }
+
+  async markSearchInFlight(row: ProviderRequestRecord): Promise<void> {
+    this.providerRequests.set(row.id, row);
   }
 
   async getProviderRequest(id: string): Promise<ProviderRequestRecord | null> {
@@ -297,6 +319,7 @@ export class MemoryRepository implements RailDropRepository {
     requests: number,
     successes: number,
     failures: number,
+    reused = 0,
   ): Promise<void> {
     const current = this.usage.get(day) ?? {
       day,
@@ -304,11 +327,13 @@ export class MemoryRepository implements RailDropRepository {
       requests: 0,
       successes: 0,
       failures: 0,
+      reused: 0,
     };
     current.credits += credits;
     current.requests += requests;
     current.successes += successes;
     current.failures += failures;
+    current.reused += reused;
     this.usage.set(day, current);
   }
 

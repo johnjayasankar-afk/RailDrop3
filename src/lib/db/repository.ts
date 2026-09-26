@@ -87,7 +87,18 @@ export interface RailDropRepository {
   /** Run rows for one watch, newest first — the audit trail for a slot. */
   listScheduledRuns(watchId: string, limit?: number): Promise<ScheduledCheckRun[]>;
   insertProviderRequest(request: ProviderRequestRecord): Promise<ProviderRequestRecord>;
+  /** Newest completed, reusable search for this key. Never an in-flight marker. */
   findFreshSearch(searchKey: string, notBeforeIso: string): Promise<ProviderRequestRecord | null>;
+  /**
+   * Newest row of any status for this key, including an IN_FLIGHT marker.
+   *
+   * Fan-out means two workers can want the same corridor and date at the same
+   * moment. This is how the second one finds out that the first is already
+   * doing it, instead of launching a second browser.
+   */
+  findNewestSearch(searchKey: string): Promise<ProviderRequestRecord | null>;
+  /** Announce a search before running it, so a peer can wait rather than duplicate. */
+  markSearchInFlight(row: ProviderRequestRecord): Promise<void>;
   getProviderRequest(id: string): Promise<ProviderRequestRecord | null>;
   insertDateSnapshot(snapshot: DateSnapshotRecord): Promise<DateSnapshotRecord>;
   listDateSnapshots(cycleId: string): Promise<DateSnapshotRecord[]>;
@@ -106,6 +117,8 @@ export interface RailDropRepository {
     requests: number,
     successes: number,
     failures: number,
+    /** Searches served from cache. Without this the cost model is unverifiable. */
+    reused?: number,
   ): Promise<void>;
   getUsage(day: string): Promise<{
     day: string;
@@ -113,6 +126,7 @@ export interface RailDropRepository {
     requests: number;
     successes: number;
     failures: number;
+    reused: number;
   } | null>;
   searchStations(
     query: string,

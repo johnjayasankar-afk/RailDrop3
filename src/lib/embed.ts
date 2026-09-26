@@ -31,9 +31,7 @@ export const EMBED_PARENTS = [
  * `process.env.NODE_ENV` is "production" in every deployed build.
  */
 const DEV_PARENTS =
-  process.env.NODE_ENV === "production"
-    ? []
-    : ["http://localhost:*", "http://127.0.0.1:*"];
+  process.env.NODE_ENV === "production" ? [] : ["http://localhost:*", "http://127.0.0.1:*"];
 
 /** The `frame-ancestors` value, and the whole of the enforced policy. */
 export const FRAME_ANCESTORS = ["'self'", ...EMBED_PARENTS, ...DEV_PARENTS].join(" ");
@@ -65,7 +63,7 @@ export function announceEmbed(win: Window = window): void {
   } catch {
     return;
   }
-  if (!(EMBED_PARENTS as readonly string[]).includes(parentOrigin)
-      && !isLoopback(parentOrigin)) return;
+  if (!(EMBED_PARENTS as readonly string[]).includes(parentOrigin) && !isLoopback(parentOrigin))
+    return;
   win.parent.postMessage({ type: EMBED_READY, from: win.location.origin }, parentOrigin);
 }

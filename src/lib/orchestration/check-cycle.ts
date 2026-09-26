@@ -7,6 +7,7 @@ import { cheapestByDate, rankCandidates } from "@/lib/domain/ranking";
 import { OpportunityComparator } from "@/lib/domain/opportunity";
 import { shouldCompleteWatch, usableSearchDates } from "@/lib/domain/monitoring";
 import { canonicalSearchKey, DEFAULT_PROVIDER_ID } from "@/lib/domain/search-key";
+import { PEER_POLL_INTERVAL_MS, planSearch } from "@/lib/domain/search-dedup";
 import {
   DEADLINE_SKIP_MESSAGE,
   hasTimeForAnotherSearch,
@@ -130,28 +131,51 @@ export async function runWatchCycle(input: {
       passengers: { adultCount: watch.passengerCount },
     };
     const searchKey = canonicalSearchKey(DEFAULT_PROVIDER_ID, request);
-    const freshnessFloor = new Date(now.getTime() - SEARCH_FRESHNESS_MS).toISOString();
 
     let result = input.searchCache?.get(searchKey) ?? null;
     let reused = false;
 
-    if (!result) {
-      const existing = await input.repo.findFreshSearch(searchKey, freshnessFloor);
-      if (existing) {
-        const cached = await input.repo.getCachedJourneys(existing.id);
+    /* Reuse, or wait for whoever is already doing it.
+     *
+     * The reuse itself is not new: a completed row for this canonical key
+     * inside the freshness window is served from search_cache. What is new is
+     * the waiting. Dispatch used to run watches one at a time, so the second
+     * watch on a corridor always saw the first one's finished row. Now each
+     * watch has its own invocation, and two can start the same search in the
+     * same second — both miss, both launch a browser. So a search announces
+     * itself first, and a peer waits for the answer rather than paying for it
+     * twice. It gives up waiting rather than stalling its own cycle. */
+    let waitedMs = 0;
+    while (!result) {
+      const newest = await input.repo.findNewestSearch(searchKey);
+      const plan = planSearch({ newest, now: new Date(), waitedMs });
+
+      if (plan.action === "reuse" && newest && newest.status !== "IN_FLIGHT") {
+        const cached = await input.repo.getCachedJourneys(newest.id);
         result = {
           request,
-          status: existing.status,
+          status: newest.status,
           journeys: cached,
           metadata: {
             provider: DEFAULT_PROVIDER_ID,
-            requestId: existing.id,
-            retrievedAt: existing.createdAt,
-            latencyMs: existing.latencyMs,
+            requestId: newest.id,
+            retrievedAt: newest.createdAt,
+            latencyMs: newest.latencyMs,
             creditsCharged: 0,
           },
         };
+        reused = true;
+        break;
       }
+
+      if (plan.action === "wait") {
+        const nap = Math.min(PEER_POLL_INTERVAL_MS, plan.msRemaining);
+        await new Promise((resolve) => setTimeout(resolve, nap));
+        waitedMs += nap;
+        continue;
+      }
+
+      break;
     }
 
     if (!result && !hasTimeForAnotherSearch({ now: Date.now(), deadline, observedMs })) {
