@@ -92,75 +92,102 @@ export function FareHistory({
       ) : (
         <>
           <figure className="fh-figure">
-            <svg
-              viewBox={`0 0 ${geometry.width} ${geometry.height}`}
-              className="fh-chart"
-              role="img"
-              preserveAspectRatio="none"
-              aria-label={chartLabel(history.points.length, geometry.low, geometry.high)}
-            >
-              <defs>
-                <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--save)" stopOpacity="0.22" />
-                  <stop offset="100%" stopColor="var(--save)" stopOpacity="0" />
-                </linearGradient>
-              </defs>
+            <div className="fh-plot">
+              <svg
+                viewBox={`0 0 ${geometry.width} ${geometry.height}`}
+                className="fh-chart"
+                role="img"
+                preserveAspectRatio="none"
+                aria-label={chartLabel(history.points.length, geometry.low, geometry.high)}
+              >
+                <defs>
+                  <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--save)" stopOpacity="0.22" />
+                    <stop offset="100%" stopColor="var(--save)" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
 
-              {/* What they paid, as a rule across the whole chart. Everything
+                {/* What they paid, as a rule across the whole chart. Everything
                   below it is a saving; everything above it is not. */}
-              {geometry.benchmarkY !== null ? (
-                <g>
-                  <line
-                    x1="0"
-                    x2={geometry.width}
-                    y1={geometry.benchmarkY}
-                    y2={geometry.benchmarkY}
-                    className="fh-benchmark"
-                  />
-                  <text x="2" y={Math.max(9, geometry.benchmarkY - 4)} className="fh-benchmark-tag">
-                    you paid {formatUsdCompact(bookedCents)}
-                  </text>
-                </g>
-              ) : null}
-
-              {geometry.segments.map((segment, index) =>
-                segment.length > 1 ? (
-                  <g key={index}>
-                    <polygon
-                      className="fh-area"
-                      fill={`url(#${gradientId})`}
-                      points={`${segment[0]!.x},${geometry.height} ${segment
-                        .map((p) => `${p.x},${p.y}`)
-                        .join(" ")} ${segment[segment.length - 1]!.x},${geometry.height}`}
+                {geometry.benchmarkY !== null ? (
+                  <g>
+                    <line
+                      x1="0"
+                      x2={geometry.width}
+                      y1={geometry.benchmarkY}
+                      y2={geometry.benchmarkY}
+                      className="fh-benchmark"
                     />
-                    <polyline
-                      className="fh-line"
-                      points={segment.map((p) => `${p.x},${p.y}`).join(" ")}
-                    />
+                    {/* Right-anchored and clear of its own line — it used to sit
+                      on top of the dashes at the left edge, where the line it
+                      labels ran straight through the text. */}
+                    <text
+                      x={geometry.width - 2}
+                      y={
+                        geometry.benchmarkY < 14
+                          ? geometry.benchmarkY + 12
+                          : geometry.benchmarkY - 5
+                      }
+                      textAnchor="end"
+                      className="fh-benchmark-tag"
+                    >
+                      you paid {formatUsdCompact(bookedCents)}
+                    </text>
                   </g>
-                ) : null,
-              )}
+                ) : null}
 
-              {geometry.points.map((point) => (
-                <circle
-                  key={point.at}
-                  cx={point.x}
-                  cy={point.y}
-                  r={point === geometry.points[geometry.points.length - 1] ? 3.5 : 2}
-                  className={point.cents === history.lowest?.cents ? "fh-dot fh-dot-low" : "fh-dot"}
-                  /* aria-label, not <title>: React 19 treats <title> as
+                {geometry.segments.map((segment, index) =>
+                  segment.length > 1 ? (
+                    <g key={index}>
+                      {/* No fill under a segment too narrow to read as an area.
+                          Two checks four hours apart inside an eight-day window
+                          are two pixels wide, and the gradient under them drew
+                          a stray vertical bar that looked like a rendering
+                          fault rather than data. The line still shows them. */}
+                      {segment[segment.length - 1]!.x - segment[0]!.x >= geometry.width * 0.02 ? (
+                        <polygon
+                          className="fh-area"
+                          fill={`url(#${gradientId})`}
+                          points={`${segment[0]!.x},${geometry.height} ${segment
+                            .map((p) => `${p.x},${p.y}`)
+                            .join(" ")} ${segment[segment.length - 1]!.x},${geometry.height}`}
+                        />
+                      ) : null}
+                      <polyline
+                        className="fh-line"
+                        points={segment.map((p) => `${p.x},${p.y}`).join(" ")}
+                      />
+                    </g>
+                  ) : null,
+                )}
+
+                {geometry.points.map((point) => (
+                  <circle
+                    key={point.at}
+                    cx={point.x}
+                    cy={point.y}
+                    r={point === geometry.points[geometry.points.length - 1] ? 3.5 : 2}
+                    className={
+                      point.cents === history.lowest?.cents ? "fh-dot fh-dot-low" : "fh-dot"
+                    }
+                    /* aria-label, not <title>: React 19 treats <title> as
                      document metadata and hoists it, so these rendered empty on
                      the server and full on the client — a hydration mismatch
                      that regenerated the whole subtree. The numbers are also in
                      the stats list below, which is where a screen reader and a
                      reader without a pointer will find them. */
-                  aria-label={`${formatUsdCompact(point.cents)} on ${formatBoardStamp(point.at, timezone)}`}
-                />
-              ))}
-            </svg>
-            <figcaption className="fh-scale">
-              <span>{formatUsdCompact(geometry.low)}</span>
-              <span>{formatUsdCompact(geometry.high)}</span>
+                    aria-label={`${formatUsdCompact(point.cents)} on ${formatBoardStamp(point.at, timezone)}`}
+                  />
+                ))}
+              </svg>
+            </div>
+            {/* A value axis, on the left, high at the top.
+                It used to be a flex row with the low at the left end and the
+                high at the right — on a chart whose x axis is time, that reads
+                as "it went from $47 to $133", which is backwards. */}
+            <figcaption className="fh-axis" aria-hidden>
+              <span className="fh-axis-high">{formatUsdCompact(geometry.high)}</span>
+              <span className="fh-axis-low">{formatUsdCompact(geometry.low)}</span>
             </figcaption>
           </figure>
 

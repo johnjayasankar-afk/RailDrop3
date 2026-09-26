@@ -48,3 +48,17 @@ export async function openDock(page: Page): Promise<void> {
     if ((await toggle.getAttribute("aria-expanded")) !== "true") await toggle.click();
   }
 }
+
+/**
+ * Hides the Next.js dev-overlay bubble.
+ *
+ * It renders into a <nextjs-portal> pinned to the bottom-left corner and
+ * intercepts clicks on anything under it — at 390px that is the footer, where
+ * the colour-scheme switch lives. A dev-server artifact, not a product one, so
+ * the test removes it rather than the product moving around it.
+ */
+export async function hideDevOverlay(page: Page): Promise<void> {
+  await page.addStyleTag({
+    content: "nextjs-portal,[data-nextjs-dev-overlay]{display:none !important}",
+  });
+}

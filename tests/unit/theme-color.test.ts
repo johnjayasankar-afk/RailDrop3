@@ -18,10 +18,37 @@ describe("theme colour", () => {
     expect(paper).toBeTruthy();
   });
 
-  it("matches viewport.themeColor in the root layout", () => {
+  it("matches viewport.themeColor for the light scheme", () => {
     const layout = read("src/app/layout.tsx");
-    const themeColor = layout.match(/themeColor:\s*"(#[0-9a-f]{6})"/i)?.[1];
-    expect(themeColor?.toLowerCase()).toBe(paper?.toLowerCase());
+    const light = layout.match(
+      /media:\s*"\(prefers-color-scheme:\s*light\)",\s*color:\s*"(#[0-9a-f]{6})"/i,
+    )?.[1];
+    expect(light?.toLowerCase()).toBe(paper?.toLowerCase());
+  });
+
+  it("matches the dark --paper for the dark scheme", () => {
+    /* The chrome has to follow the page in both directions. A single themeColor
+       framed a near-black board in porcelain — the same drift as before, one
+       scheme along. */
+    const css = read("src/app/globals.css");
+    const darkPaper = css.match(
+      /:root\[data-theme="dark"\]\s*\{[^}]*?--paper:\s*(#[0-9a-f]{6})/i,
+    )?.[1];
+    expect(darkPaper, "dark --paper token").toBeTruthy();
+    const layout = read("src/app/layout.tsx");
+    const dark = layout.match(
+      /media:\s*"\(prefers-color-scheme:\s*dark\)",\s*color:\s*"(#[0-9a-f]{6})"/i,
+    )?.[1];
+    expect(dark?.toLowerCase()).toBe(darkPaper?.toLowerCase());
+  });
+
+  it("defines the dark scheme both ways round", () => {
+    /* A system preference for dark, and a manual choice of dark on a light
+       system. Missing either one leaves half the users on the wrong board. */
+    const css = read("src/app/globals.css");
+    expect(css).toMatch(/@media \(prefers-color-scheme: dark\)/);
+    expect(css).toMatch(/:root:not\(\[data-theme="light"\]\)/);
+    expect(css).toMatch(/:root\[data-theme="dark"\]/);
   });
 
   it("matches the web app manifest", () => {

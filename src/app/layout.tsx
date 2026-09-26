@@ -61,7 +61,13 @@ export const viewport: Viewport = {
   // globals.css and this was left behind, so the browser chrome sat a shade
   // darker than the page it framed. One source of truth, matched by the test
   // in tests/unit/theme-color.test.ts.
-  themeColor: "#f8f6f1",
+  /* One per scheme, so the browser chrome follows the page instead of framing
+     a near-black board in porcelain. Both are the --paper token for their
+     scheme; tests/unit/theme-color.test.ts holds them to it. */
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f8f6f1" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0e0b" },
+  ],
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -69,7 +75,30 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${sans.variable} ${mono.variable} h-full antialiased`}>
+    <html
+      lang="en"
+      className={`${sans.variable} ${mono.variable} h-full antialiased`}
+      /* The head script sets data-theme before React hydrates, so the client
+         html element legitimately has an attribute the server did not send.
+         Without this React logs a hydration mismatch on every load for anyone
+         who has chosen a scheme. Scoped to this element's attributes only — it
+         does not suppress anything in the tree below. */
+      suppressHydrationWarning
+    >
+      <head>
+        {/* Before first paint, deliberately.
+            A stored "dark" applied from an effect means every navigation starts
+            white and then snaps — a flashbulb, on the product people use at
+            11pm in a station. This is the one place a blocking inline script
+            earns its cost. It reads one key and sets one attribute; if storage
+            is unavailable it does nothing and the media query takes over. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{var t=localStorage.getItem('raildrop.theme');if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t)}catch(e){}",
+          }}
+        />
+      </head>
       <body className="relative z-0 min-h-full bg-paper text-ink">
         <div className="relative z-10">
           <LocalModeBanner />

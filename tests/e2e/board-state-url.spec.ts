@@ -29,9 +29,8 @@ test("a filtered board is a link, and the link restores it", async ({ page }) =>
   await expect(page).toHaveURL(new RegExp(`${path}$`));
 
   await sort(page).selectOption("price");
-  await expect(page).toHaveURL(/\?b=/, { timeout: 4_000 });
+  await expect.poll(() => boardParam(page), { timeout: 4_000 }).toBe("s:price");
   const shared = page.url();
-  expect(boardParam(page)).toBe("s:price");
 
   // The whole point: someone opening the link sees that board, not a fresh one.
   await page.goto(shared);
@@ -43,9 +42,11 @@ test("carries a time filter and a narrowed date through a reload", async ({ page
   await openBoard(page);
   await page.getByLabel("Leave after").fill("09:00");
   await sort(page).selectOption("duration");
-  await expect(page).toHaveURL(/\?b=/, { timeout: 4_000 });
-  expect(boardParam(page)).toContain("ta:09:00");
-  expect(boardParam(page)).toContain("s:duration");
+  /* Polled, because the URL write is coalesced on a timer — holding J must not
+     write a hundred history entries a second. Reading straight after the second
+     change caught the state between the two writes. */
+  await expect.poll(() => boardParam(page), { timeout: 4_000 }).toContain("ta:09:00");
+  await expect.poll(() => boardParam(page), { timeout: 4_000 }).toContain("s:duration");
 
   await page.reload();
   await expect(page.getByText("Cheapest in your window")).toBeVisible({ timeout: 20_000 });

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export function AppFooter({
   signedIn = false,
@@ -45,6 +46,7 @@ export function AppFooter({
             </Link>
           )}
         </nav>
+        <ThemeToggle />
       </div>
     </footer>
   );

@@ -51,6 +51,108 @@
   color-scheme: light;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   Night.
+   This is a product people use at 11pm in a station, deciding whether to move a
+   ticket. A white page at that moment is a flashbulb.
+
+   The relationship inverts rather than being recoloured: paper becomes the dark
+   ground, and the departure board — which was the one dark thing on a light
+   page — becomes the illuminated surface, lifted above it and warmed. Gold runs
+   at higher contrast because it is doing the work the drop shadows did, and the
+   dot grid drops to a third of its opacity because texture that reads as paper
+   in daylight reads as dirt on glass at night.
+
+   Body text stays a warm off-white rather than amber. "Amber on near-black" is
+   the right idea for the figures and the rules, and the wrong one for three
+   paragraphs of copy about change fees — the station-display idiom belongs to
+   the numbers.
+
+   Two selectors, one block. The media query covers the system preference but
+   defers to a manual choice of light; the attribute selector covers a manual
+   choice of dark on a system set to light.
+   ───────────────────────────────────────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0a0e0b;
+    --paper-elevated: #121a15;
+    --ink: #edf3ee;
+    --ink-soft: #9aa9a0;
+    --line: #22302a;
+    --line-2: #2e3f36;
+    /* Lifted off the near-black so these still read as colour, not as ink. */
+    --save: #5dd39e;
+    --drop: #f0a860;
+    --danger: #f3a293;
+    --rail: #d9808d;
+    --gold: #d8b075;
+    /* The board is now the lit thing, so it sits above the page, not below. */
+    --board: #16251d;
+    --board-face: #23382c;
+    --board-ink: #f2f8f4;
+    --board-mute: #9db3a7;
+    --board-deep: #101a14;
+    --mint-bg: #14352a;
+    --mint-t: #8ef0c4;
+    --amber-bg: #3a2a16;
+    --rose-bg: #3a1f1f;
+    --primary-grad: linear-gradient(180deg, #2f6b4f 0%, #1d4433 100%);
+    /* Shadows do nothing on near-black; the rules and surfaces carry depth. */
+    --sh-1: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --sh-2: 0 1px 2px rgba(0, 0, 0, 0.5), 0 14px 32px -14px rgba(0, 0, 0, 0.7);
+    --sh-3: 0 1px 2px rgba(0, 0, 0, 0.5), 0 30px 64px -28px rgba(0, 0, 0, 0.8);
+    color-scheme: dark;
+  }
+
+  :root:not([data-theme="light"]) body {
+    /* A third of the daylight opacity. */
+    background-image: radial-gradient(
+      circle at 1px 1px,
+      rgba(233, 243, 238, 0.045) 1px,
+      transparent 1.2px
+    );
+  }
+}
+
+/* The same, chosen deliberately on a system set to light. Duplicated rather
+   than shared because a media query cannot be combined with an attribute
+   selector in plain CSS, and a preprocessor for one block is not worth it. */
+:root[data-theme="dark"] {
+  --paper: #0a0e0b;
+  --paper-elevated: #121a15;
+  --ink: #edf3ee;
+  --ink-soft: #9aa9a0;
+  --line: #22302a;
+  --line-2: #2e3f36;
+  --save: #5dd39e;
+  --drop: #f0a860;
+  --danger: #f3a293;
+  --rail: #d9808d;
+  --gold: #d8b075;
+  --board: #16251d;
+  --board-face: #23382c;
+  --board-ink: #f2f8f4;
+  --board-mute: #9db3a7;
+  --board-deep: #101a14;
+  --mint-bg: #14352a;
+  --mint-t: #8ef0c4;
+  --amber-bg: #3a2a16;
+  --rose-bg: #3a1f1f;
+  --primary-grad: linear-gradient(180deg, #2f6b4f 0%, #1d4433 100%);
+  --sh-1: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --sh-2: 0 1px 2px rgba(0, 0, 0, 0.5), 0 14px 32px -14px rgba(0, 0, 0, 0.7);
+  --sh-3: 0 1px 2px rgba(0, 0, 0, 0.5), 0 30px 64px -28px rgba(0, 0, 0, 0.8);
+  color-scheme: dark;
+}
+
+:root[data-theme="dark"] body {
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    rgba(233, 243, 238, 0.045) 1px,
+    transparent 1.2px
+  );
+}
+
 @theme inline {
   --color-paper: var(--paper);
   --color-paper-elevated: var(--paper-elevated);
@@ -173,7 +275,9 @@ h2.serif {
 .site-header {
   padding-top: env(safe-area-inset-top);
   border-bottom-color: var(--line);
-  background-color: rgba(248, 246, 241, 0.84);
+  /* The paper token at 84%, not a literal: the header was a porcelain bar
+     across a near-black page in dark mode. */
+  background-color: color-mix(in srgb, var(--paper) 84%, transparent);
   -webkit-backdrop-filter: blur(22px) saturate(1.6);
   backdrop-filter: blur(22px) saturate(1.6);
 }
@@ -266,7 +370,7 @@ main#main.has-dock {
   width: 100%;
   border: 1px solid var(--line-2);
   border-radius: var(--radius-sm);
-  background: #ffffff;
+  background: var(--paper-elevated);
   color: var(--ink);
   padding: 0.65rem 0.85rem;
   transition:
@@ -291,7 +395,7 @@ main#main.has-dock {
   margin-top: 0.35rem;
   border: 1px solid var(--line-2);
   border-radius: var(--radius-sm);
-  background: #ffffff;
+  background: var(--paper-elevated);
 }
 
 .money-affix {
@@ -363,7 +467,7 @@ main#main.has-dock {
 
 .btn-ghost {
   border: 1px solid var(--line-2);
-  background: #ffffff;
+  background: var(--paper-elevated);
   color: var(--ink);
   box-shadow: 0 1px 2px rgba(28, 51, 38, 0.06);
 }
@@ -391,7 +495,7 @@ main#main.has-dock {
   margin: 0 0.35rem 0.4rem 0;
   border: 1px solid var(--line-2);
   border-radius: 999px;
-  background: #ffffff;
+  background: var(--paper-elevated);
   padding: 0.45rem 0.9rem 0.45rem 0.7rem;
   cursor: pointer;
   color: var(--ink);
@@ -409,7 +513,7 @@ main#main.has-dock {
   flex-shrink: 0;
   margin: 0;
   border: 1.5px solid color-mix(in srgb, var(--ink) 55%, transparent);
-  background: #ffffff;
+  background: var(--paper-elevated);
   vertical-align: middle;
 }
 
@@ -424,7 +528,7 @@ main#main.has-dock {
 .choice input:checked {
   border-color: var(--forest-2);
   background: var(--forest-2);
-  box-shadow: inset 0 0 0 2.5px #ffffff;
+  box-shadow: inset 0 0 0 2.5px var(--paper-elevated);
 }
 
 .choice-on {
@@ -649,7 +753,7 @@ input[type="radio"] {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink);
-  background: #ffffff;
+  background: var(--paper-elevated);
   transition:
     border-color 120ms ease,
     background-color 120ms ease,
@@ -796,7 +900,7 @@ kbd {
   border: 1px solid var(--line-2);
   border-bottom-width: 2px;
   border-radius: 6px;
-  background: #ffffff;
+  background: var(--paper-elevated);
   padding: 0.05rem 0.38rem;
   font-family: var(--font-code);
   font-size: 0.72rem;
@@ -890,7 +994,9 @@ kbd {
   padding: 0;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.92);
+  /* Same reason as .site-header: the dock was a white strip at the foot of a
+     dark board. */
+  background: color-mix(in srgb, var(--paper-elevated) 92%, transparent);
   -webkit-backdrop-filter: blur(14px) saturate(1.4);
   backdrop-filter: blur(14px) saturate(1.4);
   box-shadow: 0 -12px 40px -8px rgba(15, 42, 29, 0.18);
@@ -1965,7 +2071,7 @@ a.depart-strip:hover {
 .stay-dock .chip,
 .stay-dock button.chip {
   color: var(--ink);
-  background: #ffffff;
+  background: var(--paper-elevated);
 }
 
 .stay-dock .chip-on {
@@ -2944,13 +3050,28 @@ a.depart-strip:hover {
   letter-spacing: 0.06em;
 }
 
-.fh-scale {
+/* The value axis sits beside the plot, not under it. */
+.fh-figure {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: 0.5rem;
+}
+
+.fh-axis {
   display: flex;
+  flex-direction: column;
   justify-content: space-between;
-  margin-top: 0.3rem;
+  padding: 0.1rem 0;
   font-family: var(--font-code);
-  font-size: 0.66rem;
+  font-size: 0.64rem;
+  font-variant-numeric: tabular-nums;
   color: var(--ink-soft);
+  order: -1;
+}
+
+.fh-plot {
+  min-width: 0;
 }
 
 .fh-stats {
@@ -3003,4 +3124,41 @@ a.depart-strip:hover {
   .fh-stats dd {
     font-size: 1.05rem;
   }
+}
+
+/* The colour-scheme switch. Three states, because "follow the device" is a real
+   answer and a two-way switch silently takes it away. */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  padding: 2px;
+  background: var(--paper-elevated);
+}
+
+.theme-toggle button {
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  padding: 0.2rem 0.6rem;
+  font-family: var(--font-code);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition:
+    color 120ms var(--ease),
+    background 120ms var(--ease);
+}
+
+.theme-toggle button:hover {
+  color: var(--ink);
+}
+
+.theme-toggle button[aria-pressed="true"] {
+  background: var(--forest);
+  color: #ffffff;
 }
