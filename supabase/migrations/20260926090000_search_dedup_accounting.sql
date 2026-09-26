@@ -71,3 +71,16 @@ $$;
 -- migration and drop the six-argument form.
 --
 --   drop function if exists public.increment_provider_usage(date, integer, integer, integer, integer, integer);
+
+-- The in-flight marker has to be a claim, not an announcement.
+--
+-- Looking for a marker and then writing one is check-then-act: two workers
+-- that look at the same instant both see nothing and both proceed, which is
+-- exactly the race fan-out introduced. A partial unique index makes the insert
+-- itself the arbiter — the loser gets 23505 and waits for the winner.
+create unique index if not exists provider_requests_one_in_flight_idx
+  on public.provider_requests (search_key)
+  where status = 'IN_FLIGHT';
+
+-- Down:
+--   drop index if exists public.provider_requests_one_in_flight_idx;

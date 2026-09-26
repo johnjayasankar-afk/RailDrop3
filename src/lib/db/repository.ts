@@ -97,8 +97,24 @@ export interface RailDropRepository {
    * doing it, instead of launching a second browser.
    */
   findNewestSearch(searchKey: string): Promise<ProviderRequestRecord | null>;
-  /** Announce a search before running it, so a peer can wait rather than duplicate. */
-  markSearchInFlight(row: ProviderRequestRecord): Promise<void>;
+  /**
+   * Claim this search key before running it.
+   *
+   * Returns false when another worker already holds the claim. Looking first
+   * and then writing is check-then-act — two workers that look at the same
+   * instant both see nothing — so the write itself has to arbitrate.
+   */
+  markSearchInFlight(row: ProviderRequestRecord): Promise<boolean>;
+  /** Complete the row opened by markSearchInFlight. One row per search. */
+  finishProviderRequest(
+    id: string,
+    outcome: {
+      status: ProviderRequestRecord["status"];
+      creditsConsumed: number | null;
+      latencyMs: number;
+      errorMessage: string | null;
+    },
+  ): Promise<void>;
   getProviderRequest(id: string): Promise<ProviderRequestRecord | null>;
   insertDateSnapshot(snapshot: DateSnapshotRecord): Promise<DateSnapshotRecord>;
   listDateSnapshots(cycleId: string): Promise<DateSnapshotRecord[]>;

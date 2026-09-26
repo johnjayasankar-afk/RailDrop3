@@ -146,9 +146,12 @@ export async function runWatchCycle(input: {
      * itself first, and a peer waits for the answer rather than paying for it
      * twice. It gives up waiting rather than stalling its own cycle. */
     let waitedMs = 0;
+    /** Set only when this worker owns the claim and must therefore do the search. */
+    let ownedRequestId: string | null = null;
+
     while (!result) {
       const newest = await input.repo.findNewestSearch(searchKey);
-      const plan = planSearch({ newest, now: new Date(), waitedMs });
+      const plan = planSearch({ newest, now, waitedMs });
 
       if (plan.action === "reuse" && newest && newest.status !== "IN_FLIGHT") {
         const cached = await input.repo.getCachedJourneys(newest.id);
@@ -175,10 +178,37 @@ export async function runWatchCycle(input: {
         continue;
       }
 
+      // Nothing usable and nobody working on it — but only if there is time.
+      // Checked before claiming, so a skipped date never strands a marker.
+      if (!hasTimeForAnotherSearch({ now: Date.now(), deadline, observedMs })) break;
+
+      const candidateId = crypto.randomUUID();
+      const won = await input.repo.markSearchInFlight({
+        id: candidateId,
+        searchKey,
+        cycleId,
+        originCode: request.originCode,
+        destinationCode: request.destinationCode,
+        travelDate,
+        passengerCount: watch.passengerCount,
+        status: "IN_FLIGHT",
+        creditsConsumed: 0,
+        latencyMs: 0,
+        errorMessage: null,
+        reusedFromId: null,
+        createdAt: now.toISOString(),
+      });
+
+      if (!won) {
+        // Someone claimed it between our look and our write. Wait for them.
+        continue;
+      }
+
+      ownedRequestId = candidateId;
       break;
     }
 
-    if (!result && !hasTimeForAnotherSearch({ now: Date.now(), deadline, observedMs })) {
+    if (!result && !ownedRequestId) {
       // Not attempted. Recorded as an error rather than as empty inventory:
       // we did not get an answer for this date, and "no cheaper fare" is a
       // claim this product does not make without one.
@@ -207,31 +237,24 @@ export async function runWatchCycle(input: {
       };
     }
 
-    if (!result) {
+    if (!result && ownedRequestId) {
+      const requestId = ownedRequestId;
       result = await input.provider.searchTrips(request);
       observedMs.push(result.metadata.latencyMs);
-      const requestId = result.metadata.requestId;
-      await input.repo.insertProviderRequest({
-        id: requestId,
-        searchKey,
-        cycleId,
-        originCode: request.originCode,
-        destinationCode: request.destinationCode,
-        travelDate,
-        passengerCount: watch.passengerCount,
+
+      await input.repo.finishProviderRequest(requestId, {
         status: result.status,
         creditsConsumed: result.metadata.creditsCharged,
         latencyMs: result.metadata.latencyMs,
         errorMessage: result.providerError?.message ?? null,
-        reusedFromId: null,
-        createdAt: now.toISOString(),
       });
       if (result.status !== "PROVIDER_ERROR") {
         await input.repo.cacheJourneys(requestId, result.journeys);
       }
       input.searchCache?.set(searchKey, result);
-    } else {
-      reused = true;
+    } else if (result) {
+      // Served from another watch's search. Recorded as a reuse row so the
+      // saving is visible in provider_requests, not just implied.
       await input.repo.insertProviderRequest({
         id: crypto.randomUUID(),
         searchKey,
@@ -247,6 +270,13 @@ export async function runWatchCycle(input: {
         reusedFromId: result.metadata.requestId,
         createdAt: now.toISOString(),
       });
+    }
+
+    if (!result) {
+      // Unreachable: the loop above either reuses a result, wins a claim and
+      // searches, or returns the skipped shape. Asserted rather than assumed,
+      // because a silent null here would become a date with no snapshot.
+      throw new Error(`No search result for ${searchKey} and no deadline skip recorded`);
     }
 
     return { travelDate, searchKey, result, reused, skipped: false };
@@ -392,12 +422,15 @@ export async function runWatchCycle(input: {
     lastOpportunity: opportunity.fingerprint ?? watch.lastOpportunity,
   });
 
+  // reusedSearches is recorded too: without it the cost model in
+  // ARCHITECTURE.md is a claim nobody can check against the table.
   await input.repo.incrementUsage(
     localIsoDate(now, "UTC"),
     credits,
     providerRequests,
     datesSucceeded.length,
     datesFailed.length,
+    reusedSearches,
   );
 
   logger.info("cycle.completed", {

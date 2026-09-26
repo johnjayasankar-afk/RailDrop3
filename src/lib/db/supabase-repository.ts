@@ -293,6 +293,27 @@ export class SupabaseRepository implements RailDropRepository {
     return data ? mapProviderRequest(data) : null;
   }
 
+  async finishProviderRequest(
+    id: string,
+    outcome: {
+      status: ProviderRequestRecord["status"];
+      creditsConsumed: number | null;
+      latencyMs: number;
+      errorMessage: string | null;
+    },
+  ): Promise<void> {
+    const { error } = await this.db
+      .from("provider_requests")
+      .update({
+        status: outcome.status,
+        credits_consumed: outcome.creditsConsumed,
+        latency_ms: outcome.latencyMs,
+        error_message: outcome.errorMessage,
+      })
+      .eq("id", id);
+    if (error) throw error;
+  }
+
   async findNewestSearch(searchKey: string): Promise<ProviderRequestRecord | null> {
     const { data, error } = await this.db
       .from("provider_requests")
@@ -306,7 +327,7 @@ export class SupabaseRepository implements RailDropRepository {
     return data ? mapProviderRequest(data) : null;
   }
 
-  async markSearchInFlight(row: ProviderRequestRecord): Promise<void> {
+  async markSearchInFlight(row: ProviderRequestRecord): Promise<boolean> {
     const { error } = await this.db.from("provider_requests").insert({
       id: row.id,
       search_key: row.searchKey,
@@ -320,7 +341,13 @@ export class SupabaseRepository implements RailDropRepository {
       latency_ms: 0,
       reused_from_id: null,
     });
-    if (error) throw error;
+    // 23505: the partial unique index refused a second in-flight row for this
+    // search key. Somebody else owns the work.
+    if (error) {
+      if (error.code === "23505") return false;
+      throw error;
+    }
+    return true;
   }
 
   async getProviderRequest(id: string): Promise<ProviderRequestRecord | null> {

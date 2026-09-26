@@ -245,6 +245,20 @@ export class MemoryRepository implements RailDropRepository {
     );
   }
 
+  async finishProviderRequest(
+    id: string,
+    outcome: {
+      status: ProviderRequestRecord["status"];
+      creditsConsumed: number | null;
+      latencyMs: number;
+      errorMessage: string | null;
+    },
+  ): Promise<void> {
+    const existing = this.providerRequests.get(id);
+    if (!existing) return;
+    this.providerRequests.set(id, { ...existing, ...outcome });
+  }
+
   async findNewestSearch(searchKey: string): Promise<ProviderRequestRecord | null> {
     return (
       [...this.providerRequests.values()]
@@ -253,8 +267,15 @@ export class MemoryRepository implements RailDropRepository {
     );
   }
 
-  async markSearchInFlight(row: ProviderRequestRecord): Promise<void> {
+  async markSearchInFlight(row: ProviderRequestRecord): Promise<boolean> {
+    // No await between the check and the set, so this is atomic on a single
+    // thread — the same guarantee the partial unique index gives in Postgres.
+    const held = [...this.providerRequests.values()].some(
+      (r) => r.searchKey === row.searchKey && r.status === "IN_FLIGHT",
+    );
+    if (held) return false;
     this.providerRequests.set(row.id, row);
+    return true;
   }
 
   async getProviderRequest(id: string): Promise<ProviderRequestRecord | null> {
