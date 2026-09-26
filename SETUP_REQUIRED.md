@@ -98,3 +98,39 @@ vercel --prod
 2. Create a BOS → NYP watch for a future date.
 3. Confirm the initial scan writes a cycle and does not show invented fares.
 4. Click **Book on Amtrak**. Expect the official Amtrak site plus copied trip details unless Parse later returns a real itinerary URL.
+
+## Email authentication (SPF, DKIM, DMARC)
+
+Alert mail that is not authenticated lands in spam, and a fare alert in spam is
+the same as no fare alert. Resend verifies the domain; these records make
+receivers trust it.
+
+Add at your DNS provider for the sending domain (`RESEND_FROM`):
+
+| Type  | Host                | Value                                                            |
+| ----- | ------------------- | ---------------------------------------------------------------- |
+| TXT   | `send`              | `v=spf1 include:amazonses.com ~all`                              |
+| CNAME | `resend._domainkey` | the value shown in Resend → Domains → DKIM                       |
+| TXT   | `_dmarc`            | `v=DMARC1; p=none; rua=mailto:dmarc@yourdomain; adkim=r; aspf=r` |
+
+Notes that matter:
+
+- **Start DMARC at `p=none`.** It reports without rejecting. Read the aggregate
+  reports for a couple of weeks, confirm SPF and DKIM pass, then move to
+  `p=quarantine` and later `p=reject`. Going straight to `p=reject` with a
+  misconfigured record silently destroys your own deliverability.
+- **`RESEND_FROM` must be on the verified domain.** A friendly `From` on a
+  domain you have not authenticated fails DMARC alignment even when SPF passes.
+- Verify with `dig TXT send.yourdomain`, `dig CNAME resend._domainkey.yourdomain`
+  and `dig TXT _dmarc.yourdomain`.
+
+## Unsubscribe signing key
+
+`UNSUBSCRIBE_SECRET` signs the per-watch unsubscribe token. It falls back to
+`CRON_SECRET` if unset, which is fine for a single deployment. Generate a
+dedicated one with `openssl rand -hex 32` if you would rather the two rotate
+independently.
+
+Rotating it invalidates unsubscribe links in already-delivered mail. The
+`List-Unsubscribe` header in those messages will stop working, so rotate
+deliberately, not routinely.

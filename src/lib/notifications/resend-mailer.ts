@@ -13,6 +13,7 @@ export class ResendMailer implements Mailer {
     subject: string;
     html: string;
     text: string;
+    headers?: Record<string, string>;
   }): Promise<MailerResult> {
     if (!this.apiKey || !this.from) {
       return {
@@ -29,6 +30,9 @@ export class ResendMailer implements Mailer {
         subject: input.subject,
         html: input.html,
         text: input.text,
+        // List-Unsubscribe / List-Unsubscribe-Post, so a mail client can offer
+        // its own one-click unsubscribe rather than making the reader hunt.
+        headers: input.headers,
       });
       if (result.error) {
         return {
@@ -61,6 +65,7 @@ export class RecordingMailer implements Mailer {
     subject: string;
     html: string;
     text: string;
+    headers?: Record<string, string>;
   }): Promise<MailerResult> {
     if (this.failNext) {
       this.failNext = false;

@@ -408,7 +408,15 @@ export async function runWatchCycle(input: {
   );
 
   let alertSent = false;
-  const alertTo = watch.alertEmail?.trim() ?? "";
+  const requestedTo = watch.alertEmail?.trim() ?? "";
+  /* Consulted before every send, not just on the unsubscribe path. A bounce or
+   * a spam complaint has to stop the mail as firmly as a request does, and the
+   * check belongs here so no future caller can forget it. */
+  const suppressed = requestedTo ? await input.repo.isEmailSuppressed(requestedTo) : false;
+  if (suppressed) {
+    logger.info("alert.suppressed", { watch_id: watch.id, reason: "suppression_list" });
+  }
+  const alertTo = suppressed ? "" : requestedTo;
   /* The lost notice is its own email: there is no better option to show,
    * which is the entire message. Sending the fare-drop template with an empty
    * body — or saying nothing — both leave the traveler holding a price that no

@@ -456,6 +456,34 @@ export class SupabaseRepository implements RailDropRepository {
     }));
   }
 
+  async isEmailSuppressed(email: string): Promise<boolean> {
+    const { data, error } = await this.db
+      .from("email_suppressions")
+      .select("email")
+      .eq("email", email.trim().toLowerCase())
+      .maybeSingle();
+    if (error) throw error;
+    return Boolean(data);
+  }
+
+  async suppressEmail(input: {
+    email: string;
+    reason: "UNSUBSCRIBED" | "BOUNCED" | "COMPLAINED" | "MANUAL";
+    watchId?: string | null;
+    detail?: string | null;
+  }): Promise<void> {
+    const { error } = await this.db.from("email_suppressions").upsert(
+      {
+        email: input.email.trim().toLowerCase(),
+        reason: input.reason,
+        watch_id: input.watchId ?? null,
+        detail: input.detail ?? null,
+      },
+      { onConflict: "email" },
+    );
+    if (error) throw error;
+  }
+
   async insertNotification(
     delivery: NotificationDeliveryRecord,
   ): Promise<NotificationDeliveryRecord> {

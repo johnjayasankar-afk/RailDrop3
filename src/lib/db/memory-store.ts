@@ -38,6 +38,7 @@ export class MemoryRepository implements RailDropRepository {
       reused: number;
     }
   >();
+  suppressions = new Map<string, { reason: string; detail: string | null }>();
   stations = STATIONS.map((station) => ({ ...station }));
 
   async upsertProfile(profile: Profile): Promise<Profile> {
@@ -314,6 +315,22 @@ export class MemoryRepository implements RailDropRepository {
 
   async listAlertsForWatch(watchId: string): Promise<AlertRecord[]> {
     return this.alerts.filter((alert) => alert.watchId === watchId);
+  }
+
+  async isEmailSuppressed(email: string): Promise<boolean> {
+    return this.suppressions.has(email.trim().toLowerCase());
+  }
+
+  async suppressEmail(input: {
+    email: string;
+    reason: "UNSUBSCRIBED" | "BOUNCED" | "COMPLAINED" | "MANUAL";
+    watchId?: string | null;
+    detail?: string | null;
+  }): Promise<void> {
+    this.suppressions.set(input.email.trim().toLowerCase(), {
+      reason: input.reason,
+      detail: input.detail ?? null,
+    });
   }
 
   async insertNotification(

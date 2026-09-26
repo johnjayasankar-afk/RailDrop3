@@ -128,6 +128,15 @@ export interface RailDropRepository {
   cacheJourneys(providerRequestId: string, journeys: JourneyOption[]): Promise<void>;
   insertAlert(alert: AlertRecord): Promise<AlertRecord>;
   listAlertsForWatch(watchId: string): Promise<AlertRecord[]>;
+  /** True when this address has asked us to stop, bounced, or complained. */
+  isEmailSuppressed(email: string): Promise<boolean>;
+  /** Record a suppression. Idempotent: asking twice is not an error. */
+  suppressEmail(input: {
+    email: string;
+    reason: "UNSUBSCRIBED" | "BOUNCED" | "COMPLAINED" | "MANUAL";
+    watchId?: string | null;
+    detail?: string | null;
+  }): Promise<void>;
   insertNotification(delivery: NotificationDeliveryRecord): Promise<NotificationDeliveryRecord>;
   insertPriceEvent(event: BookingPriceEvent): Promise<BookingPriceEvent>;
   listPriceEvents(watchId: string): Promise<BookingPriceEvent[]>;

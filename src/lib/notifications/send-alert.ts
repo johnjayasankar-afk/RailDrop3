@@ -4,6 +4,7 @@ import { fareFamilyLabel, travelClassLabel } from "@/lib/domain/fare-family";
 import { formatClock } from "@/lib/domain/timezone";
 import type { CycleStatus, RankedCandidate } from "@/lib/domain/types";
 import type { WatchRecord } from "@/lib/db/models";
+import { unsubscribeHeaders, unsubscribeUrl } from "./unsubscribe";
 
 export interface MailerResult {
   status: "ACCEPTED" | "FAILED";
@@ -12,7 +13,14 @@ export interface MailerResult {
 }
 
 export interface Mailer {
-  send(input: { to: string; subject: string; html: string; text: string }): Promise<MailerResult>;
+  send(input: {
+    to: string;
+    subject: string;
+    html: string;
+    text: string;
+    /** List-Unsubscribe and friends. Optional so test mailers stay simple. */
+    headers?: Record<string, string>;
+  }): Promise<MailerResult>;
 }
 
 export async function sendFareDropEmail(input: {
@@ -28,9 +36,17 @@ export async function sendFareDropEmail(input: {
   skippedPastDates: string[];
 }): Promise<MailerResult> {
   const subject = `Fare drop: ${input.watch.originCode} → ${input.watch.destinationCode} from ${formatUsdCompact(input.best.totalPartyPriceCents)} — save ${formatUsdCompact(input.best.savingsCents)}`;
-  const html = renderHtml(input);
-  const text = renderText(input);
-  return input.mailer.send({ to: input.to, subject, html, text });
+  const origin = originOf(input.appUrl);
+  const stop = unsubscribeUrl(origin, input.watch.id);
+  const html = `${renderHtml(input)}${unsubscribeFooterHtml(stop)}`;
+  const text = `${renderText(input)}${stop ? `\n\nStop these emails: ${stop}` : ""}`;
+  return input.mailer.send({
+    to: input.to,
+    subject,
+    html,
+    text,
+    headers: unsubscribeHeaders(origin, input.watch.id),
+  });
 }
 
 function renderHtml(input: Parameters<typeof sendFareDropEmail>[0]): string {
@@ -181,7 +197,42 @@ export async function sendOpportunityLostEmail(input: {
     `Checked ${formatInWatchZone(input.checkedAt, input.watch.timezone)}.`,
   ].join("\n");
 
-  return input.mailer.send({ to: input.to, subject, html, text });
+  const origin = originOf(input.appUrl);
+  const stop = unsubscribeUrl(origin, input.watch.id);
+  return input.mailer.send({
+    to: input.to,
+    subject,
+    html: `${html}${unsubscribeFooterHtml(stop)}`,
+    text: `${text}${stop ? `\nStop these emails: ${stop}` : ""}`,
+    headers: unsubscribeHeaders(origin, input.watch.id),
+  });
+}
+
+/** The site origin, recovered from the per-watch board link. */
+function originOf(appUrl: string): string {
+  try {
+    return new URL(appUrl).origin;
+  } catch {
+    return appUrl.replace(/\/watches\/.*$/, "");
+  }
+}
+
+/**
+ * A visible way out, not only a header.
+ *
+ * The headers cover clients that render their own control; this covers
+ * everyone else. Someone who never had an account still gets a link they can
+ * click without proving who they are.
+ */
+function unsubscribeFooterHtml(url: string | null): string {
+  if (!url) return "";
+  return `<div style="max-width:560px;margin:0 auto;padding:0 20px 28px;font-family:-apple-system,Segoe UI,Roboto,sans-serif;">
+    <p style="font-size:12px;line-height:1.5;color:#5f6862;margin:0;border-top:1px solid #e2e3dd;padding-top:14px;">
+      You are receiving this because an alert email was added to this trip on RailDrop.
+      <a href="${url}" style="color:#1c3326;">Stop emails for this trip</a>.
+      RailDrop is an independent fare watch and is not affiliated with Amtrak.
+    </p>
+  </div>`;
 }
 
 /**
