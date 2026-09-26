@@ -136,6 +136,8 @@ export interface RailDropRepository {
     /** Searches served from cache. Without this the cost model is unverifiable. */
     reused?: number,
   ): Promise<void>;
+  /** Total searches across a date range, for the monthly ceiling. */
+  sumUsage(fromDay: string, toDay: string): Promise<{ requests: number; credits: number }>;
   getUsage(day: string): Promise<{
     day: string;
     credits: number;

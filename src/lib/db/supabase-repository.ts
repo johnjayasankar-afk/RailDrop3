@@ -524,6 +524,22 @@ export class SupabaseRepository implements RailDropRepository {
     if (error) throw error;
   }
 
+  async sumUsage(fromDay: string, toDay: string) {
+    const { data, error } = await this.db
+      .from("provider_usage_daily")
+      .select("requests, credits")
+      .gte("day", fromDay)
+      .lte("day", toDay);
+    if (error) throw error;
+    return (data ?? []).reduce(
+      (total, row) => ({
+        requests: total.requests + Number(row.requests ?? 0),
+        credits: total.credits + Number(row.credits ?? 0),
+      }),
+      { requests: 0, credits: 0 },
+    );
+  }
+
   async getUsage(day: string) {
     const { data, error } = await this.db
       .from("provider_usage_daily")

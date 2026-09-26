@@ -13,6 +13,8 @@ const envSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().default("http://localhost:3000"),
   PROVIDER_CREDITS_PER_SEARCH: z.coerce.number().default(2),
   PROVIDER_MONTHLY_CREDIT_BUDGET: z.coerce.number().default(1000),
+  // 0 disables the ceiling, which is what local and test runs want.
+  PROVIDER_DAILY_SEARCH_BUDGET: z.coerce.number().default(0),
   E2E_TEST: z.string().optional(),
   RAILDROP_LOCAL: z.string().optional(),
   NEXT_PUBLIC_RAILDROP_LOCAL: z.string().optional(),
@@ -32,6 +34,7 @@ export type AppConfig = {
   cronSecret: string | null;
   providerCreditsPerSearch: number;
   providerMonthlyCreditBudget: number;
+  providerDailySearchBudget: number;
   isE2E: boolean;
   isLocal: boolean;
   isOffline: boolean;
@@ -70,6 +73,7 @@ export function getConfig(): AppConfig {
     cronSecret: parsed.CRON_SECRET || null,
     providerCreditsPerSearch: parsed.PROVIDER_CREDITS_PER_SEARCH,
     providerMonthlyCreditBudget: parsed.PROVIDER_MONTHLY_CREDIT_BUDGET,
+    providerDailySearchBudget: parsed.PROVIDER_DAILY_SEARCH_BUDGET,
     isE2E,
     isLocal,
     isOffline: (isE2E || isLocal) && !isProduction,

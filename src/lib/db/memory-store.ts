@@ -358,6 +358,17 @@ export class MemoryRepository implements RailDropRepository {
     this.usage.set(day, current);
   }
 
+  async sumUsage(fromDay: string, toDay: string) {
+    let requests = 0;
+    let credits = 0;
+    for (const row of this.usage.values()) {
+      if (row.day < fromDay || row.day > toDay) continue;
+      requests += row.requests;
+      credits += row.credits;
+    }
+    return { requests, credits };
+  }
+
   async getUsage(day: string) {
     return this.usage.get(day) ?? null;
   }

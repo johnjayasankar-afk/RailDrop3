@@ -8,6 +8,7 @@ import { OpportunityComparator } from "@/lib/domain/opportunity";
 import { shouldCompleteWatch, usableSearchDates } from "@/lib/domain/monitoring";
 import { canonicalSearchKey, DEFAULT_PROVIDER_ID } from "@/lib/domain/search-key";
 import { PEER_POLL_INTERVAL_MS, planSearch } from "@/lib/domain/search-dedup";
+import { budgetDecision, monthStart } from "@/lib/domain/provider-budget";
 import {
   DEADLINE_SKIP_MESSAGE,
   hasTimeForAnotherSearch,
@@ -119,6 +120,31 @@ export async function runWatchCycle(input: {
   // this invocation has actually been running, and a backfill or a test may
   // pass a timestamp from another day entirely.
   const deadline = input.searchDeadlineAt ?? searchDeadline(new Date());
+
+  /* The spending ceiling, read once for the whole cycle.
+   *
+   * It existed only as a projection on the settings page before this: shown,
+   * never enforced. Dispatch dying after two or three watches used to be an
+   * accidental cap; 5.1 removed that, so this is the real one. */
+  const usageDay = localIsoDate(now, "UTC");
+  const [todayUsage, monthUsage] = await Promise.all([
+    input.repo.getUsage(usageDay),
+    input.repo.sumUsage(monthStart(usageDay), usageDay),
+  ]);
+  const budget = budgetDecision({
+    searchesToday: todayUsage?.requests ?? 0,
+    searchesThisMonth: monthUsage.requests,
+    dailyCap: config.providerDailySearchBudget,
+    monthlyCap: config.providerMonthlyCreditBudget,
+  });
+  if (!budget.allow) {
+    logger.warn("cycle.budget_exhausted", {
+      watch_id: watch.id,
+      scope: budget.scope,
+      searches_today: todayUsage?.requests ?? 0,
+      searches_this_month: monthUsage.requests,
+    });
+  }
   const observedMs: number[] = [];
 
   const dateResults = await mapPool(dates, parallel, async (travelDate) => {
@@ -176,8 +202,10 @@ export async function runWatchCycle(input: {
         continue;
       }
 
-      // Nothing usable and nobody working on it — but only if there is time.
-      // Checked before claiming, so a skipped date never strands a marker.
+      // Nothing usable and nobody working on it — but only if there is time
+      // and money. Both checked before claiming, so a refused date never
+      // strands an in-flight marker.
+      if (!budget.allow) break;
       if (!hasTimeForAnotherSearch({ now: Date.now(), deadline, observedMs })) break;
 
       const candidateId = crypto.randomUUID();
@@ -218,8 +246,12 @@ export async function runWatchCycle(input: {
           status: "PROVIDER_ERROR" as const,
           journeys: [],
           providerError: {
-            code: "CYCLE_DEADLINE",
-            message: DEADLINE_SKIP_MESSAGE,
+            code: budget.allow ? "CYCLE_DEADLINE" : "PROVIDER_BUDGET",
+            // Either way this is "we did not get an answer", never "there was
+            // nothing to find". A paused check must not read as a quiet market.
+            message: budget.allow
+              ? DEADLINE_SKIP_MESSAGE
+              : (budget.reason ?? DEADLINE_SKIP_MESSAGE),
             retryable: true,
           },
           metadata: {
@@ -292,7 +324,9 @@ export async function runWatchCycle(input: {
         status: "PROVIDER_ERROR",
         searchKey,
         providerRequestId: null,
-        errorMessage: DEADLINE_SKIP_MESSAGE,
+        // The reason the date was skipped, not a fixed one. Out of time and
+        // out of budget are different facts, and the board shows this string.
+        errorMessage: result.providerError?.message ?? DEADLINE_SKIP_MESSAGE,
       });
       continue;
     }
