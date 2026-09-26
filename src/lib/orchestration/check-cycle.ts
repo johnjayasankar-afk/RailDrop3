@@ -26,8 +26,6 @@ import type { RailDropRepository } from "@/lib/db/repository";
 import type { FareProvider } from "@/lib/providers/fare-provider";
 import { sendFareDropEmail, type Mailer } from "@/lib/notifications/send-alert";
 
-const SEARCH_FRESHNESS_MS = 20 * 60 * 1000;
-
 export interface CycleResult {
   cycle: FareCheckCycleRecord;
   watch: WatchRecord;

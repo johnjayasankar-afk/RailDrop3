@@ -2436,3 +2436,35 @@ a.depart-strip:hover {
     display: none;
   }
 }
+
+/* Shown only when both clipboard routes refused the text.
+   The product does not claim a copy that did not happen, so the text has to
+   go somewhere the reader can select it. */
+.copy-fallback {
+  margin-top: 0.75rem;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  background: var(--paper-elevated);
+  padding: 0.85rem 1rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  box-shadow: var(--sh-2);
+}
+
+.copy-fallback textarea {
+  margin-top: 0.5rem;
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  padding: 0.5rem 0.6rem;
+  font-family: var(--font-code), ui-monospace, monospace;
+  font-size: 0.75rem;
+  color: var(--ink);
+}
+
+.copy-fallback button {
+  margin-top: 0.5rem;
+  color: var(--ink-soft);
+}

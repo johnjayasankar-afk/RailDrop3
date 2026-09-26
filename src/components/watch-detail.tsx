@@ -18,6 +18,7 @@ import { serviceTypeLabel } from "@/lib/domain/service-type";
 import { formatRelativeTime, isCheckStale } from "@/lib/domain/relative-time";
 import { extensionWindow } from "@/lib/domain/monitoring";
 import { shouldHandleBoardKey } from "@/lib/domain/board-keys";
+import { copyText } from "@/lib/clipboard";
 import { BoardRow } from "./board/BoardRow";
 import { HelpSheet } from "./board/HelpSheet";
 import { ShareSheet } from "./board/ShareSheet";
@@ -207,6 +208,10 @@ export function WatchDetail({
   const [actionError, setActionError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
+  /** First click arms the delete; it disarms itself so it cannot sit armed. */
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  /** Set only when both clipboard routes failed, so the text can be shown. */
+  const [manualCopy, setManualCopy] = useState<{ text: string; message: string } | null>(null);
   const busyRef = useRef(false);
   const findRef = useRef<HTMLInputElement>(null);
   const rebookRef = useRef<HTMLInputElement>(null);
@@ -698,6 +703,23 @@ export function WatchDetail({
     return () => window.clearInterval(timer);
   }, [watch.timezone]);
 
+  /* One copy path for the whole board.
+   *
+   * Every one of these used to be an unawaited navigator.clipboard.writeText
+   * followed by a success toast that fired whether or not the text arrived.
+   * copyText tries the Clipboard API, falls back to a selection copy, and says
+   * when neither worked — and then the reader gets the text on screen to copy
+   * by hand rather than a toast claiming something that did not happen. */
+  const copy = useCallback(async (text: string, message: string) => {
+    const outcome = await copyText(text);
+    if (outcome === "failed") {
+      setManualCopy({ text, message });
+      return;
+    }
+    setNotice(message);
+    window.setTimeout(() => setNotice(null), 1600);
+  }, []);
+
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       const target = event.target as HTMLElement | null;
@@ -715,9 +737,7 @@ export function WatchDetail({
       }
       if ((event.key === "t" || event.key === "T") && !busyRef.current) {
         event.preventDefault();
-        void navigator.clipboard.writeText(share);
-        setNotice("Text for a friend copied");
-        window.setTimeout(() => setNotice(null), 1600);
+        void copy(share, "Text for a friend copied");
       }
       if (event.key === "/" && !busyRef.current) {
         event.preventDefault();
@@ -757,9 +777,7 @@ export function WatchDetail({
         const candidate =
           rankedRef.current.find((item) => candidateKey(item) === key) ?? rankedRef.current[0];
         if (!candidate) return;
-        void navigator.clipboard.writeText(itineraryText(candidate));
-        setNotice("Itinerary copied");
-        window.setTimeout(() => setNotice(null), 1600);
+        void copy(itineraryText(candidate), "Itinerary copied");
       }
       if ((event.key === "z" || event.key === "Z") && !busyRef.current) {
         event.preventDefault();
@@ -811,7 +829,7 @@ export function WatchDetail({
         const candidate =
           rankedRef.current.find((item) => candidateKey(item) === key) ?? rankedRef.current[0];
         if (!candidate) return;
-        void navigator.clipboard.writeText(
+        void copy(
           compareLine({
             originCode: watch.originCode,
             destinationCode: watch.destinationCode,
@@ -819,15 +837,12 @@ export function WatchDetail({
             bookedCents: watch.currentBookedPriceCents,
             focused: candidate,
           }),
+          "You vs this copied",
         );
-        setNotice("You vs this copied");
-        window.setTimeout(() => setNotice(null), 1600);
       }
       if ((event.key === "w" || event.key === "W") && !busyRef.current) {
         event.preventDefault();
-        void navigator.clipboard.writeText(stripRef.current);
-        setNotice("Window copied");
-        window.setTimeout(() => setNotice(null), 1600);
+        void copy(stripRef.current, "Window copied");
       }
       if ((event.key === "g" || event.key === "G") && !busyRef.current) {
         event.preventDefault();
@@ -861,9 +876,7 @@ export function WatchDetail({
         const candidate =
           rankedRef.current.find((item) => candidateKey(item) === key) ?? rankedRef.current[0];
         if (!candidate) return;
-        void navigator.clipboard.writeText(amtrakFieldsText(candidate));
-        setNotice("Amtrak fields copied");
-        window.setTimeout(() => setNotice(null), 1600);
+        void copy(amtrakFieldsText(candidate), "Amtrak fields copied");
       }
       if (event.key === "Enter" && !busyRef.current) {
         const tag = target?.tagName;
@@ -939,9 +952,7 @@ export function WatchDetail({
   }
 
   async function copyShare() {
-    await navigator.clipboard.writeText(window.location.href);
-    setNotice("Link copied");
-    window.setTimeout(() => setNotice(null), 1600);
+    await copy(window.location.href, "Link copied");
   }
 
   function downloadIcs(candidate: RankedCandidate) {
@@ -955,21 +966,15 @@ export function WatchDetail({
   }
 
   async function copyDecision() {
-    await navigator.clipboard.writeText(brief);
-    setNotice("Decision copied");
-    window.setTimeout(() => setNotice(null), 1600);
+    await copy(brief, "Decision copied");
   }
 
   async function copyFriend() {
-    await navigator.clipboard.writeText(share);
-    setNotice("Text for a friend copied");
-    window.setTimeout(() => setNotice(null), 1600);
+    await copy(share, "Text for a friend copied");
   }
 
   async function copyOptions() {
-    await navigator.clipboard.writeText(optionsCopy);
-    setNotice("Cheaper options copied");
-    window.setTimeout(() => setNotice(null), 1600);
+    await copy(optionsCopy, "Cheaper options copied");
   }
 
   function clearFilters() {
@@ -980,19 +985,15 @@ export function WatchDetail({
   }
 
   async function copyPacket() {
-    await navigator.clipboard.writeText(packet);
-    setNotice("Decision packet copied");
-    window.setTimeout(() => setNotice(null), 1600);
+    await copy(packet, "Decision packet copied");
   }
 
   async function copyFields(candidate: RankedCandidate) {
-    await navigator.clipboard.writeText(amtrakFieldsText(candidate));
-    setNotice("Amtrak fields copied");
-    window.setTimeout(() => setNotice(null), 1600);
+    await copy(amtrakFieldsText(candidate), "Amtrak fields copied");
   }
 
   async function copyCompare(candidate: RankedCandidate) {
-    await navigator.clipboard.writeText(
+    await copy(
       compareLine({
         originCode: watch.originCode,
         destinationCode: watch.destinationCode,
@@ -1000,15 +1001,12 @@ export function WatchDetail({
         bookedCents: watch.currentBookedPriceCents,
         focused: candidate,
       }),
+      "You vs this copied",
     );
-    setNotice("You vs this copied");
-    window.setTimeout(() => setNotice(null), 1600);
   }
 
   async function copyWindow() {
-    await navigator.clipboard.writeText(strip);
-    setNotice("Window copied");
-    window.setTimeout(() => setNotice(null), 1600);
+    await copy(strip, "Window copied");
   }
 
   /* The four callbacks every board row gets.
@@ -1042,9 +1040,7 @@ export function WatchDetail({
   }, []);
 
   async function copyItinerary(candidate: RankedCandidate) {
-    await navigator.clipboard.writeText(itineraryText(candidate));
-    setNotice("Itinerary copied");
-    window.setTimeout(() => setNotice(null), 1600);
+    await copy(itineraryText(candidate), "Itinerary copied");
   }
 
   return (
@@ -1129,6 +1125,27 @@ export function WatchDetail({
         <p className="board-toast no-print" role="status">
           {notice}
         </p>
+      ) : null}
+      {manualCopy ? (
+        /* Both clipboard routes refused. Rather than a toast claiming success,
+           the text goes on screen where it can be selected by hand. */
+        <div className="copy-fallback no-print" role="alertdialog" aria-label={manualCopy.message}>
+          <p>
+            This browser blocked the clipboard. Select the text below and copy it yourself — the
+            board did not copy it for you.
+          </p>
+          <textarea
+            readOnly
+            rows={4}
+            value={manualCopy.text}
+            aria-label={manualCopy.message}
+            onFocus={(event) => event.currentTarget.select()}
+            ref={(node) => node?.select()}
+          />
+          <button type="button" className="underline" onClick={() => setManualCopy(null)}>
+            Done
+          </button>
+        </div>
       ) : null}
       {urgency.level !== "watch" || remaining ? (
         <div
@@ -2371,15 +2388,25 @@ export function WatchDetail({
             <button type="button" className="btn btn-ghost" onClick={() => void copyPacket()}>
               Copy packet
             </button>
+            {/* Two steps, because this is irreversible and sits one click from
+                "Copy packet". Deleting a watch takes its whole price history
+                with it — the thing the traveler has been accumulating — and
+                there is no undo anywhere in the product. */}
             <button
               className="btn btn-ghost dock-danger"
               disabled={busy}
+              aria-label={confirmDelete ? "Confirm deleting this watch" : "Delete this watch"}
               onClick={async () => {
+                if (!confirmDelete) {
+                  setConfirmDelete(true);
+                  window.setTimeout(() => setConfirmDelete(false), 4000);
+                  return;
+                }
                 const ok = await action(`/api/watches/${watch.id}`, "DELETE");
                 if (ok) router.push("/dashboard");
               }}
             >
-              Delete
+              {confirmDelete ? "Delete for good?" : "Delete"}
             </button>
           </div>
         </div>

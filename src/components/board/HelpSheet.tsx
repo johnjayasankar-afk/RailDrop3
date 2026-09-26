@@ -18,7 +18,7 @@ export function HelpSheet({ onClose }: { onClose: () => void }) {
         </p>
         <ul className="help-grid mt-4 text-sm">
           <li>
-            <kbd>C</kbd> Recheck live fares
+            <kbd>C</kbd> Recheck live fares · only while the watch is active
           </li>
           <li>
             <kbd>T</kbd> Copy a one-liner for a friend
@@ -33,10 +33,10 @@ export function HelpSheet({ onClose }: { onClose: () => void }) {
             <kbd>Enter</kbd> Open Book on Amtrak for the focused train
           </li>
           <li>
-            <kbd>P</kbd> Pin the focused train
+            <kbd>P</kbd> Pin or unpin the focused train
           </li>
           <li>
-            <kbd>Z</kbd> Zen: ticket and board only
+            <kbd>Z</kbd> Zen on or off: ticket and board only
           </li>
           <li>
             <kbd>H</kbd> Hide the focused train this visit
@@ -54,7 +54,7 @@ export function HelpSheet({ onClose }: { onClose: () => void }) {
             <kbd>G</kbd> Jump to the timetable
           </li>
           <li>
-            <kbd>B</kbd> Jump to a train that beats yours
+            <kbd>B</kbd> Jump to the first train that beats yours
           </li>
           <li>
             <kbd>N</kbd> Next cheaper listed train
@@ -69,10 +69,10 @@ export function HelpSheet({ onClose }: { onClose: () => void }) {
             <kbd>R</kbd> Jump to I rebooked
           </li>
           <li>
-            <kbd>?</kbd> Close this sheet
+            <kbd>?</kbd> Open or close this sheet
           </li>
           <li>
-            <kbd>Esc</kbd> Close sheets, then clear filters
+            <kbd>Esc</kbd> Close this sheet or Share, else clear filters and comparison
           </li>
         </ul>
         <p className="mt-4 text-xs opacity-70">
