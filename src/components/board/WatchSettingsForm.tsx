@@ -44,7 +44,7 @@ export function WatchSettingsForm({
 
   return (
     <form
-      className="panel gl mt-3 max-w-lg space-y-3 p-4 text-sm"
+      className="panel mt-3 max-w-lg space-y-3 p-4 text-sm"
       onSubmit={(event) => {
         event.preventDefault();
         const trimmedEmail = email.trim();

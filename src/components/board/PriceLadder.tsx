@@ -9,7 +9,7 @@ export function PriceLadder({
   if (ladder.marks.length === 0) return null;
   const you = ladderPercent(ladder.booked, ladder.min, ladder.max);
   return (
-    <section className="panel gl mt-4 p-4">
+    <section className="panel mt-4 p-4">
       <p className="text-xs uppercase tracking-[0.16em] text-ink-soft">Where you sit</p>
       <div className="ladder mt-4" aria-hidden>
         <span className="ladder-rail" />

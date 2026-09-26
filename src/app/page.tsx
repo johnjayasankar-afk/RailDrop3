@@ -21,7 +21,7 @@ const FAQ = [
   ],
   [
     "Do you invent Amtrak prices?",
-    "No. If the live board is down, you see that: never a guessed fare. Confirm on Amtrak before you change a ticket.",
+    "No. If the live board is down, you see that — never a guessed fare. Confirm on Amtrak before you change a ticket.",
   ],
   [
     "Will you rebook for me?",
@@ -29,7 +29,7 @@ const FAQ = [
   ],
   [
     "What does ±1 day mean?",
-    "The day before, your travel day, and the day after: every bookable rail option, not just the train you bought.",
+    "The day before, your travel day, and the day after — every bookable rail option, not just the train you bought.",
   ],
   [
     "How often do you check?",
@@ -45,7 +45,7 @@ const FAQ = [
   ],
   [
     "Can I send this to someone else on the trip?",
-    "Yes. Copy a one-liner with T: stations, cheapest listed train, and what you paid. They still confirm on Amtrak.",
+    "Yes. Copy a one-liner with T — stations, cheapest listed train, and what you paid. They still confirm on Amtrak.",
   ],
   [
     "Do you subtract the Amtrak change fee?",
@@ -53,11 +53,11 @@ const FAQ = [
   ],
   [
     "Can I filter by when I need to leave or arrive?",
-    "Yes: leave after, arrive by, duration cap, and a 30-minute arrive buffer. Filters stay on this visit only.",
+    "Yes — leave after, arrive by, duration cap, and a 30-minute arrive buffer. Filters stay on this visit only.",
   ],
   [
     "What does Beats your train mean?",
-    "Cheaper and not slower than yours, or faster and not more expensive. Press Z for ticket-and-board only. Confirm on Amtrak.",
+    "Cheaper and not slower than yours — or faster and not more expensive. Press Z for ticket-and-board only. Confirm on Amtrak.",
   ],
   [
     "How do I walk the board without drowning in panels?",
@@ -86,11 +86,15 @@ export default async function HomePage() {
         <div className="grid items-end gap-12 lg:grid-cols-[1.15fr_0.85fr]">
           <div className="reveal">
             <p className="kicker">Amtrak fare watch</p>
-            <h1 className="serif mt-4 max-w-3xl text-[2.65rem] leading-[1.05] sm:text-5xl md:text-7xl">
-              Know when your train gets cheaper.
+            <h1 className="serif mt-4 max-w-3xl text-[2.85rem] leading-[1.02] sm:text-5xl md:text-7xl">
+              RailDrop
             </h1>
-            <p className="mt-6 max-w-xl text-lg text-ink-soft">
-              Book the trip. We watch every bookable Amtrak rail option across your window.
+            <p className="serif mt-3 max-w-2xl text-2xl leading-snug text-ink sm:text-3xl md:text-4xl">
+              Know when your train gets cheaper.
+            </p>
+            <p className="mt-5 max-w-xl text-lg text-ink-soft">
+              Book the trip. We watch every bookable Amtrak rail option across your window — and
+              tell you when a listed fare drops.
             </p>
             <div className="mt-10 flex flex-wrap gap-3">
               <Link
@@ -149,16 +153,15 @@ export default async function HomePage() {
           </section>
         </div>
 
-        <section className="mt-16 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <section className="mt-16 grid grid-cols-1 gap-3 sm:grid-cols-3">
           {[
-            ["Live", "On-demand board"],
-            ["±1 day", "Default window"],
-            ["3× / day", "While watching"],
-            ["$0 fake", "Never invented"],
+            ["Live board", "On-demand listed fares"],
+            ["±1 day", "Default search window"],
+            ["Honest", "Never invent a price"],
           ].map(([value, label], index) => (
             <div
               key={label}
-              className="panel gl reveal px-3 py-4 sm:px-4"
+              className="panel reveal px-4 py-4"
               style={{ animationDelay: `${90 + index * 50}ms` }}
             >
               <p className="serif text-xl sm:text-2xl">{value}</p>
@@ -174,14 +177,14 @@ export default async function HomePage() {
             [
               "01",
               "Same stations, every train",
-              "Regional, Acela, connections: not just the train you already bought.",
+              "Regional, Acela, connections — not just the train you already bought.",
             ],
             ["02", "±1 day by default", "If tomorrow is cheaper than today, you should know."],
             ["03", "One precise alert", "Email only when the opportunity actually improves."],
           ].map(([num, title, copy], index) => (
             <article
               key={title}
-              className="panel gl reveal p-5"
+              className="panel reveal p-5"
               style={{ animationDelay: `${120 + index * 70}ms` }}
             >
               <p className="font-mono text-xs text-gold">{num}</p>
@@ -211,7 +214,7 @@ export default async function HomePage() {
           <div>
             <h2 className="serif text-3xl">What we will not do</h2>
             <ul className="mt-6 space-y-4 text-sm text-ink-soft">
-              <li>Invent Amtrak prices. If the live board is down, you see that: not a guess.</li>
+              <li>Invent Amtrak prices. If the live board is down, you see that — not a guess.</li>
               <li>Deep-link into a fake Amtrak itinerary. You copy trip details and book there.</li>
               <li>Spam you. Alerts fire only when the opportunity actually improves.</li>
             </ul>
@@ -228,6 +231,19 @@ export default async function HomePage() {
               </details>
             ))}
           </div>
+        </section>
+
+        <section className="ticket mt-16 p-8 text-center">
+          <p className="serif text-3xl md:text-4xl">RailDrop</p>
+          <p className="mx-auto mt-3 max-w-md text-ink-soft">
+            Book the trip. We watch the board. You decide on Amtrak.
+          </p>
+          <Link
+            href={watching ? "/watches/new" : "/api/auth/guest?next=%2Fwatches%2Fnew"}
+            className="btn btn-primary mt-6"
+          >
+            Watch a booked trip
+          </Link>
         </section>
       </main>
     </PageFrame>

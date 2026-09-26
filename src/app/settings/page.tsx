@@ -42,7 +42,7 @@ export default async function SettingsPage() {
           </p>
         ) : null}
         {config.isLocal ? <ConnectLiveFares live={Boolean(config.parseApiKey)} /> : null}
-        <section className="panel gl mt-8 p-5 text-sm">
+        <section className="panel mt-8 p-5 text-sm">
           <h2 className="text-xs uppercase tracking-[0.16em] text-ink-soft">Provider usage</h2>
           <dl className="mt-4 grid grid-cols-2 gap-3">
             <div>
@@ -84,7 +84,7 @@ export default async function SettingsPage() {
           )}
           <p className="mt-2 text-ink-soft">{provider.message}</p>
         </section>
-        <section className="panel gl mt-6 p-5 text-sm">
+        <section className="panel mt-6 p-5 text-sm">
           <h2 className="text-xs uppercase tracking-[0.16em] text-ink-soft">Keyboard</h2>
           <ul className="mt-3 space-y-2 text-ink-soft">
             <li>
@@ -108,7 +108,7 @@ export default async function SettingsPage() {
             </li>
           </ul>
         </section>
-        <section className="panel gl mt-6 p-5 text-sm text-ink-soft">
+        <section className="panel mt-6 p-5 text-sm text-ink-soft">
           <h2 className="text-xs uppercase tracking-[0.16em] text-ink">Honest limits</h2>
           <p className="mt-3">
             Listed fares come from live inventory. Confirm on Amtrak before you change a ticket. We

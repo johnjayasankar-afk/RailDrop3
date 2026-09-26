@@ -1,35 +1,28 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
-import { Instrument_Serif } from "next/font/google";
 import { LocalModeBanner } from "@/components/local-mode-banner";
 import { appOrigin } from "@/lib/config";
 import "./globals.css";
-import "./labs-glass.css";
 import { EmbedAnnounce } from "@/components/embed-announce";
 
-// The Labs family faces, from files in this repo: no build-time fetch, and the
-// same two faces every other product in the family sets its words in. The
-// timetable serif stays, because the departure board is what RailDrop is.
-const geistSans = localFont({
+// Two faces, self-hosted: Inter for reading, IBM Plex Mono for codes and
+// times. The display serif is gone — the shipped design sets the wordmark and
+// the headlines in Inter, and --font-serif maps to the body face so anything
+// still asking for `.serif` follows.
+const sans = localFont({
   src: "./fonts/inter-var.woff2",
-  variable: "--font-geist-sans",
+  variable: "--font-sans-loaded",
   weight: "100 900",
   display: "swap",
 });
 
-const geistMono = localFont({
+const mono = localFont({
   src: [
     { path: "./fonts/ibm-plex-mono-latin-400.woff2", weight: "400", style: "normal" },
     { path: "./fonts/ibm-plex-mono-latin-500.woff2", weight: "500", style: "normal" },
   ],
-  variable: "--font-geist-mono",
+  variable: "--font-mono-loaded",
   display: "swap",
-});
-
-const instrument = Instrument_Serif({
-  variable: "--font-instrument",
-  subsets: ["latin"],
-  weight: "400",
 });
 
 export const metadata: Metadata = {
@@ -76,10 +69,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${instrument.variable} h-full antialiased`}
-    >
+    <html lang="en" className={`${sans.variable} ${mono.variable} h-full antialiased`}>
       <body className="relative z-0 min-h-full bg-paper text-ink">
         <div className="relative z-10">
           <LocalModeBanner />
