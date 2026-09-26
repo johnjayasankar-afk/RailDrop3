@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { FRAMING_CSP } from "./src/lib/embed";
 
 /* The security headers the Labs family sends.
  *
@@ -19,7 +20,7 @@ const CSP = [
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
-  "frame-ancestors 'none'",
+  FRAMING_CSP,
 ].join("; ");
 
 const nextConfig: NextConfig = {
@@ -31,7 +32,10 @@ const nextConfig: NextConfig = {
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          // No X-Frame-Options: SAMEORIGIN would block the portfolio's live
+          // preview on its own, whatever the CSP says, because the policy
+          // below is report-only and a report-only policy overrides nothing.
+          { key: "Content-Security-Policy", value: FRAMING_CSP },
           {
             key: "Strict-Transport-Security",
             value: "max-age=63072000; includeSubDomains; preload",
