@@ -22,6 +22,8 @@ import { shouldHandleBoardKey } from "@/lib/domain/board-keys";
 import { copyText } from "@/lib/clipboard";
 import { BoardRow } from "./board/BoardRow";
 import { HelpSheet } from "./board/HelpSheet";
+import { CommandPalette, type Command } from "./board/CommandPalette";
+import { commandToast } from "@/lib/domain/command-palette";
 import { ShareSheet } from "./board/ShareSheet";
 import { WatchSettingsForm } from "./board/WatchSettingsForm";
 import { ConnectionChip } from "./board/ConnectionChip";
@@ -203,6 +205,7 @@ export function WatchDetail({
   } | null>(null);
   const [feeDollars, setFeeDollars] = useState("");
   const [helpOpen, setHelpOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const [rebookPrice, setRebookPrice] = useState("");
   const [rebookTrain, setRebookTrain] = useState("");
   const [rebookFamily, setRebookFamily] = useState<FareFamily | "">(watch.bookedFareFamily);
@@ -411,11 +414,12 @@ export function WatchDetail({
     ],
   );
   const filtersOn = filtersActive(view);
+  const shareLabel =
+    filtersOn || picked.length > 0 || view.focusIntent ? "Copy this view" : "Copy link";
+
   /* "Copy link" and "Copy this view" are different promises, and the board
      knows which one it can keep: the URL only describes a particular view once
      something has been narrowed or a pair has been selected. */
-  const shareLabel =
-    filtersOn || picked.length > 0 || view.focusIntent ? "Copy this view" : "Copy link";
 
   const filteredSorted = useMemo(() => {
     const base = sortBoard(
@@ -842,23 +846,135 @@ export function WatchDetail({
     });
   }, []);
 
-  const copy = useCallback(async (text: string, message: string) => {
-    const outcome = await copyText(text);
-    if (outcome === "failed") {
-      setManualCopy({ text, message });
-      return;
-    }
+  /** One toast, one timeout. This was written out nine times. */
+  const flash = useCallback((message: string) => {
     setNotice(message);
     window.setTimeout(() => setNotice(null), 1600);
+  }, []);
+
+  const copy = useCallback(
+    async (text: string, message: string) => {
+      const outcome = await copyText(text);
+      if (outcome === "failed") {
+        setManualCopy({ text, message });
+        return;
+      }
+      flash(message);
+    },
+    [flash],
+  );
+
+  /* The board's actions as named functions.
+   *
+   * They used to live in the bodies of the keydown handler's nineteen `if`
+   * blocks, which made them unreachable from anywhere else — so the command
+   * palette would have had to be a second implementation of each one, free to
+   * drift from the key that is supposed to do the same thing. Stable identities,
+   * reading refs, for the reason the row callbacks are: the keydown listener is
+   * registered once and must not close over a stale board. */
+
+  const focusedCandidate = useCallback((): RankedCandidate | null => {
+    const key = focusRef.current;
+    return (
+      rankedRef.current.find((item) => candidateKey(item) === key) ?? rankedRef.current[0] ?? null
+    );
+  }, []);
+
+  const moveFocus = useCallback((direction: "next" | "previous") => {
+    const keys = navRef.current;
+    if (keys.length === 0) return;
+    dispatch({ type: "MOVE_FOCUS", direction, keys });
+    scrollToOption(focusAfterMove(keys, focusRef.current, direction));
+  }, []);
+
+  const pinFocused = useCallback(() => {
+    const key = focusRef.current;
+    if (!key) return flash("Focus a train with J, then P to pin");
+    dispatch({ type: "TOGGLE_PIN", key });
+    flash("Pin updated");
+  }, [flash]);
+
+  const hideFocused = useCallback(() => {
+    const key = focusRef.current;
+    if (!key) return flash("Focus a train with J, then H to skip it");
+    const next = navRef.current.filter((item) => item !== key)[0] ?? null;
+    dispatch({ type: "HIDE", key, nextFocus: next });
+    if (next) scrollToOption(next);
+    flash("Hidden this visit");
+  }, [flash]);
+
+  const undoLastHide = useCallback(() => {
+    const stack = hiddenRef.current;
+    const last = stack[stack.length - 1];
+    if (!last) return flash("Nothing hidden to undo");
+    dispatch({ type: "UNDO_HIDE" });
+    scrollToOption(last);
+    flash("Unhidden");
+  }, [flash]);
+
+  const jumpToBoard = useCallback(() => {
+    document.getElementById("board")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
+  const jumpToFirstBeat = useCallback(() => {
+    const next = beatsKeyRef.current[0];
+    if (!next) return flash("No train beats yours right now");
+    dispatch({ type: "SET_FOCUS", key: next });
+    scrollToOption(next);
+  }, [flash]);
+
+  const jumpToNextCheaper = useCallback(() => {
+    const next = nextMatchingKey(navRef.current, focusRef.current, new Set(cheaperRef.current));
+    if (!next) return flash("No cheaper listed train to jump to");
+    dispatch({ type: "SET_FOCUS", key: next });
+    scrollToOption(next);
+  }, [flash]);
+
+  const openFocusedBooking = useCallback(() => {
+    const candidate = focusedCandidate();
+    if (!candidate) return;
+    const handoff = new BookingLinkResolver().resolve({
+      journey: candidate.journey,
+      fare: candidate.fare,
+    });
+    window.open(handoff.url, "_blank", "noopener,noreferrer");
+  }, [focusedCandidate]);
+
+  const openRebook = useCallback(() => {
+    setRebookOpen(true);
+    window.setTimeout(() => {
+      document.getElementById("rebook")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      rebookRef.current?.focus();
+    }, 80);
+  }, []);
+
+  const focusFind = useCallback(() => {
+    findRef.current?.focus();
   }, []);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       const target = event.target as HTMLElement | null;
+      /* Before the guard, deliberately: shouldHandleBoardKey declines every
+         modifier combination, which is right for the single-key shortcuts and
+         wrong for the one combination this page does own. Cmd/Ctrl+K is not a
+         browser shortcut inside a document, and it is the convention people
+         already try. It works from inside a text field too — that is the whole
+         point of a palette. */
+      if ((event.key === "k" || event.key === "K") && (event.metaKey || event.ctrlKey)) {
+        if (event.altKey || event.shiftKey) return;
+        event.preventDefault();
+        setPaletteOpen((open) => !open);
+        return;
+      }
       // Declines anything the browser, the OS, or an IME already owns. Without
       // it, Cmd+C both swallowed the copy and spent a provider credit on a
       // recheck, and Cmd+R / Cmd+P / Cmd+F were unusable on this page.
       if (!shouldHandleBoardKey(event)) return;
+      // The palette owns the keyboard while it is open; its own handler runs on
+      // the dialog. Without this, typing "copy" into it would also pin a row,
+      // hide a row and open Amtrak.
+      if (paletteOpen) return;
       if (
         (event.key === "c" || event.key === "C") &&
         watch.status === "ACTIVE" &&
@@ -873,17 +989,11 @@ export function WatchDetail({
       }
       if (event.key === "/" && !busyRef.current) {
         event.preventDefault();
-        findRef.current?.focus();
+        focusFind();
       }
       if ((event.key === "r" || event.key === "R") && !busyRef.current) {
         event.preventDefault();
-        setRebookOpen(true);
-        window.setTimeout(() => {
-          document
-            .getElementById("rebook")
-            ?.scrollIntoView({ behavior: "smooth", block: "center" });
-          rebookRef.current?.focus();
-        }, 80);
+        openRebook();
       }
       if (event.key === "?" && !busyRef.current) {
         event.preventDefault();
@@ -891,25 +1001,16 @@ export function WatchDetail({
       }
       if ((event.key === "j" || event.key === "J") && !busyRef.current) {
         event.preventDefault();
-        const keys = navRef.current;
-        if (keys.length === 0) return;
-        dispatch({ type: "MOVE_FOCUS", direction: "next", keys });
-        scrollToOption(focusAfterMove(keys, focusRef.current, "next"));
+        moveFocus("next");
       }
       if ((event.key === "k" || event.key === "K") && !busyRef.current) {
         event.preventDefault();
-        const keys = navRef.current;
-        if (keys.length === 0) return;
-        dispatch({ type: "MOVE_FOCUS", direction: "previous", keys });
-        scrollToOption(focusAfterMove(keys, focusRef.current, "previous"));
+        moveFocus("previous");
       }
       if ((event.key === "i" || event.key === "I") && !busyRef.current) {
         event.preventDefault();
-        const key = focusRef.current;
-        const candidate =
-          rankedRef.current.find((item) => candidateKey(item) === key) ?? rankedRef.current[0];
-        if (!candidate) return;
-        void copy(itineraryText(candidate), "Itinerary copied");
+        const candidate = focusedCandidate();
+        if (candidate) void copy(itineraryText(candidate), "Itinerary copied");
       }
       if ((event.key === "z" || event.key === "Z") && !busyRef.current) {
         event.preventDefault();
@@ -917,49 +1018,19 @@ export function WatchDetail({
       }
       if ((event.key === "p" || event.key === "P") && !busyRef.current) {
         event.preventDefault();
-        const key = focusRef.current;
-        if (!key) {
-          setNotice("Focus a train with J, then P to pin");
-          window.setTimeout(() => setNotice(null), 1600);
-          return;
-        }
-        dispatch({ type: "TOGGLE_PIN", key });
-        setNotice("Pin updated");
-        window.setTimeout(() => setNotice(null), 1600);
+        pinFocused();
       }
       if ((event.key === "h" || event.key === "H") && !busyRef.current) {
         event.preventDefault();
-        const key = focusRef.current;
-        if (!key) {
-          setNotice("Focus a train with J, then H to skip it");
-          window.setTimeout(() => setNotice(null), 1600);
-          return;
-        }
-        const next = navRef.current.filter((item) => item !== key)[0] ?? null;
-        dispatch({ type: "HIDE", key, nextFocus: next });
-        if (next) scrollToOption(next);
-        setNotice("Hidden this visit");
-        window.setTimeout(() => setNotice(null), 1600);
+        hideFocused();
       }
       if ((event.key === "u" || event.key === "U") && !busyRef.current) {
         event.preventDefault();
-        const stack = hiddenRef.current;
-        const last = stack[stack.length - 1];
-        if (!last) {
-          setNotice("Nothing hidden to undo");
-          window.setTimeout(() => setNotice(null), 1600);
-          return;
-        }
-        dispatch({ type: "UNDO_HIDE" });
-        scrollToOption(last);
-        setNotice("Unhidden");
-        window.setTimeout(() => setNotice(null), 1600);
+        undoLastHide();
       }
       if ((event.key === "y" || event.key === "Y") && !busyRef.current) {
         event.preventDefault();
-        const key = focusRef.current;
-        const candidate =
-          rankedRef.current.find((item) => candidateKey(item) === key) ?? rankedRef.current[0];
+        const candidate = focusedCandidate();
         if (!candidate) return;
         void copy(
           withBoardLink(
@@ -981,51 +1052,26 @@ export function WatchDetail({
       }
       if ((event.key === "g" || event.key === "G") && !busyRef.current) {
         event.preventDefault();
-        document.getElementById("board")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        jumpToBoard();
       }
       if ((event.key === "b" || event.key === "B") && !busyRef.current) {
         event.preventDefault();
-        const next = beatsKeyRef.current[0];
-        if (!next) {
-          setNotice("No train beats yours right now");
-          window.setTimeout(() => setNotice(null), 1600);
-          return;
-        }
-        dispatch({ type: "SET_FOCUS", key: next });
-        scrollToOption(next);
+        jumpToFirstBeat();
       }
       if ((event.key === "n" || event.key === "N") && !busyRef.current) {
         event.preventDefault();
-        const next = nextMatchingKey(navRef.current, focusRef.current, new Set(cheaperRef.current));
-        if (!next) {
-          setNotice("No cheaper listed train to jump to");
-          window.setTimeout(() => setNotice(null), 1600);
-          return;
-        }
-        dispatch({ type: "SET_FOCUS", key: next });
-        scrollToOption(next);
+        jumpToNextCheaper();
       }
       if ((event.key === "f" || event.key === "F") && !busyRef.current) {
         event.preventDefault();
-        const key = focusRef.current;
-        const candidate =
-          rankedRef.current.find((item) => candidateKey(item) === key) ?? rankedRef.current[0];
-        if (!candidate) return;
-        void copy(amtrakFieldsText(candidate), "Amtrak fields copied");
+        const candidate = focusedCandidate();
+        if (candidate) void copy(amtrakFieldsText(candidate), "Amtrak fields copied");
       }
       if (event.key === "Enter" && !busyRef.current) {
         const tag = target?.tagName;
         if (tag === "BUTTON" || tag === "A" || target?.closest("a, button")) return;
         event.preventDefault();
-        const key = focusRef.current;
-        const candidate =
-          rankedRef.current.find((item) => candidateKey(item) === key) ?? rankedRef.current[0];
-        if (!candidate) return;
-        const handoff = new BookingLinkResolver().resolve({
-          journey: candidate.journey,
-          fare: candidate.fare,
-        });
-        window.open(handoff.url, "_blank", "noopener,noreferrer");
+        openFocusedBooking();
       }
       if (event.key === "Escape" && !busyRef.current) {
         if (helpRef.current) {
@@ -1045,6 +1091,7 @@ export function WatchDetail({
   }, [
     watch.id,
     watch.status,
+    paletteOpen,
     share,
     shareOpen,
     watch.originCode,
@@ -1188,6 +1235,389 @@ export function WatchDetail({
   async function copyItinerary(candidate: RankedCandidate) {
     await copy(itineraryText(candidate), "Itinerary copied");
   }
+
+  /* Every action the board has, in one list.
+   *
+   * The source of truth for the palette, and deliberately the same functions the
+   * keys call rather than copies of them. `unavailable` is a sentence, not a
+   * boolean: a command that cannot run right now says why instead of being
+   * absent, because absent is indistinguishable from never existed.
+   *
+   * Each one flashes what it did and which key would have done it, so the
+   * palette teaches its way out of being needed. */
+  const commands: Command[] = useMemo(() => {
+    const said = (spec: { shortcut?: string }, message: string) =>
+      commandToast(spec as Parameters<typeof commandToast>[0], message);
+    const focusFirst = "Nothing on the board to act on yet";
+    const list: Command[] = [
+      {
+        id: "down",
+        label: "Move down the board",
+        group: "Navigate",
+        shortcut: "J",
+        keywords: "next row focus",
+        run: () => moveFocus("next"),
+      },
+      {
+        id: "up",
+        label: "Move up the board",
+        group: "Navigate",
+        shortcut: "K",
+        keywords: "previous row focus",
+        run: () => moveFocus("previous"),
+      },
+      {
+        id: "timetable",
+        label: "Jump to the timetable",
+        group: "Navigate",
+        shortcut: "G",
+        keywords: "board scroll",
+        run: jumpToBoard,
+      },
+      {
+        id: "beat",
+        label: "Jump to the first train that beats yours",
+        group: "Navigate",
+        shortcut: "B",
+        keywords: "better faster cheaper",
+        unavailable: beats.length === 0 ? "nothing beats yours right now" : undefined,
+        run: jumpToFirstBeat,
+      },
+      {
+        id: "cheaper",
+        label: "Jump to the next cheaper train",
+        group: "Navigate",
+        shortcut: "N",
+        keywords: "save",
+        unavailable: drops === 0 ? "nothing cheaper is listed" : undefined,
+        run: jumpToNextCheaper,
+      },
+      {
+        id: "find",
+        label: "Find a train number",
+        group: "Navigate",
+        shortcut: "/",
+        keywords: "search filter",
+        run: focusFind,
+      },
+      {
+        id: "book",
+        label: "Open Book on Amtrak for the focused train",
+        group: "Navigate",
+        shortcut: "\u21B5",
+        keywords: "enter reserve handoff",
+        unavailable: ranked.length === 0 ? focusFirst : undefined,
+        run: openFocusedBooking,
+      },
+
+      {
+        id: "sort-price",
+        label: "Sort by price",
+        group: "Filter",
+        keywords: "cheapest first",
+        run: () => {
+          dispatch({ type: "SET_SORT", sort: "price" });
+          flash("Cheapest first");
+        },
+      },
+      {
+        id: "sort-depart",
+        label: "Sort by departure",
+        group: "Filter",
+        keywords: "earliest time",
+        run: () => {
+          dispatch({ type: "SET_SORT", sort: "depart" });
+          flash("Earliest first");
+        },
+      },
+      {
+        id: "sort-duration",
+        label: "Sort by journey length",
+        group: "Filter",
+        keywords: "fastest shortest",
+        run: () => {
+          dispatch({ type: "SET_SORT", sort: "duration" });
+          flash("Shortest first");
+        },
+      },
+      {
+        id: "sort-rank",
+        label: "Sort by best match",
+        group: "Filter",
+        keywords: "default rank reset",
+        run: () => {
+          dispatch({ type: "SET_SORT", sort: "rank" });
+          flash("Best match first");
+        },
+      },
+      {
+        id: "savings-only",
+        label: savingsOnly ? "Show every train, not only cheaper ones" : "Show only cheaper trains",
+        group: "Filter",
+        keywords: "savings filter",
+        run: () => {
+          dispatch({ type: "TOGGLE_SAVINGS_ONLY" });
+          flash(savingsOnly ? "Showing every train" : "Cheaper than yours only");
+        },
+      },
+      {
+        id: "show-all",
+        label: showAll ? "Show the top five only" : "Show every option",
+        group: "Filter",
+        keywords: "expand collapse more",
+        run: () => {
+          dispatch({ type: "TOGGLE_SHOW_ALL" });
+          flash(showAll ? "Top five" : "Every option");
+        },
+      },
+      {
+        id: "pin",
+        label: "Pin or unpin the focused train",
+        group: "Filter",
+        shortcut: "P",
+        keywords: "keep save",
+        run: pinFocused,
+      },
+      {
+        id: "pinned-only",
+        label: pinnedOnly ? "Stop showing pinned only" : "Show pinned only",
+        group: "Filter",
+        keywords: "filter",
+        unavailable: pins.length === 0 && !pinnedOnly ? "nothing is pinned" : undefined,
+        run: () => {
+          dispatch({ type: "TOGGLE_PINNED_ONLY" });
+          flash(pinnedOnly ? "Showing everything" : "Pinned only");
+        },
+      },
+      {
+        id: "hide",
+        label: "Hide the focused train for this visit",
+        group: "Filter",
+        shortcut: "H",
+        keywords: "skip remove",
+        run: hideFocused,
+      },
+      {
+        id: "undo-hide",
+        label: "Undo the last hide",
+        group: "Filter",
+        shortcut: "U",
+        keywords: "restore back",
+        unavailable: hiddenKeys.length === 0 ? "nothing is hidden" : undefined,
+        run: undoLastHide,
+      },
+      {
+        id: "zen",
+        label: zen ? "Leave zen mode" : "Zen mode: ticket and board only",
+        group: "Filter",
+        shortcut: "Z",
+        keywords: "focus quiet hide",
+        run: () => {
+          dispatch({ type: "TOGGLE_ZEN" });
+          flash(zen ? "Zen off" : "Zen on");
+        },
+      },
+      {
+        id: "clear",
+        label: "Clear the filters",
+        group: "Filter",
+        keywords: "reset escape",
+        unavailable: filtersOn ? undefined : "no filters are on",
+        run: () => {
+          dispatch({ type: "CLEAR_FILTERS" });
+          flash("Filters cleared");
+        },
+      },
+
+      {
+        id: "copy-view",
+        label: shareLabel,
+        group: "Copy",
+        keywords: "share link url send",
+        run: () => {
+          void copyShare();
+        },
+      },
+      {
+        id: "copy-friend",
+        label: "Copy a line for a friend",
+        group: "Copy",
+        shortcut: "T",
+        keywords: "text message share",
+        run: () => {
+          void copy(
+            withBoardLink(share, viewUrl()),
+            said({ shortcut: "T" }, "Copied for a friend"),
+          );
+        },
+      },
+      {
+        id: "copy-compare",
+        label: "Copy you vs the focused train",
+        group: "Copy",
+        shortcut: "Y",
+        keywords: "difference compare",
+        unavailable: ranked.length === 0 ? focusFirst : undefined,
+        run: () => {
+          const candidate = focusedCandidate();
+          if (candidate) void copyCompare(candidate);
+        },
+      },
+      {
+        id: "copy-window",
+        label: "Copy the cheapest train on each day",
+        group: "Copy",
+        shortcut: "W",
+        keywords: "window dates strip",
+        run: () => {
+          void copy(withBoardLink(strip, viewUrl()), said({ shortcut: "W" }, "Window copied"));
+        },
+      },
+      {
+        id: "copy-itinerary",
+        label: "Copy the focused itinerary",
+        group: "Copy",
+        shortcut: "I",
+        keywords: "details train",
+        unavailable: ranked.length === 0 ? focusFirst : undefined,
+        run: () => {
+          const candidate = focusedCandidate();
+          if (candidate)
+            void copy(itineraryText(candidate), said({ shortcut: "I" }, "Itinerary copied"));
+        },
+      },
+      {
+        id: "copy-fields",
+        label: "Copy Amtrak search fields",
+        group: "Copy",
+        shortcut: "F",
+        keywords: "paste form",
+        unavailable: ranked.length === 0 ? focusFirst : undefined,
+        run: () => {
+          const candidate = focusedCandidate();
+          if (candidate)
+            void copy(amtrakFieldsText(candidate), said({ shortcut: "F" }, "Amtrak fields copied"));
+        },
+      },
+      {
+        id: "copy-decision",
+        label: "Copy the decision",
+        group: "Copy",
+        keywords: "brief summary verdict",
+        run: () => {
+          void copyDecision();
+        },
+      },
+      {
+        id: "copy-packet",
+        label: "Copy the decision packet",
+        group: "Copy",
+        keywords: "everything long full",
+        run: () => {
+          void copyPacket();
+        },
+      },
+      {
+        id: "csv",
+        label: "Download the board as CSV",
+        group: "Copy",
+        keywords: "export spreadsheet",
+        unavailable: ranked.length === 0 ? "the board is empty" : undefined,
+        run: downloadCsv,
+      },
+      {
+        id: "print",
+        label: "Print the board",
+        group: "Copy",
+        keywords: "paper pdf",
+        run: () => window.print(),
+      },
+
+      {
+        id: "recheck",
+        label: "Check live fares now",
+        group: "Trip",
+        shortcut: "C",
+        keywords: "refresh scan rescan",
+        unavailable:
+          watch.status !== "ACTIVE" ? `this watch is ${watch.status.toLowerCase()}` : undefined,
+        run: () => {
+          void action(`/api/watches/${watch.id}/check`, "POST", undefined, true);
+        },
+      },
+      {
+        id: "rebook",
+        label: "I rebooked: update the benchmark",
+        group: "Trip",
+        shortcut: "R",
+        keywords: "price paid changed",
+        run: openRebook,
+      },
+      {
+        id: "calendar",
+        label: "Add the focused train to a calendar",
+        group: "Trip",
+        keywords: "ics event",
+        unavailable: ranked.length === 0 ? focusFirst : undefined,
+        run: () => {
+          const candidate = focusedCandidate();
+          if (candidate) downloadIcs(candidate);
+        },
+      },
+      {
+        id: "pause",
+        label: watch.status === "PAUSED" ? "Resume watching this trip" : "Pause watching this trip",
+        group: "Trip",
+        keywords: "stop start alerts",
+        unavailable: watch.status === "COMPLETED" ? "this watch is finished" : undefined,
+        run: () => {
+          void action(`/api/watches/${watch.id}`, "PATCH", {
+            status: watch.status === "PAUSED" ? "ACTIVE" : "PAUSED",
+          });
+        },
+      },
+      {
+        id: "settings",
+        label: "Open the watch settings",
+        group: "Trip",
+        keywords: "edit change email flexibility",
+        run: () => setSettingsOpen(true),
+      },
+      {
+        id: "method",
+        label: "How RailDrop gets these prices",
+        group: "Help",
+        keywords: "method sources coverage stations",
+        run: () => router.push("/how-it-works"),
+      },
+      {
+        id: "shortcuts",
+        label: "Board shortcuts",
+        group: "Help",
+        shortcut: "?",
+        keywords: "keys keyboard help",
+        run: () => setHelpOpen(true),
+      },
+    ];
+    return list;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the action fns are stable; the rest are the labels and availability this list reads
+  }, [
+    beats.length,
+    drops,
+    filtersOn,
+    hiddenKeys.length,
+    pins.length,
+    pinnedOnly,
+    ranked.length,
+    savingsOnly,
+    shareLabel,
+    share,
+    showAll,
+    strip,
+    watch.id,
+    watch.status,
+    zen,
+  ]);
 
   return (
     <main id="main" className={`mx-auto max-w-6xl px-4 py-8${zen ? " is-zen" : ""}`}>
