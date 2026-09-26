@@ -2752,3 +2752,15 @@ a.depart-strip:hover {
     animation: none !important;
   }
 }
+
+/* The ⌘K hint on the trip rail. Quiet: it is a label, not a button of its own. */
+.rail-kbd {
+  margin-left: 0.3rem;
+  border: 1px solid color-mix(in srgb, var(--board-ink) 26%, transparent);
+  border-radius: 5px;
+  padding: 0 0.26rem;
+  font-family: var(--font-code);
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  opacity: 0.85;
+}

@@ -1632,6 +1632,9 @@ export function WatchDetail({
         />
       ) : null}
       {helpOpen ? <HelpSheet onClose={() => setHelpOpen(false)} /> : null}
+      {paletteOpen ? (
+        <CommandPalette commands={commands} onClose={() => setPaletteOpen(false)} />
+      ) : null}
       <BackLink>Your watches</BackLink>
       <h1 className="sr-only">
         {stationLabel(watch.originCode)} to {stationLabel(watch.destinationCode)}{" "}
@@ -1677,8 +1680,15 @@ export function WatchDetail({
           >
             Share
           </button>
-          <button type="button" className="trip-rail-shortcuts" onClick={() => setHelpOpen(true)}>
-            Shortcuts
+          {/* The palette, not the shortcut sheet, is the way in now: it lists
+              every action with its key, so the sheet is one row inside it. */}
+          <button
+            type="button"
+            className="trip-rail-shortcuts"
+            onClick={() => setPaletteOpen(true)}
+            aria-keyshortcuts="Meta+K Control+K"
+          >
+            Commands <kbd className="rail-kbd">⌘K</kbd>
           </button>
         </div>
       </div>

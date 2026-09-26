@@ -33,7 +33,20 @@ export function CommandPalette({
   onClose: () => void;
 }) {
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState(0);
+  /* The selection carries the query it belongs to.
+   *
+   * A bare index would survive a keystroke that changed the list underneath it
+   * and highlight whatever happened to land in that position. Pairing them
+   * derives the reset instead of performing it — no effect, and no ref written
+   * during render, which the React Compiler lint rightly refuses. */
+  const [cursor, setCursor] = useState({ query: "", index: 0 });
+  const selected = cursor.query === query ? cursor.index : 0;
+  const setSelected = (next: number | ((index: number) => number)) => {
+    setCursor((previous) => {
+      const from = previous.query === query ? previous.index : 0;
+      return { query, index: typeof next === "function" ? next(from) : next };
+    });
+  };
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -49,14 +62,6 @@ export function CommandPalette({
     const previous = document.activeElement as HTMLElement | null;
     return () => previous?.focus();
   }, []);
-
-  // A new query is a new list; keeping the old index would highlight whatever
-  // happened to land in that position.
-  const shownFor = useRef(query);
-  if (shownFor.current !== query) {
-    shownFor.current = query;
-    if (selected !== 0) setSelected(0);
-  }
 
   useEffect(() => {
     if (!active) return;
