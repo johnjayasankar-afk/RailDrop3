@@ -93,9 +93,9 @@ ${best.journey.serviceName ?? "Amtrak"} ${best.journey.trainNumber ?? ""}
 ${formatClock(best.journey.departureAt)} → ${formatClock(best.journey.arrivalAt)}</p>
     </div>
     <h2 style="font-family:'SF Mono',Menlo,Consolas,monospace;font-size:12px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:#5f6862;">Other cheap options</h2>
-    <table width="100%">${others}</table>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${others}</table>
     <p style="margin-top:28px;color:#5f6862;font-size:13px;">Listed fares can change. Confirm on Amtrak before you change a ticket. RailDrop does not modify your reservation.</p>
-    <p style="color:#5f6862;font-size:12px;">Checked ${input.checkedAt.toISOString()}</p>
+    <p style="color:#5f6862;font-size:12px;">Checked ${formatInWatchZone(input.checkedAt, input.watch.timezone)}</p>
   </div>
 </body></html>`;
 }
@@ -134,7 +134,7 @@ function renderText(input: Parameters<typeof sendFareDropEmail>[0]): string {
     others,
     "",
     "Fares and availability can change. RailDrop does not modify your Amtrak reservation automatically.",
-    `Checked ${input.checkedAt.toISOString()}`,
+    `Checked ${formatInWatchZone(input.checkedAt, input.watch.timezone)}`,
   ].join("\n");
 }
 
