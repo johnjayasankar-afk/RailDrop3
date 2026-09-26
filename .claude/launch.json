@@ -4,9 +4,18 @@
     {
       "name": "raildrop",
       "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:preview"],
+      "port": 3211,
+      "url": "http://127.0.0.1:3211",
+      "autoPort": false
+    },
+    {
+      "name": "raildrop-fixtures",
+      "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev:qa"],
-      "port": 3000,
-      "url": "http://127.0.0.1:3000"
+      "port": 3212,
+      "url": "http://127.0.0.1:3212",
+      "autoPort": false
     }
   ]
 }

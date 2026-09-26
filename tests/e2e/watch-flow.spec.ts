@@ -54,7 +54,9 @@ test("supports rebook, pause, and delete", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Resume" })).toBeVisible();
   // Two steps by design: the first click arms it, the second means it. A single
   // click used to destroy a watch, so the spec's one click no longer suffices.
-  await openDock(page);
+  // Delete moved out of the always-pinned dock and into Watch settings, with
+  // the other things that change the watch itself.
+  await page.getByRole("button", { name: "Watch settings" }).click();
   await page.getByRole("button", { name: "Delete this watch" }).click();
   await page.getByRole("button", { name: "Confirm deleting this watch" }).click();
   await expect(page).toHaveURL(/dashboard/);

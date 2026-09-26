@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { createWatch, signIn } from "./helpers";
+import { createWatch, openDock, signIn } from "./helpers";
 
 /* How much of a phone screen is underneath something pinned.
  *
@@ -14,8 +14,6 @@ import { createWatch, signIn } from "./helpers";
  */
 
 test.describe("sticky chrome budget", () => {
-  test.skip(({ viewport }) => (viewport?.width ?? 0) >= 768, "phone widths only");
-
   test("leaves most of the screen usable", async ({ page }) => {
     await signIn(page);
     await createWatch(page);
@@ -51,11 +49,19 @@ test.describe("sticky chrome budget", () => {
 
     const share = measured.union / measured.viewport;
     // The number is the point of the test, so it goes in the run output.
-    console.log(`sticky chrome: ${Math.round(share * 100)}% of ${measured.viewport}px`);
-    expect(share, JSON.stringify(measured.covered)).toBeLessThan(0.4);
+    console.log(
+      `sticky chrome: ${Math.round(share * 100)}% of ${measured.viewport}px at ${page.viewportSize()?.width}px wide`,
+    );
+    /* Desktop is allowed a little more because the dock keeps its comparison
+       panel there — it was 48% before the button row stopped wrapping and the
+       destructive action moved out, and at 48% the verdict card's last line was
+       being cut in half by the dock's top edge on arrival. */
+    const budget = (page.viewportSize()?.width ?? 0) >= 768 ? 0.44 : 0.4;
+    expect(share, JSON.stringify(measured.covered)).toBeLessThan(budget);
   });
 
-  test("the dock is a strip until it is asked to be more", async ({ page }) => {
+  test("the dock is a strip until it is asked to be more", async ({ page, viewport }) => {
+    test.skip((viewport?.width ?? 0) >= 768, "the collapse toggle is phone-only");
     await signIn(page);
     await createWatch(page);
     const dock = page.locator(".action-dock");
@@ -76,5 +82,31 @@ test.describe("sticky chrome budget", () => {
     await chip.evaluate((node) => node.scrollIntoView({ block: "center" }));
     await chip.click({ timeout: 5_000 });
     await expect(page.getByPlaceholder("New actual total paid")).toBeVisible();
+  });
+
+  test("nothing pinned permanently hides a control", async ({ page }) => {
+    /* The dock overlaps content while you scroll — that is what a bottom dock
+       does. What it must never do is put a control somewhere no scroll position
+       can reach, which is the difference between "in the way" and "broken".
+       scroll-padding-bottom is what makes this true. */
+    await signIn(page);
+    await createWatch(page);
+    // On a phone the dock's controls are one tap behind "Actions"; above 768px
+    // this is a no-op. Being behind a toggle is not being hidden.
+    await openDock(page);
+    for (const name of ["Check now", "Pause", "Watch settings"]) {
+      const control = page.getByRole("button", { name, exact: true }).first();
+      await control.scrollIntoViewIfNeeded();
+      const box = await control.boundingBox();
+      expect(box, name).not.toBeNull();
+      const onTop = await page.evaluate(
+        ([x, y]) => {
+          const hit = document.elementFromPoint(x as number, y as number);
+          return hit ? (hit.textContent?.trim().slice(0, 30) ?? "") : null;
+        },
+        [box!.x + box!.width / 2, box!.y + box!.height / 2],
+      );
+      expect(onTop, `${name} is under something pinned`).toContain(name);
+    }
   });
 });

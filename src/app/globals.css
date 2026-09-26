@@ -918,13 +918,38 @@ kbd {
   display: none;
 }
 
+/* One row, scrolled sideways if it does not fit.
+ *
+ * Wrapping made this 122px at 1024px and 208px at 390px, and the dock is
+ * sticky — it is pinned for the whole page, not just at the end of it, so every
+ * one of those pixels was permanently over the board. At 1024x768 the sticky
+ * chrome came to 48% of the viewport and the verdict card's last line was being
+ * cut in half by the dock's top edge on arrival, before any scrolling.
+ *
+ * Nothing is lost by not wrapping: every control in here is also in the command
+ * palette, which lists it with its shortcut. */
+.settings-danger {
+  border-top: 1px solid var(--line);
+  padding-top: 1rem;
+}
+
 .dock-btns {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  align-items: center;
   gap: 0.55rem;
-  padding: 0.75rem;
-  max-height: none;
-  overflow: visible;
+  padding: 0.7rem 0.75rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.dock-btns::-webkit-scrollbar {
+  display: none;
+}
+
+.dock-btns > * {
+  flex: 0 0 auto;
 }
 
 .dock-primary {
@@ -2638,17 +2663,28 @@ a.depart-strip:hover {
   color: var(--board-mute);
 }
 
+/* The global kbd rule fills white — correct on paper, and mint text on white
+   is about 1.4:1, which is not a contrast ratio so much as an absence of one.
+   Every kbd on a board-dark surface has to state its own background. */
+.palette-esc,
+.palette-key,
+.palette-foot kbd,
+.rail-kbd {
+  background: color-mix(in srgb, var(--board-ink) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--board-ink) 26%, transparent);
+  border-bottom-width: 1px;
+}
+
 .palette-esc,
 .palette-key {
   flex-shrink: 0;
-  border: 1px solid color-mix(in srgb, var(--board-ink) 24%, transparent);
   border-radius: 6px;
   padding: 0.1rem 0.4rem;
   font-family: var(--font-code);
   font-size: 0.68rem;
   line-height: 1.5;
   letter-spacing: 0.06em;
-  color: var(--board-mute);
+  color: var(--board-ink);
 }
 
 .palette-list {
@@ -2690,6 +2726,7 @@ a.depart-strip:hover {
 
 .palette-row.is-active .palette-key {
   border-color: var(--mint-2);
+  background: color-mix(in srgb, var(--mint-2) 16%, transparent);
   color: var(--mint-2);
 }
 
@@ -2731,11 +2768,11 @@ a.depart-strip:hover {
 }
 
 .palette-foot kbd {
-  border: 1px solid color-mix(in srgb, var(--board-ink) 22%, transparent);
   border-radius: 5px;
   padding: 0 0.28rem;
   font-family: var(--font-code);
   font-size: 0.68rem;
+  color: var(--board-ink);
 }
 
 /* The palette re-themes the accents the same way the board and toast do, so
@@ -2756,7 +2793,6 @@ a.depart-strip:hover {
 /* The ⌘K hint on the trip rail. Quiet: it is a label, not a button of its own. */
 .rail-kbd {
   margin-left: 0.3rem;
-  border: 1px solid color-mix(in srgb, var(--board-ink) 26%, transparent);
   border-radius: 5px;
   padding: 0 0.26rem;
   font-family: var(--font-code);

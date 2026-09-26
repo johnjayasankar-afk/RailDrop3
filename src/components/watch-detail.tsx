@@ -2721,6 +2721,40 @@ export function WatchDetail({
             }}
           />
         ) : null}
+        {settingsOpen ? (
+          /* Delete lives here now, with the other things that change the watch
+             itself, rather than pinned to the bottom of the screen all session
+             one click away from "Copy packet".
+
+             Still two steps, and still for the same reason: this is
+             irreversible, it takes the whole price history with it — the thing
+             the traveler has been accumulating — and there is no undo anywhere
+             in the product. */
+          <div className="settings-danger mt-5">
+            <p className="eyebrow">Delete this watch</p>
+            <p className="mt-1 text-sm text-ink-soft">
+              This removes the trip and every price we have recorded for it. It cannot be undone,
+              and it does not affect your Amtrak booking.
+            </p>
+            <button
+              type="button"
+              className="btn btn-ghost dock-danger mt-3"
+              disabled={busy}
+              aria-label={confirmDelete ? "Confirm deleting this watch" : "Delete this watch"}
+              onClick={async () => {
+                if (!confirmDelete) {
+                  setConfirmDelete(true);
+                  window.setTimeout(() => setConfirmDelete(false), 4000);
+                  return;
+                }
+                const ok = await action(`/api/watches/${watch.id}`, "DELETE");
+                if (ok) router.push("/dashboard");
+              }}
+            >
+              {confirmDelete ? "Delete for good?" : "Delete"}
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <div className="analysis mt-4 no-print">
@@ -2993,43 +3027,25 @@ export function WatchDetail({
             <Link href={reverseHref as Route} className="btn btn-ghost">
               Watch return
             </Link>
-            <div className="dock-more">
-              <div className="stay-dock">
-                <span className="eyebrow">Stay</span>
-                {([1, 2, 3, 4, 7] as const).map((days) => (
-                  <button
-                    key={days}
-                    type="button"
-                    className={`chip ${stayDays === days ? "chip-on" : ""}`}
-                    onClick={() => setStayDays(days)}
-                  >
-                    {days}d
-                  </button>
-                ))}
-              </div>
-              <button type="button" className="btn btn-ghost" onClick={() => void copyPacket()}>
-                Copy packet
-              </button>
-              {/* Two steps, because this is irreversible and sits one click from
-                "Copy packet". Deleting a watch takes its whole price history
-                with it — the thing the traveler has been accumulating — and
-                there is no undo anywhere in the product. */}
-              <button
-                className="btn btn-ghost dock-danger"
-                disabled={busy}
-                aria-label={confirmDelete ? "Confirm deleting this watch" : "Delete this watch"}
-                onClick={async () => {
-                  if (!confirmDelete) {
-                    setConfirmDelete(true);
-                    window.setTimeout(() => setConfirmDelete(false), 4000);
-                    return;
-                  }
-                  const ok = await action(`/api/watches/${watch.id}`, "DELETE");
-                  if (ok) router.push("/dashboard");
-                }}
-              >
-                {confirmDelete ? "Delete for good?" : "Delete"}
-              </button>
+            {/* Stay stays: it changes what the board shows, so it belongs with
+                the board. "Copy packet" left because the Share sheet already
+                offers it as "Decision packet", and Delete left because a
+                destructive action does not belong pinned to the bottom of every
+                screen for the whole session. Both are in the command palette,
+                and Delete now lives under Watch settings with the rest of the
+                things that change the watch itself. */}
+            <div className="stay-dock">
+              <span className="eyebrow">Stay</span>
+              {([1, 2, 3, 4, 7] as const).map((days) => (
+                <button
+                  key={days}
+                  type="button"
+                  className={`chip ${stayDays === days ? "chip-on" : ""}`}
+                  onClick={() => setStayDays(days)}
+                >
+                  {days}d
+                </button>
+              ))}
             </div>
           </div>
         </div>
