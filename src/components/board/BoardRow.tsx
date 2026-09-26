@@ -17,12 +17,14 @@ import { formatUsdCompact } from "@/lib/domain/money";
 import { serviceTypeLabel } from "@/lib/domain/service-type";
 import { formatClock } from "@/lib/domain/timezone";
 import type { RankedCandidate } from "@/lib/domain/types";
+import { memo } from "react";
 import { Flap } from "@/components/flap";
 import { ConnectionChip } from "./ConnectionChip";
 import { Handoff } from "./Handoff";
 import { Legs } from "./Legs";
 
-export function BoardRow({
+function BoardRowImpl({
+  rowKey,
   candidate,
   index,
   yours,
@@ -41,6 +43,7 @@ export function BoardRow({
   onHide,
   onFocus,
 }: {
+  rowKey: string;
   candidate: RankedCandidate;
   index: number;
   yours: RankedCandidate | null;
@@ -54,10 +57,12 @@ export function BoardRow({
   beats: boolean;
   departed: boolean;
   resolver: BookingLinkResolver;
-  onTogglePick: () => void;
-  onTogglePin: () => void;
-  onHide: () => void;
-  onFocus: () => void;
+  /* Key-taking rather than pre-bound, so the parent can hand every row the
+     same stable function instead of building four closures per row. */
+  onTogglePick: (key: string) => void;
+  onTogglePin: (key: string) => void;
+  onHide: (key: string) => void;
+  onFocus: (key: string) => void;
 }) {
   const duration = formatDurationMinutes(candidate.journey.durationMinutes);
   const mine = yours ? candidateIsSame(candidate, yours) : false;
@@ -75,14 +80,14 @@ export function BoardRow({
       onClick={(event) => {
         const target = event.target as HTMLElement | null;
         if (target?.closest("a, button, input, select, textarea, label")) return;
-        onFocus();
+        onFocus(rowKey);
       }}
       onKeyDown={(event) => {
         if (event.key !== "Enter" && event.key !== " ") return;
         const target = event.target as HTMLElement | null;
         if (target !== event.currentTarget) return;
         event.preventDefault();
-        onFocus();
+        onFocus(rowKey);
       }}
     >
       <p className="board-cell-index board-index">{String(index + 1).padStart(2, "0")}</p>
@@ -143,18 +148,22 @@ export function BoardRow({
           <button
             type="button"
             className={`text-xs underline ${pinned ? "text-ink" : "text-ink-soft"}`}
-            onClick={onTogglePin}
+            onClick={() => onTogglePin(rowKey)}
           >
             {pinned ? "Unpin" : "Pin"}
           </button>
           <button
             type="button"
             className={`text-xs underline ${picked ? "text-ink" : "text-ink-soft"}`}
-            onClick={onTogglePick}
+            onClick={() => onTogglePick(rowKey)}
           >
             {picked ? "Remove from compare" : "Compare"}
           </button>
-          <button type="button" className="text-xs underline text-ink-soft" onClick={onHide}>
+          <button
+            type="button"
+            className="text-xs underline text-ink-soft"
+            onClick={() => onHide(rowKey)}
+          >
             Hide
           </button>
         </div>
@@ -192,3 +201,11 @@ export function BoardRow({
     </div>
   );
 }
+
+/* Memoised on its props.
+ *
+ * A filter or sort change re-renders the whole board; without this every row
+ * rebuilt its flaps, chips and handoff even when nothing about it changed. It
+ * only pays off because the four callbacks above are stable — a memo whose
+ * props are freshly-built closures is a memo that never hits. */
+export const BoardRow = memo(BoardRowImpl);

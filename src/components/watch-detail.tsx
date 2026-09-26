@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { Route } from "next";
@@ -905,14 +905,6 @@ export function WatchDetail({
     watch.currentBookedPriceCents,
   ]);
 
-  function togglePick(key: string) {
-    dispatch({ type: "TOGGLE_PICK", key });
-  }
-
-  function togglePin(key: string) {
-    dispatch({ type: "TOGGLE_PIN", key });
-  }
-
   function persistFee(value: string) {
     setFeeDollars(value);
     try {
@@ -1019,15 +1011,35 @@ export function WatchDetail({
     window.setTimeout(() => setNotice(null), 1600);
   }
 
-  function hideTrain(key: string) {
+  /* The four callbacks every board row gets.
+   *
+   * Stable identities, deliberately: they used to be inline arrows rebuilt for
+   * each of up to 60 rows on every render, which made React.memo on the row
+   * useless — the props always differed. Reading the volatile bits from refs
+   * (the same refs the keyboard handler already uses) lets these close over
+   * nothing that changes, so an empty dependency list is honest. */
+  const handleTogglePick = useCallback((key: string) => {
+    dispatch({ type: "TOGGLE_PICK", key });
+  }, []);
+
+  const handleTogglePin = useCallback((key: string) => {
+    dispatch({ type: "TOGGLE_PIN", key });
+  }, []);
+
+  const handleFocusRow = useCallback((key: string) => {
+    dispatch({ type: "SET_FOCUS", key });
+  }, []);
+
+  const hideTrain = useCallback((key: string) => {
     // Focus only moves if the hidden row was the focused one — the click path
     // has always differed from the H key here, which always moves focus.
+    const focused = focusRef.current;
     const nextFocus =
-      focusKey === key ? (navKeys.filter((item) => item !== key)[0] ?? null) : focusKey;
+      focused === key ? (navRef.current.filter((item) => item !== key)[0] ?? null) : focused;
     dispatch({ type: "HIDE", key, nextFocus });
     setNotice("Hidden this visit");
     window.setTimeout(() => setNotice(null), 1600);
-  }
+  }, []);
 
   async function copyItinerary(candidate: RankedCandidate) {
     await navigator.clipboard.writeText(itineraryText(candidate));
@@ -1595,7 +1607,7 @@ export function WatchDetail({
             <button type="button" onClick={() => void copyFields(best)}>
               Copy Amtrak fields
             </button>
-            <button type="button" onClick={() => togglePin(candidateKey(best))}>
+            <button type="button" onClick={() => handleTogglePin(candidateKey(best))}>
               {pins.includes(candidateKey(best)) ? "Unpin" : "Pin this train"}
             </button>
           </div>
@@ -1918,6 +1930,7 @@ export function WatchDetail({
                   yours={yours}
                   preferred={preferred}
                   maxDuration={maxDuration}
+                  rowKey={candidateKey(candidate)}
                   picked={picked.includes(candidateKey(candidate))}
                   pinned={pins.includes(candidateKey(candidate))}
                   passengers={watch.passengerCount}
@@ -1931,10 +1944,10 @@ export function WatchDetail({
                     boardNow?.minutes ?? null,
                   )}
                   resolver={resolver}
-                  onTogglePick={() => togglePick(candidateKey(candidate))}
-                  onTogglePin={() => togglePin(candidateKey(candidate))}
-                  onHide={() => hideTrain(candidateKey(candidate))}
-                  onFocus={() => dispatch({ type: "SET_FOCUS", key: candidateKey(candidate) })}
+                  onTogglePick={handleTogglePick}
+                  onTogglePin={handleTogglePin}
+                  onHide={hideTrain}
+                  onFocus={handleFocusRow}
                 />
               ))}
             </>

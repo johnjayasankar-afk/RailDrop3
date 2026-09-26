@@ -758,6 +758,23 @@ input[type="radio"] {
   min-height: 1rem;
 }
 
+/* Skeletons sitting on a board surface.
+   The base shimmer above is drawn for porcelain: on the near-black strip it
+   flashed bright bars on every navigation to a watch. The markup tried to fix
+   this with a bg-[#2a241e] utility, but .skeleton sets `background` shorthand,
+   so that class never applied. The surface decides instead. */
+.depart-strip .skeleton,
+.trip-rail .skeleton,
+.timetable .skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--board-face),
+    color-mix(in srgb, var(--board-face) 60%, var(--board-ink)),
+    var(--board-face)
+  );
+  background-size: 200% 100%;
+}
+
 .board-row:hover {
   background: color-mix(in srgb, var(--paper) 60%, white);
 }
