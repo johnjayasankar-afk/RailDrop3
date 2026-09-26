@@ -176,3 +176,16 @@ export interface ScheduledCheckRun {
   leaseExpiresAt: string | null;
   failureReason: string | null;
 }
+
+/** One alert decision, including the silent ones. See migration 20260926180000. */
+export interface AlertDecisionRecord {
+  id: string;
+  watchId: string;
+  cycleId: string | null;
+  reason: string;
+  notified: boolean;
+  alertedFingerprint: OpportunityFingerprint | null;
+  observedFingerprint: OpportunityFingerprint | null;
+  explanation: string;
+  createdAt: string;
+}

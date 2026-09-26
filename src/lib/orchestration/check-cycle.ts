@@ -507,6 +507,24 @@ export async function runWatchCycle(input: {
     providerRequests,
     reusedSearches,
   });
+  /* The silences are the half nobody could explain before. An alert row only
+   * existed when mail went out, so "why didn't you tell me about the $60?" had
+   * no answer but a re-derivation from code. This stores the reasoning as it
+   * actually ran, for both outcomes. */
+  await input.repo.insertAlertDecision({
+    id: crypto.randomUUID(),
+    watchId: watch.id,
+    cycleId,
+    reason: alertPolicy.reason,
+    notified: alertSent,
+    alertedFingerprint: watch.lastAlertedOpportunity,
+    observedFingerprint: opportunity.fingerprint,
+    explanation: suppressed
+      ? `${alertPolicy.explanation} No email was sent: this address has asked not to be written to.`
+      : alertPolicy.explanation,
+    createdAt: now.toISOString(),
+  });
+
   const updatedWatch = await input.repo.updateWatch(watch.id, {
     lastCheckCycleId: cycle.id,
     lastCheckedAt: now.toISOString(),

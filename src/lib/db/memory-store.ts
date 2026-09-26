@@ -1,6 +1,7 @@
 import { STATIONS } from "@/lib/stations/catalog";
 import type { JourneyOption } from "@/lib/domain/types";
 import type {
+  AlertDecisionRecord,
   AlertRecord,
   BookingPriceEvent,
   DateSnapshotRecord,
@@ -39,6 +40,7 @@ export class MemoryRepository implements RailDropRepository {
     }
   >();
   suppressions = new Map<string, { reason: string; detail: string | null }>();
+  alertDecisions: AlertDecisionRecord[] = [];
   stations = STATIONS.map((station) => ({ ...station }));
 
   async upsertProfile(profile: Profile): Promise<Profile> {
@@ -315,6 +317,17 @@ export class MemoryRepository implements RailDropRepository {
 
   async listAlertsForWatch(watchId: string): Promise<AlertRecord[]> {
     return this.alerts.filter((alert) => alert.watchId === watchId);
+  }
+
+  async insertAlertDecision(decision: AlertDecisionRecord): Promise<void> {
+    this.alertDecisions.push(decision);
+  }
+
+  async listAlertDecisions(watchId: string, limit = 50): Promise<AlertDecisionRecord[]> {
+    return this.alertDecisions
+      .filter((d) => d.watchId === watchId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, limit);
   }
 
   async isEmailSuppressed(email: string): Promise<boolean> {

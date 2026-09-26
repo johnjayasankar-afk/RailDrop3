@@ -1,5 +1,6 @@
 import type { CheckSlot, JourneyOption, OpportunityFingerprint } from "@/lib/domain/types";
 import type {
+  AlertDecisionRecord,
   AlertRecord,
   BookingPriceEvent,
   DateSnapshotRecord,
@@ -128,6 +129,9 @@ export interface RailDropRepository {
   cacheJourneys(providerRequestId: string, journeys: JourneyOption[]): Promise<void>;
   insertAlert(alert: AlertRecord): Promise<AlertRecord>;
   listAlertsForWatch(watchId: string): Promise<AlertRecord[]>;
+  /** Record why an alert was or was not sent. The silences matter most. */
+  insertAlertDecision(decision: AlertDecisionRecord): Promise<void>;
+  listAlertDecisions(watchId: string, limit?: number): Promise<AlertDecisionRecord[]>;
   /** True when this address has asked us to stop, bounced, or complained. */
   isEmailSuppressed(email: string): Promise<boolean>;
   /** Record a suppression. Idempotent: asking twice is not an error. */

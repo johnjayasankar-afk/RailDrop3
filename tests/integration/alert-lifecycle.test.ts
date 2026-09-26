@@ -217,3 +217,52 @@ describe("alert lifecycle", () => {
     expect(after?.lastAlertedOpportunity?.bestPriceCents).toBe(4_700);
   });
 });
+
+describe("alert audit trail", () => {
+  it("records why it spoke and why it stayed quiet", async () => {
+    const repo = new MemoryRepository();
+    const mailer = new RecordingMailer();
+    const steer = steerableProvider();
+    const base = new Date("2026-09-26T12:00:00.000Z");
+
+    steer.set(4_700);
+    const watch = await createWatchAndScan({
+      userId: "u1",
+      email: "traveler@example.com",
+      body,
+      repo,
+      provider: steer.provider,
+      mailer,
+      now: base,
+    });
+
+    // A silent cycle: still qualifying, not enough better to be worth mail.
+    steer.set(4_690);
+    await runWatchCycle({
+      watch: (await repo.getWatch(watch.id))!,
+      trigger: "MANUAL",
+      repo,
+      provider: steer.provider,
+      mailer,
+      now: new Date(base.getTime() + 3_600_000),
+    });
+
+    const decisions = await repo.listAlertDecisions(watch.id);
+    expect(decisions).toHaveLength(2);
+
+    // Newest first: the silence, with a reason a person can read.
+    const quiet = decisions[0]!;
+    expect(quiet.notified).toBe(false);
+    expect(quiet.reason).toBe("unchanged");
+    expect(quiet.explanation).toMatch(/\$4[67]/);
+
+    const spoke = decisions[1]!;
+    expect(spoke.notified).toBe(true);
+    expect(spoke.reason).toBe("first_qualifying");
+
+    // Both fingerprints are kept, so the decision can be re-read later without
+    // depending on what the watch looks like by then.
+    expect(quiet.observedFingerprint?.bestPriceCents).toBe(4_690);
+    expect(quiet.alertedFingerprint?.bestPriceCents).toBe(4_700);
+  });
+});

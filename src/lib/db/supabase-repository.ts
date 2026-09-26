@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { JourneyOption } from "@/lib/domain/types";
 import type {
+  AlertDecisionRecord,
   AlertRecord,
   BookingPriceEvent,
   DateSnapshotRecord,
@@ -453,6 +454,44 @@ export class SupabaseRepository implements RailDropRepository {
       fingerprint: row.fingerprint,
       subject: row.subject,
       createdAt: row.created_at,
+    }));
+  }
+
+  async insertAlertDecision(decision: AlertDecisionRecord): Promise<void> {
+    const { error } = await this.db.from("alert_decisions").insert({
+      id: decision.id,
+      watch_id: decision.watchId,
+      cycle_id: decision.cycleId,
+      reason: decision.reason,
+      notified: decision.notified,
+      alerted_fingerprint: decision.alertedFingerprint,
+      observed_fingerprint: decision.observedFingerprint,
+      explanation: decision.explanation,
+      created_at: decision.createdAt,
+    });
+    if (error) throw error;
+  }
+
+  async listAlertDecisions(watchId: string, limit = 50): Promise<AlertDecisionRecord[]> {
+    const { data, error } = await this.db
+      .from("alert_decisions")
+      .select("*")
+      .eq("watch_id", watchId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    return (data ?? []).map((row) => ({
+      id: String(row.id),
+      watchId: String(row.watch_id),
+      cycleId: (row.cycle_id as string | null) ?? null,
+      reason: String(row.reason),
+      notified: Boolean(row.notified),
+      alertedFingerprint:
+        (row.alerted_fingerprint as AlertDecisionRecord["alertedFingerprint"]) ?? null,
+      observedFingerprint:
+        (row.observed_fingerprint as AlertDecisionRecord["observedFingerprint"]) ?? null,
+      explanation: String(row.explanation),
+      createdAt: String(row.created_at),
     }));
   }
 
