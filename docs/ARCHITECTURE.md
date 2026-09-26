@@ -141,7 +141,29 @@ Tables follow the product nouns: `watches`, `fare_check_cycles`, `fare_snapshots
 
 A cycle is one logical refresh of the whole window. Snapshots keep per-date success vs empty inventory vs provider failure.
 
+A cycle also records `best_price_cents` and `best_travel_date`: the cheapest eligible fare it saw, and which day it was on. This is the fare history. Before it existed the product checked three times a day and kept only the newest number, so the panel headed "Price history" plotted `booking_price_events` — the traveler's own benchmark, which changes only when they press "I rebooked" — and for almost every watch it was a single point.
+
+`NULL` there is an observation, not a missing value: the cycle looked and saw nothing, which a provider outage and an empty corridor both produce. The chart draws it as a gap rather than a fall to zero, and `wait-or-book` treats it as evidence of nothing rather than evidence of cheapness.
+
 `search_cache` stores normalized journeys for a short freshness window so overlapping watches share one external search.
+
+## The pure layer
+
+`src/lib/domain/` is I/O-free: no clock read at module scope, no storage, no DOM, no fetch. Everything that decides something lives there and is unit-tested without a harness, and the components and routes are the parts that talk to the world.
+
+The ones that carry a product decision rather than a calculation:
+
+| Module               | Decides                                                                                                                            |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `alert-policy.ts`    | Whether to send mail, and why — including why not. Every branch returns an explanation, and the silences are stored too.           |
+| `wait-or-book.ts`    | BOOK_NOW / HOLD / WATCH_CLOSELY, with a stated confidence. Never states a future price: a predicted fare is still an invented one. |
+| `fare-history.ts`    | What the corridor has done, from observations only. Never interpolates between checks.                                             |
+| `cycle-budget.ts`    | Whether there is time for another search before the function is killed.                                                            |
+| `provider-budget.ts` | Whether there is money for another search.                                                                                         |
+| `search-dedup.ts`    | Search, reuse a fresh result, or wait for the peer already running it.                                                             |
+| `run-lease.ts`       | Which watches a worker may claim, and when an abandoned run is reaped.                                                             |
+| `board-state.ts`     | How the board is being looked at. One transition per action, not two.                                                              |
+| `board-url.ts`       | That view as a link, and validation of one arriving from a stranger.                                                               |
 
 ## Idempotency model
 
