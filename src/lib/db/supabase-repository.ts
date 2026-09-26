@@ -793,6 +793,10 @@ function cycleToRow(cycle: FareCheckCycleRecord, partial = false) {
   if (cycle.alertsSent !== undefined) row.alerts_sent = cycle.alertsSent;
   if (cycle.providerRequests !== undefined) row.provider_requests = cycle.providerRequests;
   if (cycle.reusedSearches !== undefined) row.reused_searches = cycle.reusedSearches;
+  // Null is a value here, not an absence: "looked, saw nothing" has to be
+  // storable, so these check for undefined rather than truthiness.
+  if (cycle.bestPriceCents !== undefined) row.best_price_cents = cycle.bestPriceCents;
+  if (cycle.bestTravelDate !== undefined) row.best_travel_date = cycle.bestTravelDate;
   return row;
 }
 
@@ -813,6 +817,11 @@ function mapCycle(row: Record<string, unknown>): FareCheckCycleRecord {
     alertsSent: Number(row.alerts_sent ?? 0),
     providerRequests: Number(row.provider_requests ?? 0),
     reusedSearches: Number(row.reused_searches ?? 0),
+    bestPriceCents:
+      row.best_price_cents === null || row.best_price_cents === undefined
+        ? null
+        : Number(row.best_price_cents),
+    bestTravelDate: (row.best_travel_date as string | null) ?? null,
   };
 }
 

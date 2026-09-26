@@ -97,6 +97,16 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
         moves={boardMoves(previousRanked, ranked).slice(0, 5)}
         alerts={alerts}
         scanCount={cycles.length}
+        /* Every look this watch has taken, oldest first — the fare history the
+           product was checking three times a day and throwing away. A null
+           price is a real observation: looked, saw nothing. */
+        observations={[...cycles]
+          .filter((cycle) => cycle.status !== "RUNNING")
+          .map((cycle) => ({
+            at: cycle.completedAt ?? cycle.startedAt,
+            cents: cycle.bestPriceCents,
+            travelDate: cycle.bestTravelDate,
+          }))}
         fareSourceLabel={
           fareSource.provider.startsWith("wanderu")
             ? "Wanderu"

@@ -23,6 +23,8 @@ import { copyText } from "@/lib/clipboard";
 import { BoardRow } from "./board/BoardRow";
 import { HelpSheet } from "./board/HelpSheet";
 import { CommandPalette, type Command } from "./board/CommandPalette";
+import { FareHistory } from "./board/FareHistory";
+import type { Observation } from "@/lib/domain/fare-history";
 import { commandToast } from "@/lib/domain/command-palette";
 import { ShareSheet } from "./board/ShareSheet";
 import { WatchSettingsForm } from "./board/WatchSettingsForm";
@@ -154,6 +156,7 @@ export function WatchDetail({
   moves,
   alerts,
   scanCount,
+  observations,
   scans,
   fareSourceLabel = "live board",
 }: {
@@ -169,6 +172,8 @@ export function WatchDetail({
   moves: BoardMove[];
   alerts: Array<{ id: string; subject: string; createdAt: string }>;
   scanCount: number;
+  /** One entry per completed check: what the board saw, and when. */
+  observations: Observation[];
   fareSourceLabel?: string;
   scans: Array<{ id: string; status: string; at: string }>;
 }) {
@@ -315,6 +320,11 @@ export function WatchDetail({
   const drops = cheaperCount(ranked);
   const daysLeft = dateOffsetDays(today, watch.desiredTravelDate);
   const urgency = travelUrgency(daysLeft);
+  /* Day granularity, from the date the server resolved, not from a clock read
+     during render — that is the hydration bug fixed in RelativeTime, and it
+     would be the same bug here. Good enough for the wait-or-book call, whose
+     only threshold is "inside a day". */
+  const hoursToDeparture = Number.isFinite(daysLeft) ? Math.max(0, daysLeft) * 24 : null;
   const remaining = monitorRemaining(watch.monitorEndAt);
   const maxDuration = Math.max(
     1,
@@ -2240,6 +2250,26 @@ export function WatchDetail({
         </section>
       )}
 
+      {/* Above the board, not behind "More analysis".
+          "Should I switch now or wait" is the question the product exists to
+          answer, and it was the one thing it never said. Hiding it one click
+          down would be filing the answer under further reading.
+
+          Was: a sparkline of booking_price_events — the traveler's own
+          benchmark, which changes only when they press "I rebooked", so for
+          almost every watch it was a single point under a heading that said
+          "Price history". This is the fares we actually observed. */}
+      <div className="mt-8 no-print">
+        <FareHistory
+          observations={observations}
+          bookedCents={watch.currentBookedPriceCents}
+          bestCents={best?.totalPartyPriceCents ?? null}
+          changeFeeCents={feeCents}
+          hoursToDeparture={hoursToDeparture}
+          timezone={watch.timezone}
+        />
+      </div>
+
       <section id="board" className="mt-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -2862,27 +2892,23 @@ export function WatchDetail({
             )}
           </section>
 
-          <section className="panel p-4">
-            <h2 className="eyebrow">Price history</h2>
-            <p className="mt-2 text-sm">
-              Current booked benchmark {formatUsdCompact(watch.currentBookedPriceCents)}
-            </p>
-            <Sparkline values={trend} label="Booked price over time" />
-            <ul className="mt-3 space-y-1 text-sm">
-              {events.map((event) => (
-                <li key={event.id}>
-                  {formatUsdCompact(event.previousPriceCents)} →{" "}
-                  {formatUsdCompact(event.newPriceCents)} · {event.note}
-                </li>
-              ))}
-              {watch.bestPriceCents ? (
-                <li>Observed best {formatUsdCompact(watch.bestPriceCents)}</li>
-              ) : null}
-              {events.length === 0 && !watch.bestPriceCents ? (
-                <li className="text-ink-soft">No rebooks yet.</li>
-              ) : null}
-            </ul>
-          </section>
+          {events.length > 0 ? (
+            <section className="panel p-4">
+              <h2 className="eyebrow">What you paid</h2>
+              <p className="mt-2 text-sm">
+                Current benchmark {formatUsdCompact(watch.currentBookedPriceCents)}
+              </p>
+              <Sparkline values={trend} label="Your booking price over time" />
+              <ul className="mt-3 space-y-1 text-sm">
+                {events.map((event) => (
+                  <li key={event.id}>
+                    {formatUsdCompact(event.previousPriceCents)} →{" "}
+                    {formatUsdCompact(event.newPriceCents)} · {event.note}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
 
           {alerts.length > 0 ? (
             <section className="panel p-4">

@@ -83,6 +83,19 @@ export interface FareCheckCycleRecord {
   alertsSent: number;
   providerRequests: number;
   reusedSearches: number;
+  /**
+   * The cheapest eligible fare this cycle saw, or null for "looked, saw
+   * nothing".
+   *
+   * Null is a real observation and not a missing value: a provider outage and
+   * an empty corridor both produce it, and the chart draws a gap rather than a
+   * crash to zero. Before this the product checked three times a day and kept
+   * only the latest number, so there was no fare history to show — the panel
+   * headed "Price history" plotted the traveler's own booking changes.
+   */
+  bestPriceCents: number | null;
+  /** Which day in the window that fare was on. */
+  bestTravelDate: string | null;
 }
 
 export interface DateSnapshotRecord {

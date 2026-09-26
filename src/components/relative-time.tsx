@@ -57,6 +57,19 @@ function subscribe(listener: () => void): () => void {
 const getSnapshot = () => reading;
 const getServerSnapshot = () => 0;
 
+/**
+ * The wall clock, or 0 before the client has one.
+ *
+ * Exported because anything that renders "how long ago" needs it and needs it
+ * this way. Reading Date.now() during render is a hydration mismatch waiting
+ * for a boundary to land on, and the React Compiler lint refuses it outright —
+ * correctly. Callers treat 0 as "no clock yet" and render something true
+ * without it.
+ */
+export function useClientNow(): number {
+  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+}
+
 export function RelativeTime({
   at,
   /**
@@ -71,7 +84,7 @@ export function RelativeTime({
   at: string | null | undefined;
   fallback?: string | null;
 }) {
-  const now = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const now = useClientNow();
   if (!at) return <>{fallback ?? "not yet"}</>;
   if (!now) return <time dateTime={at}>{fallback ?? "recently"}</time>;
   return (

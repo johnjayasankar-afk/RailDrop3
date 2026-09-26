@@ -104,6 +104,8 @@ export async function runWatchCycle(input: {
     alertsSent: 0,
     providerRequests: 0,
     reusedSearches: 0,
+    bestPriceCents: null,
+    bestTravelDate: null,
   });
 
   const datesSucceeded: string[] = [];
@@ -506,6 +508,15 @@ export async function runWatchCycle(input: {
     alertsSent: alertSent ? 1 : 0,
     providerRequests,
     reusedSearches,
+    /* What this look at the market found.
+     *
+     * Recorded here because it is known here and nowhere else afterwards: the
+     * product checks three times a day and used to keep only the newest number,
+     * so there was no fare history to chart, to find a best-ever in, or to read
+     * a direction from. null is a real observation — looked, saw nothing — and
+     * the chart draws it as a gap rather than a fall to zero. */
+    bestPriceCents: best?.totalPartyPriceCents ?? null,
+    bestTravelDate: best?.journey.searchedTravelDate ?? null,
   });
   /* The silences are the half nobody could explain before. An alert row only
    * existed when mail went out, so "why didn't you tell me about the $60?" had
@@ -627,6 +638,8 @@ function emptyCompletedCycle(watchId: string, trigger: CycleTrigger): FareCheckC
     alertsSent: 0,
     providerRequests: 0,
     reusedSearches: 0,
+    bestPriceCents: null,
+    bestTravelDate: null,
   };
 }
 
