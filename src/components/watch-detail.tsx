@@ -15,7 +15,8 @@ import {
 import { formatClock, formatBoardStamp, zonedDateTime } from "@/lib/domain/timezone";
 import { fareFamilyLabel, travelClassLabel } from "@/lib/domain/fare-family";
 import { serviceTypeLabel } from "@/lib/domain/service-type";
-import { formatRelativeTime, isCheckStale } from "@/lib/domain/relative-time";
+import { isCheckStale } from "@/lib/domain/relative-time";
+import { RelativeTime } from "@/components/relative-time";
 import { extensionWindow } from "@/lib/domain/monitoring";
 import { shouldHandleBoardKey } from "@/lib/domain/board-keys";
 import { copyText } from "@/lib/clipboard";
@@ -34,6 +35,14 @@ import {
   focusAfterMove,
   initialBoardState,
 } from "@/lib/domain/board-state";
+import {
+  BOARD_STATE_PARAM,
+  boardStateUrl,
+  decodeBoardState,
+  hasBoardState,
+  unmatchedKeys,
+  withBoardLink,
+} from "@/lib/domain/board-url";
 import {
   boardCsv,
   candidateKey,
@@ -202,6 +211,17 @@ export function WatchDetail({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [rebookOpen, setRebookOpen] = useState(false);
   const [liveMoreOpen, setLiveMoreOpen] = useState(false);
+  /**
+   * Whether the pinned dock is showing all of itself. Phone widths only.
+   *
+   * Measured at 390×844 on a scrolled board: the header was 59px, the sticky
+   * trip rail 120px and the dock 519px — 698 of 844, so 16% of the screen was
+   * not underneath something pinned, and taps aimed at chips in that band hit
+   * the dock instead. Collapsed to its summary line the dock is about 50px, and
+   * every control it holds is one tap away. Above 768px the toggle is not
+   * rendered at all and this does nothing.
+   */
+  const [dockOpen, setDockOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [scanning, setScanning] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -212,6 +232,16 @@ export function WatchDetail({
   const [confirmDelete, setConfirmDelete] = useState(false);
   /** Set only when both clipboard routes failed, so the text can be shown. */
   const [manualCopy, setManualCopy] = useState<{ text: string; message: string } | null>(null);
+  /**
+   * How many rows a shared link named that this board does not have.
+   *
+   * A row key is `journeyId:fareId`, and a journey id is the provider's trip id
+   * — a later cycle can legitimately produce a different one for the same
+   * train, and a fare can simply sell out. So a link is allowed to be partly
+   * stale, and the board says which part rather than quietly showing something
+   * other than what was shared.
+   */
+  const [staleFromLink, setStaleFromLink] = useState(0);
   const busyRef = useRef(false);
   const findRef = useRef<HTMLInputElement>(null);
   const rebookRef = useRef<HTMLInputElement>(null);
@@ -223,7 +253,12 @@ export function WatchDetail({
   const beatsKeyRef = useRef<string[]>([]);
   const hiddenRef = useRef<string[]>([]);
   const stripRef = useRef("");
-  const pinsLoaded = useRef(false);
+  /** Set once the link and storage have been read; guards every write back. */
+  const hydrated = useRef(false);
+  /** The last URL this component wrote, so the sync effect can skip no-ops. */
+  const writtenUrl = useRef<string | null>(null);
+  /** The view, for the copy handlers, which are stable and must not close over it. */
+  const viewRef = useRef(view);
   const didFocus = useRef(false);
   const resolver = useMemo(() => new BookingLinkResolver(), []);
   const best = ranked[0];
@@ -376,6 +411,11 @@ export function WatchDetail({
     ],
   );
   const filtersOn = filtersActive(view);
+  /* "Copy link" and "Copy this view" are different promises, and the board
+     knows which one it can keep: the URL only describes a particular view once
+     something has been narrowed or a pair has been selected. */
+  const shareLabel =
+    filtersOn || picked.length > 0 || view.focusIntent ? "Copy this view" : "Copy link";
 
   const filteredSorted = useMemo(() => {
     const base = sortBoard(
@@ -483,6 +523,15 @@ export function WatchDetail({
     return best ?? null;
   }, [focusKey, ranked, best]);
   const compare = active ? compareFocus(active, watch.currentBookedPriceCents, yours) : null;
+  /** What the collapsed dock says. The comparison, in one line. */
+  const dockSummary = (() => {
+    const paid = `You paid ${formatUsdCompact(watch.currentBookedPriceCents)}`;
+    if (!best) return `${paid} · nothing cheaper listed`;
+    const shown = active ?? best;
+    const label = active ? "this train" : "cheapest";
+    const save = shown.savingsCents > 0 ? ` · save ${formatUsdCompact(shown.savingsCents)}` : "";
+    return `${paid} · ${label} ${formatUsdCompact(shown.totalPartyPriceCents)}${save}`;
+  })();
   const untilActive =
     active && boardNow
       ? minutesUntilDepart(
@@ -632,6 +681,10 @@ export function WatchDetail({
   }, [strip]);
 
   useEffect(() => {
+    viewRef.current = view;
+  }, [view]);
+
+  useEffect(() => {
     didFocus.current = false;
   }, [watch.id]);
 
@@ -640,33 +693,90 @@ export function WatchDetail({
     const start = yours ?? best ?? ranked[0];
     if (!start) return;
     didFocus.current = true;
-    // dispatch, not setState: the reducer made the suppression unnecessary
-    dispatch({ type: "SET_FOCUS", key: candidateKey(start) });
+    // AUTO_FOCUS, not SET_FOCUS: the board is choosing a starting row so the
+    // keyboard has somewhere to begin. Nobody picked it, so it stays out of the
+    // shareable URL — otherwise every first visit rewrote its own address bar.
+    dispatch({ type: "AUTO_FOCUS", key: candidateKey(start) });
   }, [yours, best, ranked]);
 
+  /* Where the view comes from on arrival.
+   *
+   * A link wins, because someone who was sent one asked for that view and not
+   * for whatever this browser was last looking at. Storage is the fallback, and
+   * it still owns pins specifically: an untouched link restores the pins from
+   * the last visit, which is the one piece of board state a person expects to
+   * persist without being asked.
+   *
+   * One dispatch rather than fourteen: replaying the setters would mean
+   * fourteen renders and, through the sync effect below, fourteen history
+   * writes on first paint.
+   *
+   * Read here and not in useReducer's initializer: the server renders this too,
+   * where there is no location and no storage, and seeding from them there
+   * would hydrate a different tree than it sent. */
   useEffect(() => {
-    let next: string[] = [];
+    let stored: string[] = [];
     try {
       const raw = window.localStorage.getItem(`raildrop.pins.${watch.id}`);
       if (raw) {
         const parsed: unknown = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.every((item) => typeof item === "string")) {
-          next = parsed;
+          stored = parsed;
         }
       }
     } catch {
-      next = [];
+      stored = [];
     }
-    dispatch({ type: "LOAD_PINS", pins: next });
-    pinsLoaded.current = true;
+
+    const raw = new URLSearchParams(window.location.search).get(BOARD_STATE_PARAM);
+    const linked = decodeBoardState(raw);
+    const next = hasBoardState(raw)
+      ? { ...linked, pins: linked.pins.length > 0 ? linked.pins : stored }
+      : { ...initialBoardState, pins: stored };
+
+    dispatch({ type: "HYDRATE", state: next });
+    if (hasBoardState(raw)) {
+      // `ranked` on mount, deliberately: the question is what this link asked
+      // for against the board it opened on, not against every later cycle.
+      const missing = unmatchedKeys(next, ranked.map(candidateKey));
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- the link is a client-only source; there is nothing to read during render
+      if (missing.length > 0) setStaleFromLink(missing.length);
+    }
+    writtenUrl.current = window.location.href;
+    hydrated.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once per watch; `ranked` is read as of mount by design
   }, [watch.id]);
+
+  /* The URL follows the board.
+   *
+   * replaceState, not pushState: a person who has adjusted six filters wants
+   * Back to leave the page, not to walk them out one filter at a time.
+   *
+   * Coalesced on a frame rather than written per dispatch, because J and K move
+   * focus — holding one down would otherwise write a hundred entries a second,
+   * and Safari throttles replaceState hard enough to throw. */
+  useEffect(() => {
+    if (!hydrated.current) return;
+    const handle = window.setTimeout(() => {
+      const next = boardStateUrl(window.location.href, view);
+      if (next === window.location.href) return;
+      try {
+        window.history.replaceState(window.history.state, "", next);
+        writtenUrl.current = next;
+      } catch {
+        // Throttled, or a context that forbids it. The board is unaffected;
+        // only the shareable link goes stale, and copyView rebuilds it anyway.
+      }
+    }, 120);
+    return () => window.clearTimeout(handle);
+  }, [view]);
 
   // The reducer is pure, so writing pins is an effect of the state changing
   // rather than something each of the three pin call sites does for itself.
   // Guarded on the read above: without it the first render would persist an
   // empty list over whatever was stored.
   useEffect(() => {
-    if (!pinsLoaded.current) return;
+    if (!hydrated.current) return;
     try {
       window.localStorage.setItem(`raildrop.pins.${watch.id}`, JSON.stringify(pins));
     } catch {
@@ -710,6 +820,28 @@ export function WatchDetail({
    * copyText tries the Clipboard API, falls back to a selection copy, and says
    * when neither worked — and then the reader gets the text on screen to copy
    * by hand rather than a toast claiming something that did not happen. */
+  /* The link to the board exactly as it looks right now.
+   *
+   * Rebuilt at the moment of copying rather than read off location.href: the
+   * sync effect above coalesces on a timer, so someone who filters and
+   * immediately presses T would otherwise copy the previous view. Read from a
+   * ref because every copy handler is a stable callback by design — inline
+   * arrows here were rebuilt for each of sixty rows and defeated the row memo. */
+  const viewUrl = useCallback(() => {
+    if (typeof window === "undefined") return null;
+    return boardStateUrl(window.location.href, viewRef.current);
+  }, []);
+
+  /** The same link, opened on one row. "You vs this" is about that row. */
+  const rowUrl = useCallback((candidate: RankedCandidate) => {
+    if (typeof window === "undefined") return null;
+    return boardStateUrl(window.location.href, {
+      ...viewRef.current,
+      focusKey: candidateKey(candidate),
+      focusIntent: true,
+    });
+  }, []);
+
   const copy = useCallback(async (text: string, message: string) => {
     const outcome = await copyText(text);
     if (outcome === "failed") {
@@ -737,7 +869,7 @@ export function WatchDetail({
       }
       if ((event.key === "t" || event.key === "T") && !busyRef.current) {
         event.preventDefault();
-        void copy(share, "Text for a friend copied");
+        void copy(withBoardLink(share, viewUrl()), "Text for a friend copied");
       }
       if (event.key === "/" && !busyRef.current) {
         event.preventDefault();
@@ -830,19 +962,22 @@ export function WatchDetail({
           rankedRef.current.find((item) => candidateKey(item) === key) ?? rankedRef.current[0];
         if (!candidate) return;
         void copy(
-          compareLine({
-            originCode: watch.originCode,
-            destinationCode: watch.destinationCode,
-            desiredTravelDate: watch.desiredTravelDate,
-            bookedCents: watch.currentBookedPriceCents,
-            focused: candidate,
-          }),
+          withBoardLink(
+            compareLine({
+              originCode: watch.originCode,
+              destinationCode: watch.destinationCode,
+              desiredTravelDate: watch.desiredTravelDate,
+              bookedCents: watch.currentBookedPriceCents,
+              focused: candidate,
+            }),
+            rowUrl(candidate),
+          ),
           "You vs this copied",
         );
       }
       if ((event.key === "w" || event.key === "W") && !busyRef.current) {
         event.preventDefault();
-        void copy(stripRef.current, "Window copied");
+        void copy(withBoardLink(stripRef.current, viewUrl()), "Window copied");
       }
       if ((event.key === "g" || event.key === "G") && !busyRef.current) {
         event.preventDefault();
@@ -951,8 +1086,16 @@ export function WatchDetail({
     URL.revokeObjectURL(url);
   }
 
+  /* "Copy this view".
+   *
+   * The URL carries the filters, the sort, the pins, the hidden rows and the
+   * compare pair, so the person who opens it sees the board that was described
+   * to them rather than a fresh one they have to rebuild from the message. */
   async function copyShare() {
-    await copy(window.location.href, "Link copied");
+    await copy(
+      viewUrl() ?? "",
+      shareLabel === "Copy link" ? "Link copied" : "Link to this view copied",
+    );
   }
 
   function downloadIcs(candidate: RankedCandidate) {
@@ -966,15 +1109,15 @@ export function WatchDetail({
   }
 
   async function copyDecision() {
-    await copy(brief, "Decision copied");
+    await copy(withBoardLink(brief, viewUrl()), "Decision copied");
   }
 
   async function copyFriend() {
-    await copy(share, "Text for a friend copied");
+    await copy(withBoardLink(share, viewUrl()), "Text for a friend copied");
   }
 
   async function copyOptions() {
-    await copy(optionsCopy, "Cheaper options copied");
+    await copy(withBoardLink(optionsCopy, viewUrl()), "Cheaper options copied");
   }
 
   function clearFilters() {
@@ -985,7 +1128,7 @@ export function WatchDetail({
   }
 
   async function copyPacket() {
-    await copy(packet, "Decision packet copied");
+    await copy(withBoardLink(packet, viewUrl()), "Decision packet copied");
   }
 
   async function copyFields(candidate: RankedCandidate) {
@@ -994,19 +1137,22 @@ export function WatchDetail({
 
   async function copyCompare(candidate: RankedCandidate) {
     await copy(
-      compareLine({
-        originCode: watch.originCode,
-        destinationCode: watch.destinationCode,
-        desiredTravelDate: watch.desiredTravelDate,
-        bookedCents: watch.currentBookedPriceCents,
-        focused: candidate,
-      }),
+      withBoardLink(
+        compareLine({
+          originCode: watch.originCode,
+          destinationCode: watch.destinationCode,
+          desiredTravelDate: watch.desiredTravelDate,
+          bookedCents: watch.currentBookedPriceCents,
+          focused: candidate,
+        }),
+        rowUrl(candidate),
+      ),
       "You vs this copied",
     );
   }
 
   async function copyWindow() {
-    await copy(strip, "Window copied");
+    await copy(withBoardLink(strip, viewUrl()), "Window copied");
   }
 
   /* The four callbacks every board row gets.
@@ -1113,17 +1259,33 @@ export function WatchDetail({
           copyWindow={copyWindow}
           copyPacket={copyPacket}
           copyShare={copyShare}
+          shareLabel={shareLabel}
         />
       ) : null}
       <p className="mt-3 text-sm text-ink-soft">
         {stationLabel(watch.originCode)} → {stationLabel(watch.destinationCode)}
         {watch.bookedTrainNumber ? ` · ${watch.bookedTrainNumber}` : ""} ·{" "}
         {formatDaysUntil(watch.desiredTravelDate, today)}
-        {drops ? ` · ${drops} cheaper` : ""} · {formatRelativeTime(watch.lastCheckedAt)}
+        {drops ? ` · ${drops} cheaper` : ""} ·{" "}
+        <RelativeTime at={watch.lastCheckedAt} fallback={stamp} />
       </p>
       {notice ? (
         <p className="board-toast no-print" role="status">
           {notice}
+        </p>
+      ) : null}
+      {staleFromLink > 0 ? (
+        /* A shared link named rows this board does not have. Saying so is the
+           whole point: the alternative is a link that silently shows a
+           different board than the one that was described. */
+        <p className="board-note no-print" role="status">
+          {staleFromLink === 1
+            ? "One train from this link is not on the board any more — it sold out, or the fare was relisted."
+            : `${staleFromLink} trains from this link are not on the board any more — they sold out, or the fares were relisted.`}{" "}
+          Everything else in the link was applied.{" "}
+          <button type="button" className="underline" onClick={() => setStaleFromLink(0)}>
+            Dismiss
+          </button>
         </p>
       ) : null}
       {manualCopy ? (
@@ -1652,7 +1814,10 @@ export function WatchDetail({
                   <i
                     key={scan.id}
                     className={`tone-${scanTone(scan.status)}`}
-                    title={`${scan.status} · ${formatRelativeTime(scan.at)}`}
+                    // An absolute stamp, not a relative one: a title attribute
+                    // that disagrees across hydration is a mismatch too, and a
+                    // tooltip is the one place the exact time is wanted anyway.
+                    title={`${scan.status} · ${formatBoardStamp(scan.at, watch.timezone) ?? scan.at}`}
                   />
                 ))}
               </div>
@@ -1669,7 +1834,7 @@ export function WatchDetail({
               Print board
             </button>
             <button type="button" onClick={() => void copyShare()}>
-              Copy link
+              {shareLabel}
             </button>
             {filtersOn ? (
               <button type="button" onClick={clearFilters}>
@@ -2251,7 +2416,12 @@ export function WatchDetail({
               <ul className="mt-3 space-y-2 text-sm">
                 {alerts.map((alert) => (
                   <li key={alert.id}>
-                    <span className="text-ink-soft">{formatRelativeTime(alert.createdAt)}</span>
+                    <span className="text-ink-soft">
+                      <RelativeTime
+                        at={alert.createdAt}
+                        fallback={formatBoardStamp(alert.createdAt, watch.timezone)}
+                      />
+                    </span>
                     {" · "}
                     {alert.subject}
                   </li>
@@ -2262,152 +2432,165 @@ export function WatchDetail({
         </div>
       ) : null}
 
-      <section className="action-dock no-print mt-8 text-sm">
-        {active && compare ? (
-          <div className={`live-compare${compare.beats ? " is-beats" : ""}`} aria-live="polite">
-            <div className="live-col">
-              <p className="eyebrow opacity-70">You paid</p>
-              <p className="price serif text-2xl">
-                <Flap>{formatUsdCompact(watch.currentBookedPriceCents)}</Flap>
-              </p>
-            </div>
-            <div className="live-col">
-              <p className="eyebrow opacity-70">This train</p>
-              <p className="price serif text-2xl">
-                <Flap>{formatUsdCompact(active.totalPartyPriceCents)}</Flap>
-              </p>
-              <p className="mt-1 text-xs opacity-80">
-                {trainLabel(active)} · {formatClock(active.journey.departureAt)}
-                {activeArrive ? ` · ${activeArrive}` : ""}
-                {untilActive == null
-                  ? ""
-                  : untilActive >= 0
-                    ? ` · in ${untilActive}m`
-                    : " · departed"}
-              </p>
-            </div>
-            <div className="live-col">
-              <p className="eyebrow opacity-70">
-                {compare.saveCents > 0 ? "Save" : compare.saveCents < 0 ? "More" : "Vs paid"}
-              </p>
-              <p
-                className={`price serif text-2xl ${compare.saveCents > 0 ? "text-save" : compare.saveCents < 0 ? "text-drop" : ""}`}
-              >
-                <Flap>{formatUsdCompact(Math.abs(compare.saveCents))}</Flap>
-              </p>
-              <p className="mt-1 text-xs opacity-80">
-                {compare.beats
-                  ? "Beats your train"
-                  : (compare.vsYours ??
-                    (compare.saveCents > 0 ? "Cheaper listed" : "No listed save"))}
-              </p>
-              {feeCents > 0 && compare.saveCents > 0 ? (
-                <p className="mt-1 text-xs opacity-80">
-                  {netAfterFee(compare.saveCents, feeCents) > 0
-                    ? `${formatUsdCompact(netAfterFee(compare.saveCents, feeCents))} after fee`
-                    : "Fee estimate would wipe this save"}
+      <section className={`action-dock no-print mt-8 text-sm${dockOpen ? " is-expanded" : ""}`}>
+        {/* Rendered only below 768px, by CSS. The summary is the tap target. */}
+        <button
+          type="button"
+          className="dock-compare-toggle"
+          aria-expanded={dockOpen}
+          aria-controls="dock-body"
+          onClick={() => setDockOpen((value) => !value)}
+        >
+          <span className="dock-compare-summary">{dockSummary}</span>
+          <span className="dock-compare-action">{dockOpen ? "Less" : "Actions"}</span>
+        </button>
+        <div id="dock-body" className="dock-body">
+          {active && compare ? (
+            <div className={`live-compare${compare.beats ? " is-beats" : ""}`} aria-live="polite">
+              <div className="live-col">
+                <p className="eyebrow opacity-70">You paid</p>
+                <p className="price serif text-2xl">
+                  <Flap>{formatUsdCompact(watch.currentBookedPriceCents)}</Flap>
                 </p>
-              ) : compare.saveCents > 0 ? (
-                <p className="mt-1 text-xs opacity-80">
-                  Covers a fee under {formatUsdCompact(compare.saveCents)}
-                </p>
-              ) : null}
-            </div>
-            <div className="live-actions">
-              <Handoff candidate={active} resolver={resolver} compact />
-              <div className="quiet-row">
-                <button type="button" onClick={() => void copyCompare(active)}>
-                  Copy you vs this
-                </button>
-                <button
-                  type="button"
-                  className="live-more-toggle"
-                  aria-expanded={liveMoreOpen}
-                  onClick={() => setLiveMoreOpen((value) => !value)}
-                >
-                  {liveMoreOpen ? "Less" : "More"}
-                </button>
               </div>
-              {liveMoreOpen ? (
-                <div className="quiet-row live-more">
-                  <button type="button" onClick={() => downloadIcs(active)}>
-                    Add to calendar
+              <div className="live-col">
+                <p className="eyebrow opacity-70">This train</p>
+                <p className="price serif text-2xl">
+                  <Flap>{formatUsdCompact(active.totalPartyPriceCents)}</Flap>
+                </p>
+                <p className="mt-1 text-xs opacity-80">
+                  {trainLabel(active)} · {formatClock(active.journey.departureAt)}
+                  {activeArrive ? ` · ${activeArrive}` : ""}
+                  {untilActive == null
+                    ? ""
+                    : untilActive >= 0
+                      ? ` · in ${untilActive}m`
+                      : " · departed"}
+                </p>
+              </div>
+              <div className="live-col">
+                <p className="eyebrow opacity-70">
+                  {compare.saveCents > 0 ? "Save" : compare.saveCents < 0 ? "More" : "Vs paid"}
+                </p>
+                <p
+                  className={`price serif text-2xl ${compare.saveCents > 0 ? "text-save" : compare.saveCents < 0 ? "text-drop" : ""}`}
+                >
+                  <Flap>{formatUsdCompact(Math.abs(compare.saveCents))}</Flap>
+                </p>
+                <p className="mt-1 text-xs opacity-80">
+                  {compare.beats
+                    ? "Beats your train"
+                    : (compare.vsYours ??
+                      (compare.saveCents > 0 ? "Cheaper listed" : "No listed save"))}
+                </p>
+                {feeCents > 0 && compare.saveCents > 0 ? (
+                  <p className="mt-1 text-xs opacity-80">
+                    {netAfterFee(compare.saveCents, feeCents) > 0
+                      ? `${formatUsdCompact(netAfterFee(compare.saveCents, feeCents))} after fee`
+                      : "Fee estimate would wipe this save"}
+                  </p>
+                ) : compare.saveCents > 0 ? (
+                  <p className="mt-1 text-xs opacity-80">
+                    Covers a fee under {formatUsdCompact(compare.saveCents)}
+                  </p>
+                ) : null}
+              </div>
+              <div className="live-actions">
+                <Handoff candidate={active} resolver={resolver} compact />
+                <div className="quiet-row">
+                  <button type="button" onClick={() => void copyCompare(active)}>
+                    Copy you vs this
                   </button>
-                  <button type="button" onClick={() => void copyFields(active)}>
-                    Copy Amtrak fields
-                  </button>
-                  <button type="button" onClick={() => void copyWindow()}>
-                    Copy window
-                  </button>
-                  <button type="button" onClick={() => hideTrain(candidateKey(active))}>
-                    Hide this visit
+                  <button
+                    type="button"
+                    className="live-more-toggle"
+                    aria-expanded={liveMoreOpen}
+                    onClick={() => setLiveMoreOpen((value) => !value)}
+                  >
+                    {liveMoreOpen ? "Less" : "More"}
                   </button>
                 </div>
-              ) : null}
+                {liveMoreOpen ? (
+                  <div className="quiet-row live-more">
+                    <button type="button" onClick={() => downloadIcs(active)}>
+                      Add to calendar
+                    </button>
+                    <button type="button" onClick={() => void copyFields(active)}>
+                      Copy Amtrak fields
+                    </button>
+                    <button type="button" onClick={() => void copyWindow()}>
+                      Copy window
+                    </button>
+                    <button type="button" onClick={() => hideTrain(candidateKey(active))}>
+                      Hide this visit
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             </div>
-          </div>
-        ) : (
-          <p className="live-hint">J / K walk · H skip · W window · Y you vs this</p>
-        )}
-        <div className="dock-btns">
-          <button
-            className="btn btn-ink"
-            disabled={busy || watch.status !== "ACTIVE"}
-            onClick={() => action(`/api/watches/${watch.id}/check`, "POST", undefined, true)}
-          >
-            Check now
-          </button>
-          <button
-            className="btn btn-ghost"
-            disabled={busy || watch.status === "COMPLETED"}
-            onClick={() =>
-              action(`/api/watches/${watch.id}`, "PATCH", {
-                status: watch.status === "PAUSED" ? "ACTIVE" : "PAUSED",
-              })
-            }
-          >
-            {watch.status === "PAUSED" ? "Resume" : "Pause"}
-          </button>
-          <Link href={reverseHref as Route} className="btn btn-ghost">
-            Watch return
-          </Link>
-          <div className="dock-more">
-            <div className="stay-dock">
-              <span className="eyebrow">Stay</span>
-              {([1, 2, 3, 4, 7] as const).map((days) => (
-                <button
-                  key={days}
-                  type="button"
-                  className={`chip ${stayDays === days ? "chip-on" : ""}`}
-                  onClick={() => setStayDays(days)}
-                >
-                  {days}d
-                </button>
-              ))}
-            </div>
-            <button type="button" className="btn btn-ghost" onClick={() => void copyPacket()}>
-              Copy packet
+          ) : (
+            <p className="live-hint">J / K walk · H skip · W window · Y you vs this</p>
+          )}
+          <div className="dock-btns">
+            <button
+              className="btn btn-ink"
+              disabled={busy || watch.status !== "ACTIVE"}
+              onClick={() => action(`/api/watches/${watch.id}/check`, "POST", undefined, true)}
+            >
+              Check now
             </button>
-            {/* Two steps, because this is irreversible and sits one click from
+            <button
+              className="btn btn-ghost"
+              disabled={busy || watch.status === "COMPLETED"}
+              onClick={() =>
+                action(`/api/watches/${watch.id}`, "PATCH", {
+                  status: watch.status === "PAUSED" ? "ACTIVE" : "PAUSED",
+                })
+              }
+            >
+              {watch.status === "PAUSED" ? "Resume" : "Pause"}
+            </button>
+            <Link href={reverseHref as Route} className="btn btn-ghost">
+              Watch return
+            </Link>
+            <div className="dock-more">
+              <div className="stay-dock">
+                <span className="eyebrow">Stay</span>
+                {([1, 2, 3, 4, 7] as const).map((days) => (
+                  <button
+                    key={days}
+                    type="button"
+                    className={`chip ${stayDays === days ? "chip-on" : ""}`}
+                    onClick={() => setStayDays(days)}
+                  >
+                    {days}d
+                  </button>
+                ))}
+              </div>
+              <button type="button" className="btn btn-ghost" onClick={() => void copyPacket()}>
+                Copy packet
+              </button>
+              {/* Two steps, because this is irreversible and sits one click from
                 "Copy packet". Deleting a watch takes its whole price history
                 with it — the thing the traveler has been accumulating — and
                 there is no undo anywhere in the product. */}
-            <button
-              className="btn btn-ghost dock-danger"
-              disabled={busy}
-              aria-label={confirmDelete ? "Confirm deleting this watch" : "Delete this watch"}
-              onClick={async () => {
-                if (!confirmDelete) {
-                  setConfirmDelete(true);
-                  window.setTimeout(() => setConfirmDelete(false), 4000);
-                  return;
-                }
-                const ok = await action(`/api/watches/${watch.id}`, "DELETE");
-                if (ok) router.push("/dashboard");
-              }}
-            >
-              {confirmDelete ? "Delete for good?" : "Delete"}
-            </button>
+              <button
+                className="btn btn-ghost dock-danger"
+                disabled={busy}
+                aria-label={confirmDelete ? "Confirm deleting this watch" : "Delete this watch"}
+                onClick={async () => {
+                  if (!confirmDelete) {
+                    setConfirmDelete(true);
+                    window.setTimeout(() => setConfirmDelete(false), 4000);
+                    return;
+                  }
+                  const ok = await action(`/api/watches/${watch.id}`, "DELETE");
+                  if (ok) router.push("/dashboard");
+                }}
+              >
+                {confirmDelete ? "Delete for good?" : "Delete"}
+              </button>
+            </div>
           </div>
         </div>
       </section>

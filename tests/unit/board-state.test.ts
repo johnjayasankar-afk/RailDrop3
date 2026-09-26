@@ -342,3 +342,92 @@ describe("clockFiltersActive", () => {
     expect(clockFiltersActive({ ...initialBoardState, savingsOnly: true })).toBe(false);
   });
 });
+
+describe("focus intent", () => {
+  it("does not claim intent for a row the board picked on load", () => {
+    const next = boardReducer(initialBoardState, { type: "AUTO_FOCUS", key: "j1:f1" });
+    expect(next.focusKey).toBe("j1:f1");
+    expect(next.focusIntent).toBe(false);
+  });
+
+  it("claims intent when a row is focused directly", () => {
+    const next = boardReducer(initialBoardState, { type: "SET_FOCUS", key: "j1:f1" });
+    expect(next.focusIntent).toBe(true);
+  });
+
+  it("claims intent when J or K moves focus", () => {
+    const auto = boardReducer(initialBoardState, { type: "AUTO_FOCUS", key: "j1:f1" });
+    const moved = boardReducer(auto, {
+      type: "MOVE_FOCUS",
+      direction: "next",
+      keys: ["j1:f1", "j2:f2"],
+    });
+    expect(moved.focusKey).toBe("j2:f2");
+    expect(moved.focusIntent).toBe(true);
+  });
+
+  it("drops intent along with focus when the view is reset", () => {
+    const moved = boardReducer(initialBoardState, { type: "SET_FOCUS", key: "j1:f1" });
+    expect(boardReducer(moved, { type: "RESET_VIEW" }).focusIntent).toBe(false);
+    expect(boardReducer(moved, { type: "CLEAR_FILTERS" }).focusIntent).toBe(false);
+  });
+
+  it("claims intent when undo brings a row back", () => {
+    const hidden = boardReducer(
+      { ...initialBoardState, hiddenKeys: ["j1:f1"] },
+      { type: "UNDO_HIDE" },
+    );
+    expect(hidden.focusKey).toBe("j1:f1");
+    expect(hidden.focusIntent).toBe(true);
+  });
+
+  it("does not claim intent when clearing focus", () => {
+    const moved = boardReducer(initialBoardState, { type: "SET_FOCUS", key: "j1:f1" });
+    expect(boardReducer(moved, { type: "SET_FOCUS", key: null }).focusIntent).toBe(false);
+  });
+});
+
+describe("HYDRATE", () => {
+  it("adopts a whole state from a link", () => {
+    const linked: BoardState = {
+      ...initialBoardState,
+      dateFilter: "2026-10-04",
+      sort: "price",
+      zen: true,
+      pins: ["j1:f1"],
+    };
+    expect(boardReducer(initialBoardState, { type: "HYDRATE", state: linked })).toEqual(linked);
+  });
+
+  it("replaces rather than merges, so an absent field reads as its default", () => {
+    const dirty: BoardState = { ...initialBoardState, service: "acela", savingsOnly: true };
+    const linked: BoardState = { ...initialBoardState, sort: "price" };
+    const next = boardReducer(dirty, { type: "HYDRATE", state: linked });
+    expect(next.service).toBe("all");
+    expect(next.savingsOnly).toBe(false);
+    expect(next.sort).toBe("price");
+  });
+
+  it("keeps the board's own focus when the link names no row", () => {
+    // The board focuses your train on mount; a link carrying only filters must
+    // not leave the keyboard with nowhere to start.
+    const focused: BoardState = { ...initialBoardState, focusKey: "yours:f1" };
+    const linked: BoardState = { ...initialBoardState, sort: "price" };
+    const next = boardReducer(focused, { type: "HYDRATE", state: linked });
+    expect(next.focusKey).toBe("yours:f1");
+    // Still the board's choice, so it does not go back into the URL.
+    expect(next.focusIntent).toBe(false);
+  });
+
+  it("prefers the link's focus when it has one", () => {
+    const focused: BoardState = { ...initialBoardState, focusKey: "yours:f1" };
+    const linked: BoardState = {
+      ...initialBoardState,
+      focusKey: "shared:f2",
+      focusIntent: true,
+    };
+    const next = boardReducer(focused, { type: "HYDRATE", state: linked });
+    expect(next.focusKey).toBe("shared:f2");
+    expect(next.focusIntent).toBe(true);
+  });
+});

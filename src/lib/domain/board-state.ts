@@ -44,6 +44,16 @@ export interface BoardState {
   /** At most two, for the compare panel. */
   picked: string[];
   focusKey: string | null;
+  /**
+   * Whether a person chose the focused row, or the board did.
+   *
+   * The board focuses your train — or the cheapest option — as soon as it
+   * loads, so `focusKey` is almost never null and cannot be used to decide
+   * whether focus is worth putting in a shareable URL. Without this, every
+   * first visit to every board rewrote its own address bar with a row nobody
+   * had picked, and "Copy link" always claimed to be copying a view.
+   */
+  focusIntent: boolean;
 }
 
 export const initialBoardState: BoardState = {
@@ -65,6 +75,7 @@ export const initialBoardState: BoardState = {
   hiddenKeys: [],
   picked: [],
   focusKey: null,
+  focusIntent: false,
 };
 
 export type BoardAction =
@@ -85,11 +96,22 @@ export type BoardAction =
   | { type: "TOGGLE_SHOW_ALL" }
   | { type: "TOGGLE_ZEN" }
   | { type: "SET_FOCUS"; key: string | null }
+  /** The board choosing a starting row on load. Not a choice anyone made. */
+  | { type: "AUTO_FOCUS"; key: string }
   /** J and K. `keys` is the board's current navigable order. */
   | { type: "MOVE_FOCUS"; direction: "next" | "previous"; keys: readonly string[] }
   | { type: "TOGGLE_PIN"; key: string }
   /** Rehydrating from storage, which is not a user action. */
   | { type: "LOAD_PINS"; pins: string[] }
+  /**
+   * Adopting a whole state from a shared link, once, on mount.
+   *
+   * Separate from LOAD_PINS because a link carries the entire view and not one
+   * field of it, and separate from the individual setters because replaying
+   * fourteen actions to restore one URL would fire fourteen renders and
+   * fourteen history writes.
+   */
+  | { type: "HYDRATE"; state: BoardState }
   | { type: "HIDE"; key: string; nextFocus: string | null }
   | { type: "UNDO_HIDE" }
   /** "Show N hidden" brings the whole stack back at once, unlike undo. */
@@ -116,6 +138,7 @@ const CLEARED_FILTERS = {
   hiddenKeys: [],
   hideDeparted: false,
   focusKey: null,
+  focusIntent: false,
 } as const satisfies Partial<BoardState>;
 
 export function boardReducer(state: BoardState, action: BoardAction): BoardState {
@@ -167,11 +190,20 @@ export function boardReducer(state: BoardState, action: BoardAction): BoardState
       return { ...state, zen: !state.zen };
 
     case "SET_FOCUS":
+      return { ...state, focusKey: action.key, focusIntent: action.key !== null };
+
+    case "AUTO_FOCUS":
+      // Deliberately leaves focusIntent alone: a row the board picked is not
+      // part of the view anyone would share.
       return { ...state, focusKey: action.key };
 
     case "MOVE_FOCUS": {
       if (action.keys.length === 0) return state;
-      return { ...state, focusKey: focusAfterMove(action.keys, state.focusKey, action.direction) };
+      return {
+        ...state,
+        focusKey: focusAfterMove(action.keys, state.focusKey, action.direction),
+        focusIntent: true,
+      };
     }
 
     case "TOGGLE_PIN":
@@ -185,6 +217,18 @@ export function boardReducer(state: BoardState, action: BoardAction): BoardState
     case "LOAD_PINS":
       return { ...state, pins: action.pins };
 
+    case "HYDRATE":
+      return {
+        ...action.state,
+        // A link that names no row does not un-focus the board. The board picks
+        // a sensible first focus on mount (your train, else the cheapest), and
+        // a URL carrying filters but no `x` should keep it rather than leave
+        // the keyboard with nowhere to start — but it stays the board's choice,
+        // so it does not go back into the URL.
+        focusKey: action.state.focusKey ?? state.focusKey,
+        focusIntent: action.state.focusKey !== null,
+      };
+
     case "HIDE":
       if (state.hiddenKeys.includes(action.key)) return state;
       return {
@@ -196,8 +240,13 @@ export function boardReducer(state: BoardState, action: BoardAction): BoardState
     case "UNDO_HIDE": {
       const last = state.hiddenKeys[state.hiddenKeys.length - 1];
       if (!last) return state;
-      // Focus follows the row back onto the board.
-      return { ...state, hiddenKeys: state.hiddenKeys.slice(0, -1), focusKey: last };
+      // Focus follows the row back onto the board, and they asked for it.
+      return {
+        ...state,
+        hiddenKeys: state.hiddenKeys.slice(0, -1),
+        focusKey: last,
+        focusIntent: true,
+      };
     }
 
     case "UNHIDE_ALL":

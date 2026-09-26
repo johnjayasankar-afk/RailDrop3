@@ -3,6 +3,7 @@ import { sendFareDropEmail, sendOpportunityLostEmail } from "@/lib/notifications
 import type { Mailer } from "@/lib/notifications/send-alert";
 import type { WatchRecord } from "@/lib/db/models";
 import type { RankedCandidate } from "@/lib/domain/types";
+import { decodeBoardState } from "@/lib/domain/board-url";
 
 /* Structural guards on the alert emails.
  *
@@ -125,6 +126,29 @@ describe("fare drop email", () => {
     expect(mail.text).toContain("/unsubscribe?");
     expect(mail.headers?.["List-Unsubscribe"]).toMatch(/^<https:\/\//);
     expect(mail.headers?.["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
+  });
+
+  it("deep-links to the board already showing the day of the drop", async () => {
+    // The generic watch link made the reader re-do the filtering: a ±3 window
+    // opens at sixty rows and the fare the email is about is somewhere in them.
+    const mail = await renderDrop();
+    const href = /href="([^"]*\?b=[^"]*)"/.exec(mail.html)?.[1] ?? "";
+    const state = decodeBoardState(new URL(href.replaceAll("&amp;", "&")).searchParams.get("b"));
+    expect(state.dateFilter).toBe("2026-10-09");
+    expect(state.sort).toBe("price");
+    expect(state.showAll).toBe(true);
+    // And the plain-text part gets the same link, not the bare board.
+    expect(mail.text).toContain("?b=");
+  });
+
+  it("does not pin the fare it is about", async () => {
+    // It may have sold out by the time the mail is opened. A link pinning it
+    // would open on an empty board and read as broken rather than as sold out.
+    const mail = await renderDrop();
+    const href = /href="([^"]*\?b=[^"]*)"/.exec(mail.html)?.[1] ?? "";
+    const state = decodeBoardState(new URL(href.replaceAll("&amp;", "&")).searchParams.get("b"));
+    expect(state.pins).toEqual([]);
+    expect(state.focusKey).toBeNull();
   });
 
   it("says who it is from and that it is not Amtrak", async () => {

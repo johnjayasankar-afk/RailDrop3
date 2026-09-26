@@ -14,7 +14,9 @@ import {
   daysUntilFlap,
 } from "@/lib/domain/calendar";
 import { travelUrgency } from "@/lib/domain/board-moves";
-import { formatRelativeTime, isCheckStale } from "@/lib/domain/relative-time";
+import { isCheckStale } from "@/lib/domain/relative-time";
+import { RelativeTime } from "@/components/relative-time";
+import { formatBoardStamp } from "@/lib/domain/timezone";
 import { savingsPercent } from "@/lib/domain/board-tools";
 import { stationLabel } from "@/lib/stations/catalog";
 import { RouteRibbon } from "@/components/route-ribbon";
@@ -417,8 +419,12 @@ export function WatchList({ watches, today }: { watches: WatchRecord[]; today: s
                   foundCents={watch.bestPriceCents}
                 />
                 <p className="mt-4 text-sm text-ink-soft">
-                  Checked {formatRelativeTime(watch.lastCheckedAt)} · Next scan{" "}
-                  {watch.nextCheckAtLabel ?? "—"}
+                  Checked{" "}
+                  <RelativeTime
+                    at={watch.lastCheckedAt}
+                    fallback={formatBoardStamp(watch.lastCheckedAt, watch.timezone)}
+                  />{" "}
+                  · Next scan {watch.nextCheckAtLabel ?? "—"}
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2 text-sm">
                   <Link href={`/watches/${watch.id}`} className="btn btn-ink">

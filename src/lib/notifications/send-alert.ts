@@ -5,6 +5,7 @@ import { formatClock } from "@/lib/domain/timezone";
 import type { CycleStatus, RankedCandidate } from "@/lib/domain/types";
 import type { WatchRecord } from "@/lib/db/models";
 import { unsubscribeHeaders, unsubscribeUrl } from "./unsubscribe";
+import { alertBoardUrl } from "@/lib/domain/board-url";
 
 export interface MailerResult {
   status: "ACCEPTED" | "FAILED";
@@ -69,6 +70,15 @@ function renderHtml(input: Parameters<typeof sendFareDropEmail>[0]): string {
     .join("");
 
   const preheader = `${formatUsdCompact(best.totalPartyPriceCents)} on ${formatDisplayDate(best.journey.searchedTravelDate)} — ${formatUsdCompact(best.savingsCents)} below what you paid.`;
+  /* The board, already showing the day this drop is on, cheapest first.
+   *
+   * The generic watch link made the reader do the filtering again: a ±3 window
+   * on a busy corridor opens at sixty rows ranked by a heuristic, and the fare
+   * the email is about can be anywhere in it. This lands on the right day with
+   * the five-row cap lifted. It deliberately does not pin the row — by the time
+   * someone opens their mail that fare may be gone, and a link pinning it would
+   * open on an empty board and look broken rather than sold out. */
+  const boardLink = alertBoardUrl(input.appUrl, best.journey.searchedTravelDate);
 
   return `<!doctype html>
 <html><head><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark">
@@ -102,7 +112,7 @@ function renderHtml(input: Parameters<typeof sendFareDropEmail>[0]): string {
       ${formatClock(best.journey.departureAt)} → ${formatClock(best.journey.arrivalAt)}<br/>
       ${fareFamilyLabel(best.fare.fareFamily)} ${travelClassLabel(best.fare.travelClass)}<br/>
       ${dateBadge(best.dateOffsetDays)}</p>
-      <p><a href="${input.appUrl}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#1c3326;color:#ffffff;font-weight:600;text-decoration:none;">Open board · confirm on Amtrak</a></p>
+      <p><a href="${boardLink}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#1c3326;color:#ffffff;font-weight:600;text-decoration:none;">Open board · confirm on Amtrak</a></p>
       <p style="margin-top:12px;font-size:13px;color:#5f6862;white-space:pre-line;">Paste into Amtrak:
 ${input.watch.originCode} → ${input.watch.destinationCode}
 ${formatDisplayDate(best.journey.searchedTravelDate)}
@@ -138,7 +148,7 @@ function renderText(input: Parameters<typeof sendFareDropEmail>[0]): string {
     `${fareFamilyLabel(best.fare.fareFamily)} ${travelClassLabel(best.fare.travelClass)}`,
     dateBadge(best.dateOffsetDays),
     "",
-    `Open board: ${input.appUrl}`,
+    `Open board: ${alertBoardUrl(input.appUrl, best.journey.searchedTravelDate)}`,
     "Confirm on Amtrak before you change a ticket.",
     "",
     "PASTE INTO AMTRAK",

@@ -53,7 +53,7 @@ const FAQ = [
   ],
   [
     "Can I filter by when I need to leave or arrive?",
-    "Yes — leave after, arrive by, duration cap, and a 30-minute arrive buffer. Filters stay on this visit only.",
+    "Yes — leave after, arrive by, duration cap, and a 30-minute arrive buffer. The view lives in the URL, so you can copy it, reload it, or send it to whoever you are travelling with.",
   ],
   [
     "What does Beats your train mean?",

@@ -8,12 +8,15 @@ export function ShareSheet({
   copyWindow,
   copyPacket,
   copyShare,
+  shareLabel,
 }: {
   onClose: () => void;
   copyFriend: () => Promise<void> | void;
   copyWindow: () => Promise<void> | void;
   copyPacket: () => Promise<void> | void;
   copyShare: () => Promise<void> | void;
+  /** "Copy this view" once the board has been narrowed; "Copy link" otherwise. */
+  shareLabel: string;
 }) {
   function run(action: () => Promise<void> | void) {
     void action();
@@ -31,7 +34,7 @@ export function ShareSheet({
         Decision packet
       </button>
       <button type="button" onClick={() => run(copyShare)}>
-        Copy link
+        {shareLabel}
       </button>
     </div>
   );

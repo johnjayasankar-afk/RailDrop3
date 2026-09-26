@@ -82,6 +82,15 @@ body {
   color: var(--ink);
 }
 
+html {
+  /* Room for the two sticky bars, so scrollIntoView and anchor jumps never
+     leave the row you asked for sitting behind one of them. The header is 3.5rem
+     and the dock is taller; without this, following "Skip to content" or
+     focusing a row near a screen edge put it under a bar. */
+  scroll-padding-top: 4.5rem;
+  scroll-padding-bottom: 9rem;
+}
+
 body {
   font-family: var(--font-body);
   letter-spacing: -0.011em;
@@ -887,6 +896,24 @@ kbd {
   box-shadow: 0 -12px 40px -8px rgba(15, 42, 29, 0.18);
 }
 
+/* The dock is pinned to the bottom of the viewport, so it floats over whatever
+   content happens to be down there. Its readouts are text, not controls, and
+   they were swallowing taps meant for the chips underneath — on a 390px screen
+   that is a real miss, not a theoretical one: a mobile test could not tap
+   "I rebooked" because the word "Save" was on top of it. Only the dock's own
+   controls take pointer events now. */
+.action-dock .live-compare,
+.action-dock .live-col {
+  pointer-events: none;
+}
+
+.action-dock .live-compare button,
+.action-dock .live-compare a,
+.action-dock .live-compare input,
+.action-dock .live-compare select {
+  pointer-events: auto;
+}
+
 .print-only {
   display: none;
 }
@@ -939,8 +966,18 @@ kbd {
   opacity: 1;
 }
 
+/* The dock's collapsed state, on a phone only.
+ *
+ * Measured at 390x844 on a scrolled board: the sticky header took 59px, the
+ * sticky trip rail 120px, and the action dock 519px — 698 of 844, leaving a
+ * 137px band of screen that was not underneath something pinned. Taps aimed at
+ * chips in that band landed on the dock. Collapsed, the dock is its summary
+ * line and nothing else, and one tap opens the rest.
+ *
+ * Hidden above 768px, where there is room for the whole thing and the toggle
+ * would be a control that does nothing visible. */
 .dock-compare-toggle {
-  display: flex;
+  display: none;
   width: 100%;
   align-items: center;
   justify-content: space-between;
@@ -977,6 +1014,30 @@ kbd {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--mint-2);
+}
+
+@media (max-width: 767px) {
+  .dock-compare-toggle {
+    display: flex;
+  }
+
+  .action-dock:not(.is-expanded) .dock-body {
+    display: none;
+  }
+
+  /* Expanded, it is allowed to be tall — but it scrolls rather than covering
+     the page, and it never grows past half the screen. */
+  .action-dock.is-expanded .dock-body {
+    max-height: 52vh;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+  }
+}
+
+@media print {
+  .dock-compare-toggle {
+    display: none;
+  }
 }
 
 @media (max-width: 639px) {
@@ -2429,6 +2490,18 @@ a.depart-strip:hover {
   color: var(--drop);
   padding-left: 0.5rem;
   box-shadow: inset 2px 0 0 var(--drop);
+}
+
+/* A shared link named rows this board no longer has.
+   Same inset-rule idiom as .coverage-note — an aside in the margin, not an
+   alert. Nothing is wrong; part of the link is simply older than the fares. */
+.board-note {
+  margin-top: 0.6rem;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  padding-left: 0.6rem;
+  box-shadow: inset 2px 0 0 var(--gold);
 }
 
 @media (max-width: 767px) {
