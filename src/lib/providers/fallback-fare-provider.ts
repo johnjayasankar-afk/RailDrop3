@@ -28,14 +28,18 @@ export class FallbackFareProvider implements FareProvider {
       primaryError: primaryResult.providerError?.message ?? null,
       secondary: this.secondary.id,
     });
-    const secondaryResult = await this.secondary.searchTrips(request);
-    return {
-      ...secondaryResult,
-      metadata: {
-        ...secondaryResult.metadata,
-        // Preserve original request id lineage in logs via credits / latency already set.
-      },
-    };
+    /* Returned as-is, including its own metadata.source.
+     *
+     * Which provider answered is not bookkeeping — the two do not describe a
+     * fare the same way. Parse reports a real fare family; Wanderu reports
+     * none, so its fares are UNKNOWN. A board that silently mixed the two
+     * would show "Saver" on one date and "Unknown fare" on the next for no
+     * reason the reader could see, and the change-rule note would differ with
+     * it. The source travels with the result so that is at least traceable.
+     *
+     * This used to spread metadata over itself under a comment about
+     * preserving request-id lineage, which it did not do. */
+    return this.secondary.searchTrips(request);
   }
 
   async getStations(): Promise<Station[]> {

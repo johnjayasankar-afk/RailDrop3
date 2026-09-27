@@ -137,7 +137,26 @@ function normalizeTrip(
   const travelClass: TravelClass = /acela/i.test(serviceName) ? "BUSINESS" : "COACH";
   const fare: FareOption = {
     id: `${trip.trip_id ?? metadata.requestId}:listed`,
-    fareFamily: "FLEXIBLE",
+    /* UNKNOWN, because Wanderu does not tell us.
+     *
+     * This was hardcoded to FLEXIBLE, which made every fare from the default
+     * provider claim a fare family nobody reported. Three things followed from
+     * it, all wrong in the same direction:
+     *
+     *   - the board and the alert email both printed "Flexible"
+     *   - changeRuleNote said "Flexible is usually easiest to change"
+     *   - the "include cheaper restricted fares" filter silently passed
+     *     everything, because FLEXIBLE is not restricted
+     *
+     * Amtrak's cheapest corridor fare is usually Saver — non-refundable and
+     * often non-changeable. So the app was not merely guessing, it was guessing
+     * the least cautious answer, on the one attribute the entire "should I
+     * switch?" decision rests on. A traveler could act on "easiest to change"
+     * and find they were holding a ticket that cannot be changed at all.
+     *
+     * Inventing a fare's attributes is the same failure as inventing its
+     * price. We do not know this one, and we say so. */
+    fareFamily: "UNKNOWN",
     fareFamilyRaw: "WANDERU_LISTED",
     travelClass,
     travelClassRaw: travelClass,

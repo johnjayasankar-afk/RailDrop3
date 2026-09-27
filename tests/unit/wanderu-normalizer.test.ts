@@ -31,7 +31,14 @@ describe("Wanderu normalizer", () => {
     const regional = result.find((journey) => journey.trainNumber === "171");
     expect(regional?.serviceName).toBe("Northeast Regional");
     expect(regional?.fares[0]?.totalPartyPriceCents).toBe(3600);
-    expect(regional?.fares[0]?.fareFamily).toBe("FLEXIBLE");
+    /* UNKNOWN, not FLEXIBLE. Wanderu reports no fare family, and this used to
+       claim one — which made the board print "Flexible", told the reader it was
+       "usually easiest to change", and let every fare through the "no
+       restricted fares" filter. Amtrak's cheapest corridor fare is usually a
+       Saver, so the guess was both unsupported and the least cautious one
+       available. */
+    expect(regional?.fares[0]?.fareFamily).toBe("UNKNOWN");
+    expect(regional?.fares[0]?.fareFamilyRaw).toBe("WANDERU_LISTED");
     expect(regional?.serviceType).toBe("DIRECT_RAIL");
     const acela = result.find((journey) => journey.trainNumber === "2155");
     expect(acela?.fares[0]?.travelClass).toBe("BUSINESS");

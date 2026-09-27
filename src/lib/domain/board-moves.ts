@@ -135,6 +135,11 @@ export function changeRuleNote(family: FareFamily): string {
       return "Value often has change fees: confirm on Amtrak.";
     case "SAVER":
       return "Saver is often restrictive. Confirm you can change it on Amtrak.";
+    case "UNKNOWN":
+      /* The common case on the default provider, so it gets its own sentence
+         rather than the catch-all. It must not imply the fare is easy to
+         change: Amtrak's cheapest corridor fares usually are not. */
+      return "This source does not say which fare type this is. It may be a Saver, which is often non-refundable and hard to change — check before you switch.";
     default:
       return "Change rules depend on the fare you bought. Confirm on Amtrak.";
   }

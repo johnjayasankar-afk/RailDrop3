@@ -37,7 +37,22 @@ export function isFareEligible(
   if (!rules.includeRestrictedFares && isRestrictedFare(fare.fareFamily)) {
     return false;
   }
-  if (!rules.includeRestrictedFares && fare.fareFamily !== "FLEXIBLE") {
+  /* A family we were never told is not a family we can filter on.
+   *
+   * Wanderu reports no fare family at all, so every fare from the default
+   * provider is UNKNOWN. Dropping those here would empty the board completely;
+   * treating them as FLEXIBLE — which is what the normalizer used to do — is a
+   * claim we cannot support about the attribute that decides whether switching
+   * is even possible.
+   *
+   * So they pass, and they are labelled "Unknown fare" wherever they appear,
+   * with change rules the reader is told to confirm. The filter does what it
+   * can and the UI says what it cannot. */
+  if (
+    !rules.includeRestrictedFares &&
+    fare.fareFamily !== "FLEXIBLE" &&
+    fare.fareFamily !== "UNKNOWN"
+  ) {
     return false;
   }
   return true;
