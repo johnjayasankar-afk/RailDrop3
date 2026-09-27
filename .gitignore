@@ -1,5 +1,7 @@
 node_modules/
 .next/
+# A 97MB build output that was committed by accident.
+.next-demo/
 .DS_Store
 .env*.local
 .playwright/

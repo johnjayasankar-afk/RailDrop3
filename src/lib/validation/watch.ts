@@ -1,17 +1,17 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 export const createWatchSchema = z.object({
   originCode: z
     .string()
     .trim()
     .toUpperCase()
-    .regex(/^[A-Z0-9]{3}$/, "Origin must be a 3-character station code"),
+    .regex(/^[A-Z0-9]{3}$/, 'Origin must be a 3-character station code'),
   destinationCode: z
     .string()
     .trim()
     .toUpperCase()
-    .regex(/^[A-Z0-9]{3}$/, "Destination must be a 3-character station code"),
-  desiredTravelDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Desired date must be YYYY-MM-DD"),
+    .regex(/^[A-Z0-9]{3}$/, 'Destination must be a 3-character station code'),
+  desiredTravelDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Desired date must be YYYY-MM-DD'),
   dateFlexibilityDays: z.union([z.literal(0), z.literal(1), z.literal(2)]).default(1),
   preferredDepartureTime: z
     .string()
@@ -23,20 +23,20 @@ export const createWatchSchema = z.object({
   bookedTrainNumber: z.string().trim().max(16).nullable().optional(),
   bookedDepartureAt: z.string().nullable().optional(),
   bookedFareFamily: z
-    .enum(["FLEXIBLE", "VALUE", "SAVER", "PREMIUM", "OTHER", "UNKNOWN"])
-    .default("FLEXIBLE"),
+    .enum(['FLEXIBLE', 'VALUE', 'SAVER', 'PREMIUM', 'OTHER', 'UNKNOWN'])
+    .default('FLEXIBLE'),
   travelClass: z
-    .enum(["COACH", "BUSINESS", "FIRST", "SLEEPER", "OTHER", "UNKNOWN"])
-    .default("COACH"),
+    .enum(['COACH', 'BUSINESS', 'FIRST', 'SLEEPER', 'OTHER', 'UNKNOWN'])
+    .default('COACH'),
   includeRestrictedFares: z.boolean().default(false),
   includeThruway: z.boolean().default(false),
   minimumSavingsCents: z.number().int().min(100).max(100_000).default(100),
   bookedAt: z.string().datetime().optional(),
-  monitorPreset: z.enum(["24h", "48h", "72h", "until_departure", "custom"]).default("48h"),
+  monitorPreset: z.enum(['24h', '48h', '72h', 'until_departure', 'custom']).default('48h'),
   customMonitorEndAt: z.string().datetime().nullable().optional(),
-  timezone: z.string().default("America/New_York"),
+  timezone: z.string().default('America/New_York'),
   alertEmail: z.preprocess(
-    (value) => (typeof value === "string" && value.trim() === "" ? null : value),
+    (value) => (typeof value === 'string' && value.trim() === '' ? null : value),
     z.string().email().nullable().optional(),
   ),
 });
@@ -51,7 +51,7 @@ export const rebookSchema = z.object({
   newTrainNumber: z.string().trim().max(16).nullable().optional(),
   newDepartureAt: z.string().nullable().optional(),
   newFareFamily: z
-    .enum(["FLEXIBLE", "VALUE", "SAVER", "PREMIUM", "OTHER", "UNKNOWN"])
+    .enum(['FLEXIBLE', 'VALUE', 'SAVER', 'PREMIUM', 'OTHER', 'UNKNOWN'])
     .nullable()
     .optional(),
   updateDesiredDate: z.boolean().default(false),
@@ -63,3 +63,32 @@ export const stationQuerySchema = z.object({
 
 export type CreateWatchInput = z.infer<typeof createWatchSchema>;
 export type RebookInput = z.infer<typeof rebookSchema>;
+
+/* A fare lookup that saves nothing.
+ *
+ * The same trip fields as a watch, minus everything that only matters once
+ * something is being watched: no booked price (there is nothing to compare
+ * against), no alert email, no monitoring window. Kept as its own schema rather
+ * than a partial of createWatchSchema so that adding a required field to a
+ * watch cannot silently start rejecting previews.
+ */
+export const previewFaresSchema = z.object({
+  originCode: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z0-9]{3}$/, 'Origin must be a 3-character station code'),
+  destinationCode: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z0-9]{3}$/, 'Destination must be a 3-character station code'),
+  desiredTravelDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD'),
+  dateFlexibilityDays: z.union([z.literal(0), z.literal(1), z.literal(2)]).default(1),
+  passengerCount: z.number().int().min(1).max(8).default(1),
+  includeRestrictedFares: z.boolean().default(false),
+  includeThruway: z.boolean().default(false),
+  timezone: z.string().default('America/New_York'),
+});
+
+export type PreviewFaresInput = z.infer<typeof previewFaresSchema>;

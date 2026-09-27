@@ -1,18 +1,20 @@
-"use client";
+'use client';
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { PageFrame } from "@/components/page-frame";
-import { StationField } from "@/components/station-field";
-import { SearchingOverlay } from "@/components/searching-overlay";
-import { formatDisplayDate } from "@/lib/domain/calendar";
-import { stationLabel } from "@/lib/stations/catalog";
-import type { WatchFormInitial } from "@/lib/domain/watch-query";
-import { RouteRibbon } from "@/components/route-ribbon";
-import { Flap } from "@/components/flap";
-import { changeRuleNote } from "@/lib/domain/board-moves";
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { PageFrame } from '@/components/page-frame';
+import { StationField } from '@/components/station-field';
+import { SearchingOverlay } from '@/components/searching-overlay';
+import { formatDisplayDate } from '@/lib/domain/calendar';
+import { stationLabel } from '@/lib/stations/catalog';
+import type { WatchFormInitial } from '@/lib/domain/watch-query';
+import { RouteRibbon } from '@/components/route-ribbon';
+import { Flap } from '@/components/flap';
+import { UnsavedFares } from '@/components/unsaved-fares';
+import type { FarePreview } from '@/lib/watches/preview-fares';
+import { changeRuleNote } from '@/lib/domain/board-moves';
 
-const LAST_ROUTE = "raildrop.lastRoute";
+const LAST_ROUTE = 'raildrop.lastRoute';
 
 export function NewWatchForm({
   email,
@@ -30,21 +32,31 @@ export function NewWatchForm({
     date.setDate(date.getDate() + 14);
     return date.toISOString().slice(0, 10);
   }, []);
-  const [origin, setOrigin] = useState(initial?.origin ?? "BOS");
-  const [destination, setDestination] = useState(initial?.destination ?? "NYP");
+  const [origin, setOrigin] = useState(initial?.origin ?? 'BOS');
+  const [destination, setDestination] = useState(initial?.destination ?? 'NYP');
   const [date, setDate] = useState(initial?.date ?? defaultDate);
   const [flexibility, setFlexibility] = useState(1);
-  const [preferredTime, setPreferredTime] = useState("");
-  const [price, setPrice] = useState(initial?.price ?? "");
-  const [bookedTrain, setBookedTrain] = useState("");
-  const [fareFamily, setFareFamily] = useState<"FLEXIBLE" | "VALUE" | "SAVER">("FLEXIBLE");
+  const [preferredTime, setPreferredTime] = useState('');
+  const [price, setPrice] = useState(initial?.price ?? '');
+  const [bookedTrain, setBookedTrain] = useState('');
+  const [fareFamily, setFareFamily] = useState<'FLEXIBLE' | 'VALUE' | 'SAVER'>('FLEXIBLE');
   const [passengers, setPassengers] = useState(1);
   const [restricted, setRestricted] = useState(false);
   const [includeThruway, setIncludeThruway] = useState(false);
-  const [monitor, setMonitor] = useState("48h");
-  const [threshold, setThreshold] = useState("1");
-  const [alertEmail, setAlertEmail] = useState("");
+  const [monitor, setMonitor] = useState('48h');
+  const [threshold, setThreshold] = useState('1');
+  const [alertEmail, setAlertEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
+  /**
+   * Fares we found when we could not save the watch.
+   *
+   * The product's promise is "here are the live Amtrak fares for your trip",
+   * and it does not need a database to keep it. But every path to a price went
+   * through creating a watch first, so when the database behind a deployment
+   * went away the app could not show anybody a single fare — while the scraper
+   * was working perfectly the whole time.
+   */
+  const [unsaved, setUnsaved] = useState<FarePreview | null>(null);
   const [busy, setBusy] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
@@ -80,11 +92,11 @@ export function NewWatchForm({
     event.preventDefault();
     const paid = Number(price);
     if (!Number.isFinite(paid) || paid <= 0) {
-      setError("Enter the actual total you paid.");
+      setError('Enter the actual total you paid.');
       return;
     }
     if (origin === destination) {
-      setError("Origin and destination must differ.");
+      setError('Origin and destination must differ.');
       return;
     }
     abortRef.current?.abort();
@@ -94,9 +106,9 @@ export function NewWatchForm({
     setElapsed(0);
     setError(null);
     try {
-      const response = await fetch("/api/watches", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const response = await fetch('/api/watches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
         body: JSON.stringify({
           originCode: origin,
@@ -113,19 +125,51 @@ export function NewWatchForm({
           monitorPreset: monitor,
           minimumSavingsCents: Math.round(Number(threshold) * 100),
           alertEmail: alertEmail || null,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York",
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York',
         }),
       });
       const json = await response.json();
-      if (!response.ok) throw new Error(json.error ?? "Could not create watch");
+      if (!response.ok) throw new Error(json.error ?? 'Could not create watch');
       router.push(`/watches/${json.watch.id}`);
     } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") {
-        setError("Scan dismissed: create again when you are ready.");
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        setError('Scan dismissed: create again when you are ready.');
         setBusy(false);
         return;
       }
-      setError(err instanceof Error ? err.message : "Could not create watch");
+      const message = err instanceof Error ? err.message : 'Could not create watch';
+      setError(message);
+
+      /* We could not save it. We can still answer the question.
+       *
+       * Only for a failure that is ours — a database we could not reach. A
+       * rejected date or a bad station code is the form's problem and showing
+       * fares underneath it would be answering a different question than the
+       * one that failed. */
+      if (/could not reach|try again in a minute/i.test(message)) {
+        try {
+          const response = await fetch('/api/fares', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              originCode: origin,
+              destinationCode: destination,
+              desiredTravelDate: date,
+              dateFlexibilityDays: flexibility,
+              passengerCount: passengers,
+              includeRestrictedFares: restricted,
+              includeThruway,
+              timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York',
+            }),
+          });
+          const json = await response.json();
+          if (response.ok && json.preview) setUnsaved(json.preview as FarePreview);
+        } catch {
+          // The fallback failing changes nothing: the error above already says
+          // what happened, and a second message about a second failure helps
+          // nobody.
+        }
+      }
       setBusy(false);
     } finally {
       if (abortRef.current === controller) abortRef.current = null;
@@ -205,20 +249,20 @@ export function NewWatchForm({
               <fieldset className="text-sm">
                 <legend className="mb-2">Date flexibility</legend>
                 {[
-                  [0, "Exact date"],
-                  [1, "±1 day · recommended"],
-                  [2, "±2 days"],
+                  [0, 'Exact date'],
+                  [1, '±1 day · recommended'],
+                  [2, '±2 days'],
                 ].map(([value, label]) => (
                   <label
                     key={String(value)}
-                    className={`choice ${flexibility === value ? "choice-on" : ""}`}
+                    className={`choice ${flexibility === value ? 'choice-on' : ''}`}
                   >
                     <input
                       type="radio"
                       name="flex"
                       checked={flexibility === value}
                       onChange={() => setFlexibility(Number(value))}
-                    />{" "}
+                    />{' '}
                     {label}
                   </label>
                 ))}
@@ -247,7 +291,7 @@ export function NewWatchForm({
                     required
                     inputMode="decimal"
                     value={price}
-                    onChange={(event) => setPrice(event.target.value.replace(/[^0-9.]/g, ""))}
+                    onChange={(event) => setPrice(event.target.value.replace(/[^0-9.]/g, ''))}
                     className="field pl-7"
                     placeholder="What you actually paid"
                   />
@@ -267,21 +311,21 @@ export function NewWatchForm({
                 <legend className="mb-2">Fare you actually bought</legend>
                 {(
                   [
-                    ["FLEXIBLE", "Flexible"],
-                    ["VALUE", "Value"],
-                    ["SAVER", "Saver"],
+                    ['FLEXIBLE', 'Flexible'],
+                    ['VALUE', 'Value'],
+                    ['SAVER', 'Saver'],
                   ] as const
                 ).map(([value, label]) => (
                   <label
                     key={value}
-                    className={`choice ${fareFamily === value ? "choice-on" : ""}`}
+                    className={`choice ${fareFamily === value ? 'choice-on' : ''}`}
                   >
                     <input
                       type="radio"
                       name="fareFamily"
                       checked={fareFamily === value}
                       onChange={() => setFareFamily(value)}
-                    />{" "}
+                    />{' '}
                     {label}
                   </label>
                 ))}
@@ -308,7 +352,7 @@ export function NewWatchForm({
                   type="checkbox"
                   checked={restricted}
                   onChange={(event) => setRestricted(event.target.checked)}
-                />{" "}
+                />{' '}
                 Also include cheaper restricted fares
               </label>
               <label className="block text-sm">
@@ -316,7 +360,7 @@ export function NewWatchForm({
                   type="checkbox"
                   checked={includeThruway}
                   onChange={(event) => setIncludeThruway(event.target.checked)}
-                />{" "}
+                />{' '}
                 Include Amtrak Thruway / bus connections
               </label>
               <label className="block text-sm">
@@ -352,13 +396,13 @@ export function NewWatchForm({
                   value={alertEmail}
                   onChange={(event) => setAlertEmail(event.target.value)}
                   className="field"
-                  placeholder={email || "you@email.com"}
+                  placeholder={email || 'you@email.com'}
                 />
               </label>
               <p className="text-xs text-ink-soft">
                 {isGuest
-                  ? "Leave blank to watch prices on this device only. Add an email if you want fare-drop alerts."
-                  : "Leave blank to skip email alerts. We’ll use this address when a listed fare drops."}
+                  ? 'Leave blank to watch prices on this device only. Add an email if you want fare-drop alerts.'
+                  : 'Leave blank to skip email alerts. We’ll use this address when a listed fare drops.'}
               </p>
             </section>
             {error ? (
@@ -366,8 +410,9 @@ export function NewWatchForm({
                 {error}
               </p>
             ) : null}
+            {unsaved ? <UnsavedFares preview={unsaved} /> : null}
             <button disabled={busy} className="btn btn-primary w-full py-3">
-              {busy ? "Checking your window…" : "Start watching"}
+              {busy ? 'Checking your window…' : 'Start watching'}
             </button>
           </form>
           <aside className="h-fit lg:sticky lg:top-20">
@@ -386,7 +431,7 @@ export function NewWatchForm({
               </p>
               <p className="mt-3">
                 <Flap>{formatDisplayDate(date)}</Flap>
-                {flexibility ? ` ±${flexibility}` : " · exact date"}
+                {flexibility ? ` ±${flexibility}` : ' · exact date'}
               </p>
               {preferredTime ? (
                 <p className="mt-1 text-xs text-ink-soft">Preferred {preferredTime}</p>
@@ -395,10 +440,10 @@ export function NewWatchForm({
                 <p className="mt-1 text-xs text-ink-soft">Watching train {bookedTrain.trim()}</p>
               ) : null}
               <p className="mt-1">
-                {passengers} passenger{passengers === 1 ? "" : "s"} · {fareFamily.toLowerCase()}
+                {passengers} passenger{passengers === 1 ? '' : 's'} · {fareFamily.toLowerCase()}
               </p>
               <p className="price serif mt-4 text-3xl">
-                <Flap>{price ? `$${price}` : "$0"}</Flap>
+                <Flap>{price ? `$${price}` : '$0'}</Flap>
               </p>
               <p className="text-xs text-ink-soft">Your booking · confirm on Amtrak later</p>
               {initial?.origin && initial?.destination ? (

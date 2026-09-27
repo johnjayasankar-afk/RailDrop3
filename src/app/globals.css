@@ -3374,3 +3374,84 @@ a.depart-strip:hover {
   line-height: 1.5;
   color: var(--ink-soft);
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Fares we found but could not save.
+   Drawn as a receipt, not a board: nothing here is being watched, so it must
+   not look like the thing that is.
+   ───────────────────────────────────────────────────────────────────────────── */
+.unsaved {
+  margin-top: 0.85rem;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  background: var(--paper-elevated);
+  padding: 1rem 1.1rem;
+  box-shadow: inset 3px 0 0 var(--drop);
+}
+
+.unsaved-stamp {
+  font-family: var(--font-code);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--drop);
+}
+
+.unsaved-lead {
+  margin-top: 0.4rem;
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
+.unsaved-list {
+  margin-top: 0.8rem;
+  border-top: 1px solid var(--line);
+}
+
+.unsaved-list li {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: baseline;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--line);
+  padding: 0.5rem 0;
+}
+
+.unsaved-price {
+  font-family: var(--font-serif, var(--font-body));
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.unsaved-when {
+  font-family: var(--font-code);
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+
+.unsaved-train {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  text-align: right;
+}
+
+.unsaved-empty,
+.unsaved-note,
+.unsaved-foot {
+  margin-top: 0.7rem;
+  font-size: 0.74rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 480px) {
+  .unsaved-list li {
+    grid-template-columns: auto 1fr;
+  }
+
+  .unsaved-train {
+    grid-column: 1 / -1;
+    text-align: left;
+  }
+}

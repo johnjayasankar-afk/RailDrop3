@@ -1,5 +1,6 @@
 # Generated or scratch, not source.
 .next/
+.next-demo/
 .data/
 test-results/
 playwright-report/
