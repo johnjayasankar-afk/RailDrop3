@@ -11,6 +11,44 @@ size are essentially the same in both. This machine is also fast and
 high-refresh; a mid-range phone will not reproduce the frame numbers below, and
 nothing here has been measured on one.
 
+## Provider accuracy (measured 2026-09-27, live inventory)
+
+`npx tsx scripts/eval-providers.ts` scores the fare providers against live
+Amtrak inventory. It costs real provider credit and takes minutes.
+
+**What it can claim.** There is no ground truth here short of buying a ticket,
+so it does not score against Amtrak's real price. It measures three things that
+are checkable: how often a search comes back usable, how many fares fail a
+plausibility check — which is how you find out the parser has drifted from the
+page — and, when two providers are configured, whether they agree. Agreement is
+most useful when it fails: two sources forty per cent apart proves one is wrong,
+and the eval refuses to average them.
+
+Nine searches, three corridors, three dates:
+
+|                   |                                |
+| ----------------- | ------------------------------ |
+| Usable            | 8 / 9                          |
+| Outright failures | 0                              |
+| Latency           | **p50 2.2 s · p95 2.9 s**      |
+| Fares returned    | 238 believable, **0 rejected** |
+| Coverage          | median 32 trains per search    |
+
+Zero plausibility rejections across 238 fares: the parser is reading the page
+correctly. Latency is much better than the 2–12 s recorded in the section below,
+which was measured while the live site was being hammered by repeated
+measurement runs — a reminder that a number taken during your own load test is
+a number about your load test.
+
+**The one failure was a real bug, and the eval is why it was found.** PHL→NYP on
+2026-10-22 returned zero trains, reproducibly, while the next day on the same
+corridor returned 33. The app reported that as "nothing listed on the live
+board... not a problem at our end". It is now judged against the rest of the
+window and failed as an unreadable date. See `src/lib/domain/empty-result.ts`.
+
+Set `PARSE_API_KEY` to have the eval cross-check two providers against each
+other.
+
 ## Where the time actually goes (measured 2026-09-27, production build)
 
 `next start` against the local file store, five-date BOS→NYP window, real
