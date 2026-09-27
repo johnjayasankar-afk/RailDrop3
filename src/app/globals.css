@@ -3162,3 +3162,116 @@ a.depart-strip:hover {
   background: var(--forest);
   color: #ffffff;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   The empty board.
+   A board with no departures is a real thing in a real station and it looks
+   like something: flaps caught mid-fold under a stamp. Six different facts used
+   to share one line of grey text.
+   ───────────────────────────────────────────────────────────────────────────── */
+.board-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  border-radius: var(--radius-sm);
+  background: var(--board);
+  color: var(--board-ink);
+  padding: 2.1rem 1.25rem 1.9rem;
+  text-align: center;
+  box-shadow: inset 0 2px 0 var(--gold);
+}
+
+.board-empty-flaps {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 0.2rem;
+}
+
+.board-empty-flaps span {
+  display: block;
+  width: 1.5rem;
+  height: 1.05rem;
+  border-radius: 3px;
+  background: linear-gradient(
+    180deg,
+    var(--board-face) 0%,
+    var(--board-face) 48%,
+    var(--board-deep) 50%,
+    var(--board-deep) 100%
+  );
+  transform-origin: center top;
+  /* Mid-fold, and held there. Nothing is arriving, so nothing finishes turning. */
+  animation: empty-flap 2.8s var(--ease) infinite;
+}
+
+.board-empty-flaps span:nth-child(2) {
+  animation-delay: 0.14s;
+}
+
+.board-empty-flaps span:nth-child(3) {
+  animation-delay: 0.28s;
+}
+
+@keyframes empty-flap {
+  0%,
+  62%,
+  100% {
+    transform: rotateX(0deg);
+    opacity: 0.85;
+  }
+  74% {
+    transform: rotateX(-58deg);
+    opacity: 0.55;
+  }
+}
+
+.board-empty-stamp {
+  font-family: var(--font-code);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--mint-2);
+}
+
+/* Ours to own: amber, and the gold rule becomes amber with it. */
+.board-empty.is-fault {
+  box-shadow: inset 0 2px 0 var(--amber);
+}
+
+.board-empty.is-fault .board-empty-stamp {
+  color: var(--amber);
+}
+
+.board-empty.is-scanning .board-empty-stamp {
+  color: var(--board-mute);
+}
+
+.board-empty-body {
+  max-width: 44ch;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--board-mute);
+}
+
+.board-empty-action {
+  margin-top: 0.5rem;
+}
+
+/* The board re-themes its accents the way the toast and the palette do. */
+.board-empty {
+  --line-2: color-mix(in srgb, var(--board-ink) 26%, transparent);
+  --paper-elevated: transparent;
+  --ink: var(--board-ink);
+}
+
+.board-empty .btn-ghost {
+  color: var(--board-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .board-empty-flaps span {
+    animation: none;
+  }
+}

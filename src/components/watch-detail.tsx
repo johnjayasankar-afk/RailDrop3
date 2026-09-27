@@ -24,6 +24,8 @@ import { BoardRow } from "./board/BoardRow";
 import { HelpSheet } from "./board/HelpSheet";
 import { CommandPalette, type Command } from "./board/CommandPalette";
 import { FareHistory } from "./board/FareHistory";
+import { BoardEmpty } from "./board/BoardEmpty";
+import { emptyBoardState } from "@/lib/domain/board-empty";
 import type { Observation } from "@/lib/domain/fare-history";
 import { commandToast } from "@/lib/domain/command-palette";
 import { ShareSheet } from "./board/ShareSheet";
@@ -1245,6 +1247,28 @@ export function WatchDetail({
   async function copyItinerary(candidate: RankedCandidate) {
     await copy(itineraryText(candidate), "Itinerary copied");
   }
+
+  /* Why the board is empty, which is six different facts and used to be one
+     sentence. Ordering matters and lives in the domain module. */
+  const emptyState = emptyBoardState({
+    scanning,
+    // A date whose snapshot carries a plausibility summary is one we reached
+    // and could not parse — different from one the provider never answered.
+    unreadableDates: snapshots.filter(
+      (snapshot) =>
+        snapshot.status === "PROVIDER_ERROR" &&
+        /plausibility check/i.test(snapshot.errorMessage ?? ""),
+    ).length,
+    failedDates: datesFailed.length,
+    totalDates: Math.max(dates.length, snapshots.length),
+    rankedCount: ranked.length,
+    visibleCount: board.length,
+    filtersActive: filtersOn,
+    watchStatus:
+      watch.status === "PAUSED" || watch.status === "COMPLETED" ? watch.status : "ACTIVE",
+    daysUntilTravel: daysLeft,
+    nextCheckLabel: watch.nextCheckAtLabel,
+  });
 
   /* Every action the board has, in one list.
    *
@@ -2551,17 +2575,17 @@ export function WatchDetail({
         </div>
         <div className="timetable mt-4">
           {board.length === 0 ? (
-            <p className="px-4 py-6 text-sm text-ink-soft">
-              No other trains for this filter.
-              {filtersOn ? (
-                <>
-                  {" "}
-                  <button type="button" className="underline" onClick={clearFilters}>
-                    Clear filters
-                  </button>
-                </>
-              ) : null}
-            </p>
+            <BoardEmpty
+              state={emptyState}
+              busy={busy}
+              onClearFilters={clearFilters}
+              onRecheck={() => {
+                void action(`/api/watches/${watch.id}/check`, "POST", undefined, true);
+              }}
+              onResume={() => {
+                void action(`/api/watches/${watch.id}`, "PATCH", { status: "ACTIVE" });
+              }}
+            />
           ) : (
             <>
               <div className="board-head" aria-hidden>
