@@ -17,7 +17,12 @@ import type { FareSearchRequest, FareSearchResult } from "@/lib/domain/types";
  * they now hear about both events.
  */
 
-/** A provider whose cheapest fare can be moved between cycles. */
+/** A provider whose cheapest fare can be moved between cycles.
+ *
+ * All three price fields move together. Rewriting only the total left the
+ * per-traveler price behind, which fare-sanity now rejects as a
+ * party_total_mismatch — correctly: the board ranks on the total, so a provider
+ * whose two figures disagree makes it rank on whichever one is wrong. */
 function steerableProvider() {
   const inner = new FixtureFareProvider();
   let priceCents: number | null = null;
@@ -34,6 +39,7 @@ function steerableProvider() {
             fares: journey.fares.map((fare) => ({
               ...fare,
               totalPartyPriceCents: 50_000,
+              pricePerTravelerCents: 50_000,
               observedPriceCents: 50_000,
             })),
           })),
@@ -47,10 +53,20 @@ function steerableProvider() {
           ...journey,
           fares: journey.fares.map((fare) => {
             if (cheapestApplied) {
-              return { ...fare, totalPartyPriceCents: 50_000, observedPriceCents: 50_000 };
+              return {
+                ...fare,
+                totalPartyPriceCents: 50_000,
+                pricePerTravelerCents: 50_000,
+                observedPriceCents: 50_000,
+              };
             }
             cheapestApplied = true;
-            return { ...fare, totalPartyPriceCents: target, observedPriceCents: target };
+            return {
+              ...fare,
+              totalPartyPriceCents: target,
+              pricePerTravelerCents: target,
+              observedPriceCents: target,
+            };
           }),
         })),
       };

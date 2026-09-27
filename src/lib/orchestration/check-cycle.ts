@@ -3,6 +3,7 @@ import { logger } from "@/lib/logger";
 import { BookingLinkResolver } from "@/lib/booking/booking-link-resolver";
 import { generateSearchDates } from "@/lib/domain/calendar";
 import { collectEligibleFares } from "@/lib/domain/eligibility";
+import { screenJourneys } from "@/lib/domain/fare-screen";
 import { cheapestByDate, rankCandidates } from "@/lib/domain/ranking";
 import { OpportunityComparator } from "@/lib/domain/opportunity";
 import { decideAlert } from "@/lib/domain/alert-policy";
@@ -110,6 +111,8 @@ export async function runWatchCycle(input: {
 
   const datesSucceeded: string[] = [];
   const datesFailed: string[] = [];
+  /** Dates we reached but could not read. Different from a date we never got. */
+  const unreadableDates: string[] = [];
   const allJourneys: JourneyOption[] = [];
   let providerRequests = 0;
   let reusedSearches = 0;
@@ -344,14 +347,55 @@ export async function runWatchCycle(input: {
         (result.status === "PROVIDER_ERROR" ? 0 : config.providerCreditsPerSearch);
     }
 
+    /* Nothing reaches the board or an inbox without being believable.
+     *
+     * "We never invent a price" was read as a promise about fabrication, and
+     * that half held — nothing here synthesises a fare. The other half did not:
+     * a scraper that misread a page and reported $0.42 for Boston to New York
+     * would have been ranked first, drawn as a $127 saving, and emailed. The
+     * only check between a parsed number and a person was that it was a number.
+     *
+     * A handful of bad rows is a bad parse of a few cards and they are dropped.
+     * A third of them is a broken parser, and the rows that passed are only the
+     * ones whose errors happened to land inside the bounds — so the whole date
+     * is failed rather than half-believed. That is a claim about us, and it
+     * shows on the board as one. */
+    const screened = screenJourneys(result.journeys, {
+      originCode: watch.originCode,
+      destinationCode: watch.destinationCode,
+      travelDate,
+      passengerCount: watch.passengerCount,
+    });
+    if (screened.verdict.summary) {
+      logger.warn("provider.implausible_fares", {
+        watch_id: watch.id,
+        cycle_id: cycleId,
+        travel_date: travelDate,
+        provider_request_id: result.metadata.requestId,
+        trustworthy: screened.verdict.trustworthy,
+        kept: screened.verdict.kept,
+        rejected: screened.verdict.rejected,
+        reasons: screened.verdict.byCode.map((entry) => `${entry.code}x${entry.count}`).join(","),
+      });
+    }
+
     const status: DateSearchStatus =
-      result.status === "SUCCESS" && result.journeys.length === 0 ? "NO_INVENTORY" : result.status;
+      result.status === "PROVIDER_ERROR"
+        ? "PROVIDER_ERROR"
+        : !screened.verdict.trustworthy
+          ? // Not NO_INVENTORY: "nothing cheaper is listed" is a claim about the
+            // market, and a search we could not read gives us no basis for one.
+            "PROVIDER_ERROR"
+          : screened.journeys.length === 0
+            ? "NO_INVENTORY"
+            : "SUCCESS";
 
     if (status === "PROVIDER_ERROR") {
       datesFailed.push(travelDate);
+      if (!screened.verdict.trustworthy) unreadableDates.push(travelDate);
     } else {
       datesSucceeded.push(travelDate);
-      allJourneys.push(...result.journeys);
+      allJourneys.push(...screened.journeys);
     }
 
     await input.repo.insertDateSnapshot({
@@ -362,7 +406,9 @@ export async function runWatchCycle(input: {
       status,
       searchKey,
       providerRequestId: result.metadata.requestId,
-      errorMessage: result.providerError?.message ?? null,
+      errorMessage:
+        result.providerError?.message ??
+        (screened.verdict.trustworthy ? null : screened.verdict.summary),
     });
   }
 
@@ -572,6 +618,11 @@ export async function runWatchCycle(input: {
     watchCount: 1,
     dateSearches: dates.length,
     dedupSavings: reusedSearches,
+    /* Dates we reached and could not read, as distinct from dates we never got.
+       Both land in datesFailed and they are different operational problems: one
+       is the provider being down, the other is the provider changing its page
+       out from under the parser. */
+    unreadableDates: unreadableDates.length,
     status,
     journeysReturned: allJourneys.length,
     alertsSent: alertSent ? 1 : 0,
