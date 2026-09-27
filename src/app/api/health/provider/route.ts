@@ -3,7 +3,7 @@ import { getConfig } from "@/lib/config";
 import { operatorAuthorized } from "@/lib/auth/operator";
 import { getFareProvider } from "@/lib/services";
 import { fareProviderStatus } from "@/lib/providers/create-provider";
-import { isServerlessRuntime } from "@/lib/providers/playwright-launch";
+import { isServerlessRuntime, lastServerlessLaunch } from "@/lib/providers/playwright-launch";
 
 export const maxDuration = 120;
 export const runtime = "nodejs";
@@ -42,6 +42,13 @@ export async function GET(request: Request) {
     localMode: config.isLocal,
     provider: status.provider,
     health,
+    /* Which Chromium configuration actually worked, and what was tried first.
+     *
+     * "Protocol error (Target.createTarget): Target closed" took four attempts
+     * to place because the launch happens inside a provider call and left only a
+     * log line, which on a protected deployment nobody could read. One request
+     * should say it. Null until a serverless launch has been attempted. */
+    browserLaunch: lastServerlessLaunch(),
     tip: "Add ?probe=1 to run one live BOS→NYP search (can take up to ~60s).",
   };
 

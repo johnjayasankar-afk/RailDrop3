@@ -23,6 +23,18 @@ type ChromiumModule = {
 
 const LAUNCH_ARGS = ["--disable-blink-features=AutomationControlled", "--disable-dev-shm-usage"];
 
+/* What the last serverless launch did, for the health probe to report.
+ *
+ * The launch happens deep inside a provider call and its only trace was a log
+ * line, which on a protected deployment nobody could read. Four attempts at this
+ * bug were spent guessing which configuration the runtime wanted; the answer
+ * should be one request away. */
+let lastLaunch: { strategy: string; tried: string[]; at: string } | null = null;
+
+export function lastServerlessLaunch(): { strategy: string; tried: string[]; at: string } | null {
+  return lastLaunch;
+}
+
 let installPromise: Promise<boolean> | null = null;
 let installSucceeded = false;
 
@@ -250,25 +262,32 @@ async function launchServerlessChromium(): Promise<PlaywrightBrowser | null> {
   ];
 
   let lastError: unknown = null;
+  const tried: string[] = [];
   for (const strategy of strategies) {
     let browser: PlaywrightBrowser | null = null;
     try {
       browser = await strategy.open();
       await proveItCanOpenAPage(browser);
+      tried.push(`${strategy.name}=ok`);
+      lastLaunch = { strategy: strategy.name, tried: [...tried], at: new Date().toISOString() };
       logger.info("provider.serverless_chromium_launch", {
         strategy: strategy.name,
+        tried,
         executablePath,
       });
       return browser;
     } catch (error) {
       lastError = error;
+      const why = error instanceof Error ? error.message.split("\n")[0] : String(error);
+      tried.push(`${strategy.name}=${why.slice(0, 80)}`);
       logger.warn("provider.serverless_chromium_strategy_failed", {
         strategy: strategy.name,
-        message: error instanceof Error ? error.message.split("\n")[0] : String(error),
+        message: why,
       });
       await browser?.close().catch(() => undefined);
     }
   }
+  lastLaunch = { strategy: "none", tried: [...tried], at: new Date().toISOString() };
   throw lastError instanceof Error
     ? lastError
     : new Error("No serverless Chromium configuration could open a page");
