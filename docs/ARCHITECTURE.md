@@ -143,6 +143,16 @@ A cycle is one logical refresh of the whole window. Snapshots keep per-date succ
 
 A cycle also records `best_price_cents` and `best_travel_date`: the cheapest eligible fare it saw, and which day it was on. This is the fare history. Before it existed the product checked three times a day and kept only the newest number, so the panel headed "Price history" plotted `booking_price_events` — the traveler's own benchmark, which changes only when they press "I rebooked" — and for almost every watch it was a single point.
 
+`provider_requests.cheapest_price_cents` is the same idea one level down: what a
+single search found, recorded across every watch rather than per trip. It is the
+corridor history, and it is what lets a brand-new watch say anything at all
+about a route the product has been scraping for a week. Only fares that passed
+`fare-sanity` are counted — an unscreened minimum would let one misparse set a
+corridor's floor and tell every traveler on that route they had overpaid. Reuse
+rows record nothing: a reuse is an accounting record for a search that did not
+happen, and counting its price would weight one observation by however many
+watches shared it.
+
 `NULL` there is an observation, not a missing value: the cycle looked and saw nothing, which a provider outage and an empty corridor both produce. The chart draws it as a gap rather than a fall to zero, and `wait-or-book` treats it as evidence of nothing rather than evidence of cheapness.
 
 `search_cache` stores normalized journeys for a short freshness window so overlapping watches share one external search.
@@ -164,6 +174,9 @@ The ones that carry a product decision rather than a calculation:
 | `run-lease.ts`       | Which watches a worker may claim, and when an abandoned run is reaped.                                                             |
 | `board-state.ts`     | How the board is being looked at. One transition per action, not two.                                                              |
 | `board-url.ts`       | That view as a link, and validation of one arriving from a stranger.                                                               |
+| `fare-sanity.ts`     | Whether an observation is believable at all. A misparse is an invented price.                                                      |
+| `corridor-stats.ts`  | What a route costs across every watch, and where one fare sits in it.                                                              |
+| `board-empty.ts`     | Why the board is empty, which is eight different facts, ordered.                                                                   |
 
 ## Idempotency model
 
