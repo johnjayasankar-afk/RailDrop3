@@ -9,6 +9,7 @@ import {
   type Observation,
 } from "@/lib/domain/fare-history";
 import { waitOrBook } from "@/lib/domain/wait-or-book";
+import { fareStanding, type CorridorStats } from "@/lib/domain/corridor-stats";
 import { formatUsdCompact } from "@/lib/domain/money";
 import { formatBoardStamp } from "@/lib/domain/timezone";
 import { useClientNow } from "@/components/relative-time";
@@ -33,6 +34,7 @@ export function FareHistory({
   bestCents,
   changeFeeCents,
   hoursToDeparture,
+  corridor,
   timezone,
 }: {
   observations: Observation[];
@@ -40,6 +42,8 @@ export function FareHistory({
   bestCents: number | null;
   changeFeeCents: number;
   hoursToDeparture: number | null;
+  /** What this route costs across every watch. Null below the evidence floor. */
+  corridor: CorridorStats | null;
   timezone: string;
 }) {
   const gradientId = useId();
@@ -49,8 +53,15 @@ export function FareHistory({
     [history, bookedCents],
   );
   const call = useMemo(
-    () => waitOrBook({ bestCents, bookedCents, changeFeeCents, hoursToDeparture, history }),
-    [bestCents, bookedCents, changeFeeCents, hoursToDeparture, history],
+    () =>
+      waitOrBook({ bestCents, bookedCents, changeFeeCents, hoursToDeparture, history, corridor }),
+    [bestCents, bookedCents, changeFeeCents, hoursToDeparture, history, corridor],
+  );
+  /* Where their own fare sits in what this route has actually cost — the
+     question every traveler has and the product has never once answered. */
+  const standing = useMemo(
+    () => (corridor ? fareStanding(bookedCents, corridor) : null),
+    [corridor, bookedCents],
   );
   const volatility = volatilityNote(history);
   // Not Date.now() in render: same hydration hazard as RelativeTime, and the
@@ -213,6 +224,41 @@ export function FareHistory({
         </>
       )}
 
+      {standing ? (
+        <section className={`fh-corridor is-${standing.standing}`} aria-label="This route">
+          <div className="fh-corridor-head">
+            <h3 className="eyebrow">What this route costs</h3>
+            <span className="fh-corridor-pct">{standing.percentile}th percentile</span>
+          </div>
+          {/* The distribution as a bar, with their fare marked on it. A range of
+              numbers in a sentence is a range of numbers; a mark on a line is a
+              position, which is the thing being said. */}
+          <div className="fh-range" aria-hidden>
+            <span
+              className="fh-range-band"
+              style={{
+                left: `${pct(corridor!.p25, corridor!)}%`,
+                right: `${100 - pct(corridor!.p75, corridor!)}%`,
+              }}
+            />
+            <span
+              className="fh-range-median"
+              style={{ left: `${pct(corridor!.median, corridor!)}%` }}
+            />
+            <span
+              className="fh-range-you"
+              style={{ left: `${Math.min(100, Math.max(0, standing.percentile))}%` }}
+            />
+          </div>
+          <div className="fh-range-scale" aria-hidden>
+            <span>{formatUsdCompact(corridor!.low)}</span>
+            <span>{formatUsdCompact(corridor!.high)}</span>
+          </div>
+          <p className="fh-corridor-verdict">{standing.verdict}</p>
+          <p className="fh-corridor-basis">{standing.basis}</p>
+        </section>
+      ) : null}
+
       <p className="fh-footnote">
         Every point is a fare we saw at the time we looked. We never draw between checks and we
         never estimate a price we have not observed.
@@ -223,4 +269,11 @@ export function FareHistory({
 
 function chartLabel(count: number, low: number, high: number): string {
   return `Cheapest fare observed at each of ${count} checks, between ${formatUsdCompact(low)} and ${formatUsdCompact(high)}. The figures are listed below the chart.`;
+}
+
+/** Where a price sits on the low–high axis, as a percentage. */
+function pct(cents: number, stats: CorridorStats): number {
+  const span = stats.high - stats.low;
+  if (span <= 0) return 50;
+  return Math.min(100, Math.max(0, ((cents - stats.low) / span) * 100));
 }
