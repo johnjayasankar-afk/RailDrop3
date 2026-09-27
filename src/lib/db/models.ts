@@ -129,7 +129,26 @@ export interface ProviderRequestRecord {
   latencyMs: number;
   errorMessage: string | null;
   reusedFromId: string | null;
+  /**
+   * Cheapest believable fare this search returned, at one adult.
+   *
+   * The corridor history. Every search already recorded where and when; this
+   * records what it found, which is what lets a brand-new watch know anything
+   * at all about a corridor the product has been scraping for a week.
+   *
+   * Believable meaning it passed fare-sanity: a misparse must not drag a
+   * corridor's floor down and make every traveler on it think they overpaid.
+   * Null is "found nothing, failed, or still in flight".
+   */
+  cheapestPriceCents: number | null;
   createdAt: string;
+}
+
+/** One search's outcome, for a corridor summary. See corridor-stats. */
+export interface CorridorObservation {
+  at: string;
+  travelDate: string;
+  cheapestPriceCents: number;
 }
 
 export interface StoredJourney {

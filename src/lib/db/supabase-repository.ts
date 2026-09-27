@@ -12,6 +12,7 @@ import type {
   ScheduledCheckRun,
   StoredJourney,
   WatchRecord,
+  CorridorObservation,
 } from "./models";
 import type { RailDropRepository, WatchUpdate } from "./repository";
 
@@ -268,6 +269,7 @@ export class SupabaseRepository implements RailDropRepository {
       latency_ms: request.latencyMs,
       error_message: request.errorMessage,
       reused_from_id: request.reusedFromId,
+      cheapest_price_cents: request.cheapestPriceCents,
     });
     if (error) throw error;
     return request;
@@ -301,6 +303,7 @@ export class SupabaseRepository implements RailDropRepository {
       creditsConsumed: number | null;
       latencyMs: number;
       errorMessage: string | null;
+      cheapestPriceCents?: number | null;
     },
   ): Promise<void> {
     const { error } = await this.db
@@ -310,6 +313,11 @@ export class SupabaseRepository implements RailDropRepository {
         credits_consumed: outcome.creditsConsumed,
         latency_ms: outcome.latencyMs,
         error_message: outcome.errorMessage,
+        // Only when the caller worked one out. Omitting it leaves whatever a
+        // previous attempt wrote rather than blanking a real observation.
+        ...(outcome.cheapestPriceCents === undefined
+          ? {}
+          : { cheapest_price_cents: outcome.cheapestPriceCents }),
       })
       .eq("id", id);
     if (error) throw error;
@@ -349,6 +357,38 @@ export class SupabaseRepository implements RailDropRepository {
       throw error;
     }
     return true;
+  }
+
+  /**
+   * What this corridor has cost, across every watch.
+   *
+   * Aggregate data about public train fares — nothing about who searched is
+   * selected, and the index this rides on is (origin, destination, created_at)
+   * filtered to rows that actually have a price.
+   */
+  async corridorObservations(input: {
+    originCode: string;
+    destinationCode: string;
+    sinceIso: string;
+    limit?: number;
+  }): Promise<CorridorObservation[]> {
+    const { data, error } = await this.db
+      .from("provider_requests")
+      .select("created_at, travel_date, cheapest_price_cents")
+      .eq("origin_code", input.originCode.trim().toUpperCase())
+      .eq("destination_code", input.destinationCode.trim().toUpperCase())
+      .gte("created_at", input.sinceIso)
+      .not("cheapest_price_cents", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(input.limit ?? 500);
+    if (error) throw error;
+    return (data ?? [])
+      .map((row) => ({
+        at: String(row.created_at),
+        travelDate: String(row.travel_date),
+        cheapestPriceCents: Number(row.cheapest_price_cents),
+      }))
+      .filter((row) => Number.isFinite(row.cheapestPriceCents) && row.cheapestPriceCents > 0);
   }
 
   async getProviderRequest(id: string): Promise<ProviderRequestRecord | null> {
@@ -839,6 +879,10 @@ function mapProviderRequest(row: Record<string, unknown>): ProviderRequestRecord
     latencyMs: Number(row.latency_ms ?? 0),
     errorMessage: (row.error_message as string | null) ?? null,
     reusedFromId: (row.reused_from_id as string | null) ?? null,
+    cheapestPriceCents:
+      row.cheapest_price_cents === null || row.cheapest_price_cents === undefined
+        ? null
+        : Number(row.cheapest_price_cents),
     createdAt: String(row.created_at),
   };
 }

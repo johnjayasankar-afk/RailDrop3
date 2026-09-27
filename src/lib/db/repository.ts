@@ -11,6 +11,7 @@ import type {
   ScheduledCheckRun,
   StoredJourney,
   WatchRecord,
+  CorridorObservation,
 } from "./models";
 
 export interface WatchUpdate {
@@ -118,8 +119,23 @@ export interface RailDropRepository {
       creditsConsumed: number | null;
       latencyMs: number;
       errorMessage: string | null;
+      /** Cheapest believable fare found. See ProviderRequestRecord. */
+      cheapestPriceCents?: number | null;
     },
   ): Promise<void>;
+  /**
+   * What this corridor has cost, across every watch, most recent first.
+   *
+   * Deliberately not scoped to a user: it is aggregate data about public train
+   * fares and it answers a question no single watch can — "is what I paid any
+   * good?". Nothing about who searched leaves this method.
+   */
+  corridorObservations(input: {
+    originCode: string;
+    destinationCode: string;
+    sinceIso: string;
+    limit?: number;
+  }): Promise<CorridorObservation[]>;
   getProviderRequest(id: string): Promise<ProviderRequestRecord | null>;
   insertDateSnapshot(snapshot: DateSnapshotRecord): Promise<DateSnapshotRecord>;
   listDateSnapshots(cycleId: string): Promise<DateSnapshotRecord[]>;

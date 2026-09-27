@@ -12,6 +12,7 @@ import type {
   ScheduledCheckRun,
   StoredJourney,
   WatchRecord,
+  CorridorObservation,
 } from "./models";
 import type { RailDropRepository, WatchUpdate } from "./repository";
 import { isExpired } from "@/lib/domain/run-lease";
@@ -255,11 +256,39 @@ export class MemoryRepository implements RailDropRepository {
       creditsConsumed: number | null;
       latencyMs: number;
       errorMessage: string | null;
+      cheapestPriceCents?: number | null;
     },
   ): Promise<void> {
     const existing = this.providerRequests.get(id);
     if (!existing) return;
     this.providerRequests.set(id, { ...existing, ...outcome });
+  }
+
+  async corridorObservations(input: {
+    originCode: string;
+    destinationCode: string;
+    sinceIso: string;
+    limit?: number;
+  }): Promise<CorridorObservation[]> {
+    const since = Date.parse(input.sinceIso);
+    const origin = input.originCode.trim().toUpperCase();
+    const destination = input.destinationCode.trim().toUpperCase();
+    return [...this.providerRequests.values()]
+      .filter(
+        (request) =>
+          request.cheapestPriceCents != null &&
+          request.cheapestPriceCents > 0 &&
+          request.originCode.toUpperCase() === origin &&
+          request.destinationCode.toUpperCase() === destination &&
+          Date.parse(request.createdAt) >= since,
+      )
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, input.limit ?? 500)
+      .map((request) => ({
+        at: request.createdAt,
+        travelDate: request.travelDate,
+        cheapestPriceCents: request.cheapestPriceCents as number,
+      }));
   }
 
   async findNewestSearch(searchKey: string): Promise<ProviderRequestRecord | null> {
