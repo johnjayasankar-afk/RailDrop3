@@ -4,6 +4,7 @@ import { PageFrame } from "@/components/page-frame";
 import { getSessionUser, guestEntryHref } from "@/lib/auth/session";
 import { getRepository } from "@/lib/services";
 import { collectEligibleFares } from "@/lib/domain/eligibility";
+import { summarizeCorridor } from "@/lib/domain/corridor-stats";
 import { cheapestByDate, rankCandidates } from "@/lib/domain/ranking";
 import { generateSearchDates } from "@/lib/domain/calendar";
 import { localIsoDate } from "@/lib/domain/timezone";
@@ -82,6 +83,21 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
   );
   const fareSource = fareProviderStatus();
 
+  /* What this route has cost across every watch, not just this one.
+   *
+   * The shared half of the product. A watch only ever knew about itself, so its
+   * first words were "we have no price history for this trip yet" — while we
+   * had been scraping this exact corridor for somebody else all week. Thirty
+   * days is long enough to describe a route and short enough that it still
+   * describes the one running now. */
+  const corridor = summarizeCorridor(
+    await repo.corridorObservations({
+      originCode: watch.originCode,
+      destinationCode: watch.destinationCode,
+      sinceIso: new Date(Date.now() - 30 * 86_400_000).toISOString(),
+    }),
+  );
+
   return (
     <PageFrame email={user.email} isGuest={Boolean(user.isGuest)}>
       <WatchDetail
@@ -97,6 +113,7 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
         moves={boardMoves(previousRanked, ranked).slice(0, 5)}
         alerts={alerts}
         scanCount={cycles.length}
+        corridor={corridor}
         /* Every look this watch has taken, oldest first — the fare history the
            product was checking three times a day and throwing away. A null
            price is a real observation: looked, saw nothing. */

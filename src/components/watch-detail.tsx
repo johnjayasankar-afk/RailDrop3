@@ -27,6 +27,7 @@ import { FareHistory } from "./board/FareHistory";
 import { BoardEmpty } from "./board/BoardEmpty";
 import { emptyBoardState } from "@/lib/domain/board-empty";
 import type { Observation } from "@/lib/domain/fare-history";
+import type { CorridorStats } from "@/lib/domain/corridor-stats";
 import { commandToast } from "@/lib/domain/command-palette";
 import { ShareSheet } from "./board/ShareSheet";
 import { WatchSettingsForm } from "./board/WatchSettingsForm";
@@ -158,6 +159,7 @@ export function WatchDetail({
   moves,
   alerts,
   scanCount,
+  corridor,
   observations,
   scans,
   fareSourceLabel = "live board",
@@ -174,6 +176,8 @@ export function WatchDetail({
   moves: BoardMove[];
   alerts: Array<{ id: string; subject: string; createdAt: string }>;
   scanCount: number;
+  /** What this route costs across every watch. Null below the evidence floor. */
+  corridor: CorridorStats | null;
   /** One entry per completed check: what the board saw, and when. */
   observations: Observation[];
   fareSourceLabel?: string;
@@ -2290,6 +2294,7 @@ export function WatchDetail({
           bestCents={best?.totalPartyPriceCents ?? null}
           changeFeeCents={feeCents}
           hoursToDeparture={hoursToDeparture}
+          corridor={corridor}
           timezone={watch.timezone}
         />
       </div>

@@ -25,6 +25,7 @@
 
 import type { FareHistory } from "./fare-history";
 import { recentDirection, volatility } from "./fare-history";
+import { corridorEvidence, fareStanding, type CorridorStats } from "./corridor-stats";
 
 export type Call = "BOOK_NOW" | "HOLD" | "WATCH_CLOSELY";
 export type Confidence = "low" | "moderate" | "high";
@@ -50,6 +51,16 @@ export interface WaitOrBookInput {
   /** Null when the departure is unknown. */
   hoursToDeparture: number | null;
   history: FareHistory;
+  /**
+   * What this route has cost across every watch, or null if we have too little.
+   *
+   * A different kind of evidence from `history`, and weaker for this purpose:
+   * the corridor describes the route over weeks, the history describes this
+   * departure over hours. It can lift a first-look recommendation out of "we
+   * have looked once" — it can never make one confident, because knowing what
+   * a route usually costs is not knowing what tomorrow morning's train will do.
+   */
+  corridor?: CorridorStats | null;
 }
 
 /** Inside this, inventory decisions are being made without you. */
@@ -62,24 +73,44 @@ const VOLATILE = 0.25;
 const MARGINAL_CENTS = 500;
 
 export function waitOrBook(input: WaitOrBookInput): WaitOrBook {
-  const { bestCents, bookedCents, changeFeeCents, hoursToDeparture, history } = input;
+  const { bestCents, bookedCents, changeFeeCents, hoursToDeparture, history, corridor } = input;
 
   /* Nothing to decide. Said plainly rather than dressed as a recommendation —
    * "HOLD" here would imply we are holding out for something we have seen. */
   if (bestCents === null || bestCents >= bookedCents) {
+    /* A dead end, unless the corridor has something to say about it.
+     *
+     * "Keep the ticket you have" was the whole answer, and it is the least
+     * useful true sentence in the product. If this route routinely goes for
+     * half what they paid, that is worth knowing even on a day when nothing
+     * cheaper is listed — it is the difference between "nothing today" and
+     * "you are above this route's normal price and we are watching". */
+    const standing = corridor ? fareStanding(bookedCents, corridor) : null;
+    if (standing && (standing.standing === "well-above" || standing.standing === "above")) {
+      return {
+        call: "HOLD",
+        label: "Nothing today, but keep watching",
+        reason: `No listed fare is below what you paid right now. ${standing.verdict}`,
+        confidence: corridorEvidence(corridor) === "good" ? "moderate" : "low",
+        basis: standing.basis,
+      };
+    }
     return {
       call: "HOLD",
       label: "Nothing to switch to",
       reason:
-        "No listed fare is below what you paid. Keep the ticket you have; we will keep looking.",
+        "No listed fare is below what you paid. Keep the ticket you have; we will keep looking." +
+        (standing ? ` ${standing.verdict}` : ""),
       confidence: "high",
-      basis: "This is what the board is showing right now, not a forecast.",
+      basis: standing
+        ? standing.basis
+        : "This is what the board is showing right now, not a forecast.",
     };
   }
 
   const gross = bookedCents - bestCents;
   const net = gross - changeFeeCents;
-  const evidence = confidenceFrom(history);
+  const evidence = confidenceFrom(history, corridor);
 
   /* The fee eats it. Arithmetic, not judgement, so it outranks everything else
    * — there is no timing at which changing for a loss becomes right. */
@@ -180,7 +211,10 @@ export function waitOrBook(input: WaitOrBookInput): WaitOrBook {
  * "high" — it is six looks at one corridor, and calling that high confidence
  * would be borrowing authority the data does not carry.
  */
-function confidenceFrom(history: FareHistory): {
+function confidenceFrom(
+  history: FareHistory,
+  corridor?: CorridorStats | null,
+): {
   confidence: Confidence;
   basis: string;
   points: number;
@@ -188,6 +222,21 @@ function confidenceFrom(history: FareHistory): {
   const points = history.points.length;
   const hours = Math.round(history.spanHours);
   if (points <= 1) {
+    /* The cold start, which used to be the weakest moment in the product: a
+     * brand-new watch said "this is the first look" and shrugged, while the
+     * product had been scraping this exact route for somebody else all week.
+     *
+     * The corridor cannot make a first look confident — it describes the route,
+     * not this departure — so it lifts low to moderate and no further, and the
+     * basis says exactly which kind of evidence it is. */
+    const strength = corridorEvidence(corridor);
+    if (strength !== "none" && corridor) {
+      return {
+        confidence: strength === "good" ? "moderate" : "low",
+        basis: `This is our first look at your trip, but we have ${corridor.count} checks of this route over ${corridor.spanDays} days: it has run ${usd(corridor.low)} to ${usd(corridor.high)}, typically around ${usd(corridor.median)}. That describes the route, not your particular train.`,
+        points,
+      };
+    }
     return {
       confidence: "low",
       basis:

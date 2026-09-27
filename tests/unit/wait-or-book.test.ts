@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildHistory, type Observation } from "@/lib/domain/fare-history";
 import { waitOrBook, type WaitOrBookInput } from "@/lib/domain/wait-or-book";
+import { summarizeCorridor } from "@/lib/domain/corridor-stats";
 
 /* The recommendation, branch by branch.
  *
@@ -220,6 +221,88 @@ describe("confidence reflects what was actually seen", () => {
       const history = buildHistory(series(...Array(count).fill(5_000)));
       expect(ask({ history }).confidence, `${count} points`).not.toBe("high");
     }
+  });
+});
+
+describe("the cold start, which the corridor fixes", () => {
+  /* The weakest moment in the product. A brand-new watch said "this is the
+   * first look" and shrugged, while RailDrop had been scraping that exact route
+   * three times a day for somebody else all week and throwing the numbers away. */
+  const corridor = summarizeCorridor(
+    Array.from({ length: 48 }, (_, index) => ({
+      at: new Date(base - index * 4 * HOUR).toISOString(),
+      travelDate: "2026-10-09",
+      cheapestPriceCents: 5_000 + (index % 9) * 700,
+    })),
+  )!;
+
+  it("still says it is the first look at this trip", () => {
+    // Borrowing the route's history must not be dressed up as knowing this
+    // train. The sentence has to keep both facts.
+    const result = ask({ history: buildHistory([]), corridor });
+    expect(result.basis).toMatch(/first look at your trip/i);
+    expect(result.basis).toMatch(/describes the route, not your particular train/i);
+  });
+
+  it("lifts a first look out of low confidence, but only to moderate", () => {
+    expect(ask({ history: buildHistory([]) }).confidence).toBe("low");
+    expect(ask({ history: buildHistory([]), corridor }).confidence).toBe("moderate");
+  });
+
+  it("never reaches high on the route's evidence alone", () => {
+    // Knowing what a route usually costs is not knowing what tomorrow
+    // morning's train will do.
+    for (const history of [buildHistory([]), buildHistory(series(5_000))]) {
+      expect(ask({ history, corridor }).confidence).not.toBe("high");
+    }
+  });
+
+  it("names the numbers it is borrowing", () => {
+    const result = ask({ history: buildHistory([]), corridor });
+    expect(result.basis).toContain("48 checks");
+    expect(result.basis).toMatch(/\$5\d/);
+  });
+
+  it("changes nothing once the trip has its own history", () => {
+    const own = buildHistory(series(5_000, 5_000, 5_000, 5_000, 5_000));
+    expect(ask({ history: own, corridor }).basis).toBe(ask({ history: own }).basis);
+  });
+});
+
+describe("nothing cheaper today, but the route says otherwise", () => {
+  /* "Keep the ticket you have" was the whole answer, and it is the least
+   * useful true sentence in the product. */
+  const cheapRoute = summarizeCorridor(
+    Array.from({ length: 48 }, (_, index) => ({
+      at: new Date(base - index * 4 * HOUR).toISOString(),
+      travelDate: "2026-10-09",
+      cheapestPriceCents: 4_000 + (index % 9) * 400,
+    })),
+  )!;
+
+  it("tells someone paying well above the route's normal price", () => {
+    const result = ask({ bestCents: null, bookedCents: 12_800, corridor: cheapRoute });
+    expect(result.call).toBe("HOLD");
+    expect(result.label).toMatch(/keep watching/i);
+    expect(result.reason).toMatch(/near the top/i);
+  });
+
+  it("does not manufacture concern for someone who paid well", () => {
+    const result = ask({ bestCents: null, bookedCents: 4_100, corridor: cheapRoute });
+    expect(result.label).toBe("Nothing to switch to");
+    expect(result.reason).toMatch(/did well/i);
+  });
+
+  it("keeps the old answer when there is no route history", () => {
+    const result = ask({ bestCents: null, bookedCents: 12_800 });
+    expect(result.label).toBe("Nothing to switch to");
+    expect(result.confidence).toBe("high");
+  });
+
+  it("is honest that this is about the route, not today's board", () => {
+    const result = ask({ bestCents: null, bookedCents: 12_800, corridor: cheapRoute });
+    expect(result.basis).toMatch(/describes the route/i);
+    expect(result.confidence).not.toBe("high");
   });
 });
 
