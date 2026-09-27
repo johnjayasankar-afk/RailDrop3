@@ -34,9 +34,17 @@ export function UnsavedFares({ preview }: { preview: FarePreview }) {
       </p>
 
       {rows.length === 0 ? (
+        /* Say which of the three things happened.
+         *
+         * This branch used to read "The fare search did not get through either.
+         * Nothing to show." for a bot block, a timeout and a parser failure
+         * alike — and the one the reader most needs to be told apart is the
+         * block, because no amount of waiting or retrying fixes it. The
+         * provider's message is already sanitized for reading, so it is shown
+         * as-is rather than being flattened into a house sentence. */
         <p className="unsaved-empty">
           {preview.failedDates.length > 0
-            ? "The fare search did not get through either. Nothing to show."
+            ? (preview.failureReason ?? "The fare search did not get through either.")
             : "No fares are listed for these dates right now."}
         </p>
       ) : (

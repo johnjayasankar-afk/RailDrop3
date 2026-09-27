@@ -69,6 +69,17 @@ const PAGE_GOTO_TIMEOUT_MS = isServerlessRuntime() ? 55000 : 45000;
 const TRIP_WAIT_MS = isServerlessRuntime() ? 28000 : 35000;
 const EXTRA_WAIT_MS = isServerlessRuntime() ? 5000 : 8000;
 
+/**
+ * Thrown when the fare site's bot check never clears.
+ *
+ * Contains "just a moment" on purpose: that is the interstitial's own title and
+ * the string sanitizeProviderError matches to tell the reader the site blocked
+ * the check. Retrying it is pointless — the block is on the caller's address,
+ * not on the request — so isRetryableWanderuError refuses it.
+ */
+const CHALLENGE_ERROR =
+  'Blocked by the fare site bot check ("Just a moment" challenge) — the address we search from is not being let through';
+
 const globalBrowser = globalThis as unknown as {
   __raildropWanderuBrowser?: PlaywrightBrowser | null;
   __raildropWanderuContext?: PlaywrightContext | null;
@@ -243,8 +254,21 @@ export class WanderuBrowserProvider implements FareProvider {
     });
     try {
       await page.goto(url, { waitUntil: "domcontentloaded", timeout: PAGE_GOTO_TIMEOUT_MS });
-      // Cloudflare challenge pages sometimes appear on datacenter IPs (Vercel).
-      await page
+      /* The bot check, and what happens when it does not clear.
+       *
+       * This used to wait for the challenge to go away and then carry on
+       * regardless, because the timeout was swallowed with .catch(() =>
+       * undefined). On a challenged page that meant waiting out the full trip
+       * wait and the extra wait for a page that would never contain trips —
+       * about ninety seconds — and then throwing "Wanderu returned no trip
+       * data", which is not what happened. Three dates of that exceeded the
+       * function's budget, so the request was killed and the traveler got a
+       * blank screen instead of a reason.
+       *
+       * Now the wait is checked. If the interstitial is still up we stop on the
+       * spot and say so, which takes about ten seconds and produces a sentence
+       * a person can act on. */
+      const cleared = await page
         .waitForFunction(
           () => {
             const title = document.title || "";
@@ -253,7 +277,13 @@ export class WanderuBrowserProvider implements FareProvider {
           undefined,
           { timeout: isServerlessRuntime() ? 25000 : 8000 },
         )
-        .catch(() => undefined);
+        .then(() => true)
+        .catch(() => false);
+      if (!cleared) {
+        // Phrased so sanitizeProviderError recognises it and the reader is told
+        // the site blocked the check rather than that the corridor was empty.
+        throw new Error(CHALLENGE_ERROR);
+      }
       await Promise.race([
         page
           .waitForFunction(
@@ -427,6 +457,9 @@ function isRetryableWanderuError(error: unknown): boolean {
   const message =
     error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
   if (message.includes("no trip data")) return false;
+  // A bot check refuses the address, not the attempt. Retrying spends the whole
+  // budget re-proving it and leaves no time to report anything.
+  if (message.includes("just a moment") || message.includes("bot check")) return false;
   if (message.includes("still setting up")) return true;
   return (
     message.includes("timeout") ||

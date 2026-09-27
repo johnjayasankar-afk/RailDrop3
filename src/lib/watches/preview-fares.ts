@@ -38,6 +38,15 @@ export interface FarePreview {
   failedDates: string[];
   /** Dates we reached and could not parse. Different from never answered. */
   unreadableDates: string[];
+  /**
+   * Why the search failed, in the provider's own already-sanitized words.
+   *
+   * Without this the board could only say "the fare search did not get through",
+   * which is true of a bot block, a timeout and a parser failure alike — three
+   * things with three different answers. The reader was told the least useful
+   * one of the three.
+   */
+  failureReason: string | null;
   checkedAt: string;
 }
 
@@ -76,10 +85,12 @@ export async function previewFares(input: {
   const journeys: JourneyOption[] = [];
   const failedDates: string[] = [];
   const unreadableDates: string[] = [];
+  /** First real reason seen. The first is the useful one: the rest repeat it. */
+  let failureReason: string | null = null;
 
   /* Sequential. A preview is one person waiting, not a scheduled sweep, and the
    * provider's own page limit would serialise it anyway. */
-  for (const travelDate of dates) {
+  for (const [index, travelDate] of dates.entries()) {
     const result = await input.provider.searchTrips({
       originCode: parsed.originCode,
       destinationCode: parsed.destinationCode,
@@ -88,6 +99,18 @@ export async function previewFares(input: {
     });
     if (result.status === "PROVIDER_ERROR") {
       failedDates.push(travelDate);
+      failureReason ??= result.providerError?.message ?? null;
+      /* A block is a fact about us, not about this date.
+       *
+       * Every date goes to the same host from the same address, so once we are
+       * refused, the remaining dates will be refused identically. Trying them
+       * anyway spends the request's whole budget re-proving it and the traveler
+       * ends up with a killed request and a blank screen instead of a sentence.
+       * They are recorded as failed, because they were not searched. */
+      if (isRefusal(failureReason)) {
+        for (const remaining of dates.slice(index + 1)) failedDates.push(remaining);
+        break;
+      }
       continue;
     }
     // The same screening a real cycle applies. A preview must not be the one
@@ -138,6 +161,7 @@ export async function previewFares(input: {
     byDate: [...cheapestByDate(ranked).entries()],
     failedDates,
     unreadableDates,
+    failureReason,
     checkedAt: now.toISOString(),
   };
 }
@@ -155,4 +179,19 @@ function trimAround(dates: string[], wanted: string, max: number): string[] {
     if (!before && !after) break;
   }
   return picked;
+}
+
+/**
+ * Whether a provider message means "we were refused", as opposed to "this date
+ * did not work out".
+ *
+ * Matched on the sanitized text the provider already produces, so it stays in
+ * step with what the reader is shown.
+ */
+function isRefusal(message: string | null): boolean {
+  if (!message) return false;
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("blocked") || lower.includes("bot check") || lower.includes("just a moment")
+  );
 }
