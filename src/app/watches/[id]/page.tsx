@@ -117,6 +117,12 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
     return (
       <PageFrame email={user.email} isGuest={Boolean(user.isGuest)}>
         <main id="main" className="mx-auto max-w-3xl px-4 py-8">
+          {/* The page still needs its one h1, the same way /dashboard keeps
+              "Your watches" above this card. Without it the board's unreachable
+              state has no h1 at all and opens at h2 — both of the rules in
+              docs/A11Y.md, broken in the one state nobody can see in a test
+              run. It cannot name the route: reading the watch is what failed. */}
+          <h1 className="serif text-4xl">Your watch</h1>
           <RecordsUnreachable what="board" retryHref={`/watches/${id}` as Route} />
         </main>
       </PageFrame>
