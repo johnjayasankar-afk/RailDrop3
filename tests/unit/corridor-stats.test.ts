@@ -51,7 +51,11 @@ describe("refusing to speak from too little", () => {
       { at: "not-a-date", travelDate: "2026-10-09", cheapestPriceCents: 5_000 },
       { at: new Date(base).toISOString(), travelDate: "2026-10-09", cheapestPriceCents: 0 },
       { at: new Date(base).toISOString(), travelDate: "2026-10-09", cheapestPriceCents: -1 },
-      { at: new Date(base).toISOString(), travelDate: "2026-10-09", cheapestPriceCents: Number.NaN },
+      {
+        at: new Date(base).toISOString(),
+        travelDate: "2026-10-09",
+        cheapestPriceCents: Number.NaN,
+      },
     ];
     expect(summarizeCorridor(dirty)?.count).toBe(MIN_OBSERVATIONS);
   });

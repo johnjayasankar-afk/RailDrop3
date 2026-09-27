@@ -76,10 +76,19 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
     currentBookedPriceCents: watch.currentBookedPriceCents,
   });
   const byDate = cheapestByDate(ranked);
+  /* One clock read for the whole render.
+   *
+   * There were three, and they could straddle a midnight in the watch's zone —
+   * the search window built against one day and `today` against the next, which
+   * would mark every date in the window as one day out. Reading it once also
+   * satisfies the compiler's purity rule, which is pointing at a real hazard
+   * even on a server component. */
+  const renderedAt = new Date();
+
   const window = generateSearchDates(
     watch.desiredTravelDate,
     watch.dateFlexibilityDays,
-    localIsoDate(new Date(), watch.timezone),
+    localIsoDate(renderedAt, watch.timezone),
   );
   const fareSource = fareProviderStatus();
 
@@ -94,7 +103,7 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
     await repo.corridorObservations({
       originCode: watch.originCode,
       destinationCode: watch.destinationCode,
-      sinceIso: new Date(Date.now() - 30 * 86_400_000).toISOString(),
+      sinceIso: new Date(renderedAt.getTime() - 30 * 86_400_000).toISOString(),
     }),
   );
 
@@ -109,7 +118,7 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
         events={events}
         cycleStatus={cycle?.status ?? null}
         datesFailed={cycle?.datesFailed ?? []}
-        today={localIsoDate(new Date(), watch.timezone)}
+        today={localIsoDate(renderedAt, watch.timezone)}
         moves={boardMoves(previousRanked, ranked).slice(0, 5)}
         alerts={alerts}
         scanCount={cycles.length}

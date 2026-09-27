@@ -3275,3 +3275,102 @@ a.depart-strip:hover {
     animation: none;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   What this route costs.
+   The shared half: every search the product has run on this corridor, across
+   every watch. A range of numbers in a sentence is a range of numbers; a mark
+   on a line is a position, which is the thing being said.
+   ───────────────────────────────────────────────────────────────────────────── */
+.fh-corridor {
+  margin-top: 1rem;
+  border-top: 1px solid var(--fh-rule);
+  padding-top: 0.9rem;
+}
+
+.fh-corridor-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.fh-corridor-pct {
+  font-family: var(--font-code);
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.fh-range {
+  position: relative;
+  height: 1.3rem;
+  margin-top: 0.7rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+/* The middle half of everything we have seen. */
+.fh-range-band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--save) 26%, transparent);
+}
+
+.fh-range-median {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--ink-soft);
+  transform: translateX(-1px);
+}
+
+/* Their fare. The one mark that is about them. */
+.fh-range-you {
+  position: absolute;
+  top: 50%;
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 999px;
+  border: 2.5px solid var(--paper-elevated);
+  background: var(--ink);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.fh-corridor.is-well-above .fh-range-you,
+.fh-corridor.is-above .fh-range-you {
+  background: var(--drop);
+}
+
+.fh-corridor.is-well-below .fh-range-you,
+.fh-corridor.is-below .fh-range-you {
+  background: var(--save);
+}
+
+.fh-range-scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.25rem;
+  font-family: var(--font-code);
+  font-size: 0.64rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-soft);
+}
+
+.fh-corridor-verdict {
+  margin-top: 0.6rem;
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.fh-corridor-basis {
+  margin-top: 0.4rem;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
