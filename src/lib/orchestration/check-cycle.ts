@@ -235,6 +235,8 @@ export async function runWatchCycle(input: {
         latencyMs: 0,
         errorMessage: null,
         reusedFromId: null,
+        // Not known until the search returns; finishProviderRequest fills it.
+        cheapestPriceCents: null,
         createdAt: now.toISOString(),
       });
 
@@ -285,11 +287,34 @@ export async function runWatchCycle(input: {
       result = await input.provider.searchTrips(request);
       observedMs.push(result.metadata.latencyMs);
 
+      /* What this search saw, for the corridor history.
+       *
+       * Screened first, deliberately. An unscreened minimum would let one
+       * misparse set a corridor's floor at forty cents, and every traveler on
+       * that route would then be told they had overpaid — a false claim about
+       * the market, built out of our own bug, shown to people who have no way
+       * to check it. Only fares that survived fare-sanity count. */
+      const observed = screenJourneys(result.journeys, {
+        originCode: request.originCode,
+        destinationCode: request.destinationCode,
+        travelDate,
+        passengerCount: watch.passengerCount,
+      });
+      const cheapest = observed.journeys
+        .flatMap((journey) => journey.fares)
+        .map((fare) => fare.totalPartyPriceCents)
+        .filter((cents): cents is number => cents != null && cents > 0)
+        .reduce<number | null>((low, cents) => (low === null || cents < low ? cents : low), null);
+
       await input.repo.finishProviderRequest(requestId, {
         status: result.status,
         creditsConsumed: result.metadata.creditsCharged,
         latencyMs: result.metadata.latencyMs,
         errorMessage: result.providerError?.message ?? null,
+        // Per traveler, so a party of four does not read as an expensive
+        // corridor. The board's own figures stay party totals.
+        cheapestPriceCents:
+          cheapest === null ? null : Math.round(cheapest / Math.max(1, watch.passengerCount)),
       });
       if (result.status !== "PROVIDER_ERROR") {
         await input.repo.cacheJourneys(requestId, result.journeys);
@@ -311,6 +336,13 @@ export async function runWatchCycle(input: {
         latencyMs: 0,
         errorMessage: null,
         reusedFromId: result.metadata.requestId,
+        /* Null, not the price it served.
+         *
+         * A reuse row is an accounting record for a search that did not happen.
+         * Counting its price would weight one real observation by however many
+         * watches happened to share it, which would quietly tell whoever is on
+         * a busy corridor that it is more stable than it is. */
+        cheapestPriceCents: null,
         createdAt: now.toISOString(),
       });
     }
