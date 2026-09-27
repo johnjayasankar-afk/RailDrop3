@@ -3,11 +3,11 @@
   "functions": {
     "src/app/api/watches/route.ts": {
       "maxDuration": 300,
-      "memory": 3008
+      "memory": 2048
     },
     "src/app/api/watches/[id]/check/route.ts": {
       "maxDuration": 300,
-      "memory": 3008
+      "memory": 2048
     },
     "src/app/api/cron/dispatch/route.ts": {
       "maxDuration": 60,
@@ -15,11 +15,11 @@
     },
     "src/app/api/health/provider/route.ts": {
       "maxDuration": 120,
-      "memory": 3008
+      "memory": 2048
     },
     "src/app/api/cron/worker/route.ts": {
       "maxDuration": 300,
-      "memory": 3008
+      "memory": 2048
     }
   },
   "crons": [

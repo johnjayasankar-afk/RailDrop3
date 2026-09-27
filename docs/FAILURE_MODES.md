@@ -23,26 +23,59 @@ The failure mode with the highest cost so far, and the only one where **nothing
 was wrong with the application**. Worth its own section because every other
 entry in this file assumes the code under discussion is the code that is running.
 
-On 13 September, `ff43d31` added `src/proxy.ts` and deleted `src/middleware.ts`,
-and it deployed. The next commit brought `src/middleware.ts` back, and every
-commit for the following fourteen days carried both files. Next 16 does not warn
-about that — `next/dist/build/index.js` throws:
+Three independent faults produced one symptom — "nothing has deployed since 13
+September" — and each was individually sufficient, so fixing any one of them
+would have changed nothing observable. That is what made it take two weeks.
+
+**1. The domain serves a different repository.** `rail-drop3.vercel.app` is built
+from the `rail-drop4` repo, which holds a single commit ("v1", 13 September) and
+has not been pushed to since. Confirmed by that repo's commit list and by a
+string in the live HTML that exists only there. No amount of pushing to
+`RailDrop3` could change what that domain serves.
+
+**2. The Vercel project that _is_ connected to `RailDrop3` rejects every push in
+about two seconds.** `vercel.json` asked for `memory: 3008` on four functions.
+With fluid compute — the default — the ceiling is **2 GB on Hobby**, 4 GB on
+Pro, so the deployment was refused at config validation, before any build. A
+deployment that never started has no build logs, which is exactly why this read
+as "nothing is deploying" rather than "a build is failing". The only diagnosis is
+on the commit itself:
+
+```
+GET /repos/<owner>/RailDrop3/commits/<sha>/status
+  state:       failure
+  context:     Vercel
+  description: Deployment failed.
+  target_url:  https://vercel.link/3c4   → /docs/limits#serverless-function-memory
+  created_at:  two seconds after the push
+```
+
+3008 is the old pre-fluid-compute Lambda ceiling, which is why it looks like a
+legitimate number — and why `rail-drop4`, on a Pro scope, accepts the identical
+file. Now pinned to 2048 and guarded.
+
+**3. `middleware.ts` and `proxy.ts` both existed for the same fortnight.** From
+`ea3dd8e` (13 September) to `d3d9b66` (27 September) every commit carried both,
+and Next 16 does not warn — `next/dist/build/index.js` throws:
 
 > Both middleware file `./src/middleware.ts` and proxy file `./src/proxy.ts` are
 > detected. Please use `./src/proxy.ts` only.
 
-So every production build failed, the live site stayed frozen on the 13
-September bundle, and fifty-two commits touching `src/` never reached anyone —
-including the one that lets the app return a price with no database at all. The
-reported symptoms throughout were that the app was broken. The app was not
-broken; it was undeployed, and each fix was verified locally against code no
-visitor could reach.
+`next dev` only warns, so local work never revealed it. This one never got to
+fail a real build, because fault 2 rejected the deployment first — but it would
+have, the moment the memory was fixed.
 
-| Scenario                                        | What happens now                                                                                                                                  | Mitigation / status                                                                                                                                                                                                             |
-| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`middleware.ts` and `proxy.ts` both present** | `next build` throws before compiling. `next dev` only warns, so local work is unaffected and the break is invisible until a deploy.               | Guarded: `tests/unit/deployability.test.ts` fails in ~5 ms with the reason attached. `npm run verify` did already run `next build` and would have caught it — the failure was that a build takes minutes and got skipped.       |
-| **Neither file present**                        | The build succeeds and every protected route becomes public, because `proxy.ts` is what gates `/dashboard`, `/settings`, `/usage` and `/watches`. | Guarded by the same test, which asserts exactly one of the two exists. This is the quieter half and the reason the check is not simply "does not have both".                                                                    |
-| **Verified locally, never deployed**            | A green `npm run verify` says nothing about what is serving traffic.                                                                              | **Open.** Nothing in the repo compares the deployed bundle to `HEAD`. Probing the live site for a route added after the last known-good deploy dates the running build in one request, and is how the fourteen days were found. |
+The lesson is none of the three individually. It is that every reported symptom
+throughout was "the app is broken", and the app was not broken: fifty-two commits
+touching `src/` — including the one that returns a price with no database at all
+— were verified green locally against code no visitor could reach.
+
+| Scenario                                         | What happens now                                                                                                                                                              | Mitigation / status                                                                                                                                                                                                             |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`middleware.ts` and `proxy.ts` both present**  | `next build` throws before compiling. `next dev` only warns, so local work is unaffected and the break is invisible until a deploy.                                           | Guarded: `tests/unit/deployability.test.ts` fails in ~5 ms with the reason attached. `npm run verify` did already run `next build` and would have caught it — the failure was that a build takes minutes and got skipped.       |
+| **Neither file present**                         | The build succeeds and every protected route becomes public, because `proxy.ts` is what gates `/dashboard`, `/settings`, `/usage` and `/watches`.                             | Guarded by the same test, which asserts exactly one of the two exists. This is the quieter half and the reason the check is not simply "does not have both".                                                                    |
+| **`vercel.json` over the plan's memory ceiling** | Deployment refused ~2 s after the push, before the build, so no build logs exist and the dashboard shows nothing useful. The GitHub commit status carries the only diagnosis. | Guarded: `tests/unit/deployability.test.ts` fails if any function asks for more than 2048 MB or more than 300 s, and names the offending routes.                                                                                |
+| **Verified locally, never deployed**             | A green `npm run verify` says nothing about what is serving traffic.                                                                                                          | **Open.** Nothing in the repo compares the deployed bundle to `HEAD`. Probing the live site for a route added after the last known-good deploy dates the running build in one request, and is how the fourteen days were found. |
 
 ## Provider
 

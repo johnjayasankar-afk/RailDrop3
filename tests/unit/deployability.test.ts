@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -27,6 +27,11 @@ import { describe, expect, it } from "vitest";
 const ROOT = path.resolve(__dirname, "../..");
 const EXTENSIONS = ["ts", "tsx", "js", "jsx", "mjs"];
 
+/** Read, not imported, so a malformed vercel.json fails here rather than at build. */
+const vercelConfig = JSON.parse(readFileSync(path.join(ROOT, "vercel.json"), "utf8")) as {
+  functions?: Record<string, { memory?: number; maxDuration?: number }>;
+};
+
 function locate(base: string): string[] {
   return ["", "src"].flatMap((dir) =>
     EXTENSIONS.map((extension) => path.join(dir, `${base}.${extension}`)).filter((relative) =>
@@ -45,6 +50,37 @@ describe("the app can actually be built for production", () => {
             "middleware is the deprecated name — keep proxy and delete middleware."
         : "ok",
     ).toBe("ok");
+  });
+
+  it("does not ask Vercel for more memory than the cheapest plan allows", () => {
+    /* The second thing that silently stopped deployments, and the one that was
+     * still stopping them after the file collision was fixed.
+     *
+     * vercel.json asked for `memory: 3008` on four functions. With fluid
+     * compute — the default — the ceiling is 2 GB on Hobby and 4 GB on Pro, so
+     * the deployment was rejected two seconds after every push, before any
+     * build, with the GitHub commit status "Deployment failed." and a
+     * target_url that redirects to .../limits#serverless-function-memory. There
+     * are no build logs for a deployment that never started, which is why this
+     * looked like nothing was deploying at all.
+     *
+     * 3008 is the old pre-fluid-compute AWS Lambda ceiling, which is why it
+     * looks like a legitimate number and why a sibling project on Pro accepted
+     * the identical file. Staying inside the smaller ceiling costs nothing here
+     * and makes the repo deployable on either plan.
+     */
+    const MAX_HOBBY_MEMORY_MB = 2_048;
+    const MAX_HOBBY_DURATION_S = 300;
+    const functions: Record<string, { memory?: number; maxDuration?: number }> =
+      (vercelConfig.functions ?? {}) as Record<string, { memory?: number; maxDuration?: number }>;
+    const tooBig = Object.entries(functions).filter(
+      ([, config]) => (config.memory ?? 0) > MAX_HOBBY_MEMORY_MB,
+    );
+    expect(tooBig.map(([route, config]) => `${route} wants ${config.memory}MB`)).toEqual([]);
+    const tooLong = Object.entries(functions).filter(
+      ([, config]) => (config.maxDuration ?? 0) > MAX_HOBBY_DURATION_S,
+    );
+    expect(tooLong.map(([route, config]) => `${route} wants ${config.maxDuration}s`)).toEqual([]);
   });
 
   it("has exactly one of them, so the routing rules are not silently absent", () => {
