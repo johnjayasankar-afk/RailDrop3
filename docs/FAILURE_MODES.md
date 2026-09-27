@@ -23,9 +23,11 @@ The failure mode with the highest cost so far, and the only one where **nothing
 was wrong with the application**. Worth its own section because every other
 entry in this file assumes the code under discussion is the code that is running.
 
-Three independent faults produced one symptom — "nothing has deployed since 13
+**Four** independent faults produced one symptom — "nothing has deployed since 13
 September" — and each was individually sufficient, so fixing any one of them
-would have changed nothing observable. That is what made it take two weeks.
+changed nothing observable. Worse, they surfaced in sequence, because each
+rejection masked the next: fixing the memory ceiling simply revealed the cron.
+That is what made it take two weeks.
 
 **1. The domain serves a different repository.** `rail-drop3.vercel.app` is built
 from the `rail-drop4` repo, which holds a single commit ("v1", 13 September) and
@@ -51,10 +53,23 @@ GET /repos/<owner>/RailDrop3/commits/<sha>/status
 ```
 
 3008 is the old pre-fluid-compute Lambda ceiling, which is why it looks like a
-legitimate number — and why `rail-drop4`, on a Pro scope, accepts the identical
-file. Now pinned to 2048 and guarded.
+legitimate number. Now pinned to 2048 and guarded.
 
-**3. `middleware.ts` and `proxy.ts` both existed for the same fortnight.** From
+**3. The cron ran hourly, which Hobby forbids.** `vercel.json` scheduled
+`5 * * * *`. Hobby is limited to cron jobs that run **once per day**, and a more
+frequent expression is not degraded or warned about — the deployment fails with
+"Hobby accounts are limited to daily cron jobs." Rejected in the same invisible
+way, in both mirrors, and this is what remained blocking after the memory fix.
+
+It cannot simply be lowered, because the hourly wake _is_ the scheduler: it asks
+whether a slot has passed unclaimed in each watch's timezone, which is also how a
+missed hour catches up rather than skipping a check. So `vercel.json` keeps one
+daily cron as a safety net and the hourly wake moved to
+`.github/workflows/fare-checks.yml` — free, calling the same
+`/api/cron/dispatch` with the same `Authorization: Bearer` credential, and safe to
+fire late or twice because claiming a slot is idempotent.
+
+**4. `middleware.ts` and `proxy.ts` both existed for the same fortnight.** From
 `ea3dd8e` (13 September) to `d3d9b66` (27 September) every commit carried both,
 and Next 16 does not warn — `next/dist/build/index.js` throws:
 
@@ -62,10 +77,10 @@ and Next 16 does not warn — `next/dist/build/index.js` throws:
 > detected. Please use `./src/proxy.ts` only.
 
 `next dev` only warns, so local work never revealed it. This one never got to
-fail a real build, because fault 2 rejected the deployment first — but it would
+fail a real build, because faults 2 and 3 rejected the deployment first — but it would
 have, the moment the memory was fixed.
 
-The lesson is none of the three individually. It is that every reported symptom
+The lesson is none of the four individually. It is that every reported symptom
 throughout was "the app is broken", and the app was not broken: fifty-two commits
 touching `src/` — including the one that returns a price with no database at all
 — were verified green locally against code no visitor could reach.
@@ -75,6 +90,7 @@ touching `src/` — including the one that returns a price with no database at a
 | **`middleware.ts` and `proxy.ts` both present**  | `next build` throws before compiling. `next dev` only warns, so local work is unaffected and the break is invisible until a deploy.                                           | Guarded: `tests/unit/deployability.test.ts` fails in ~5 ms with the reason attached. `npm run verify` did already run `next build` and would have caught it — the failure was that a build takes minutes and got skipped.       |
 | **Neither file present**                         | The build succeeds and every protected route becomes public, because `proxy.ts` is what gates `/dashboard`, `/settings`, `/usage` and `/watches`.                             | Guarded by the same test, which asserts exactly one of the two exists. This is the quieter half and the reason the check is not simply "does not have both".                                                                    |
 | **`vercel.json` over the plan's memory ceiling** | Deployment refused ~2 s after the push, before the build, so no build logs exist and the dashboard shows nothing useful. The GitHub commit status carries the only diagnosis. | Guarded: `tests/unit/deployability.test.ts` fails if any function asks for more than 2048 MB or more than 300 s, and names the offending routes.                                                                                |
+| **Cron more frequent than the plan allows**      | Same invisible rejection: refused before the build, no logs, and the commit status is the only diagnosis. Hobby permits one run per day.                                      | Guarded: `tests/unit/deployability.test.ts` rejects any schedule whose minute or hour field is not a single literal value, which is exactly "more than once a day". The hourly wake now runs from GitHub Actions.               |
 | **Verified locally, never deployed**             | A green `npm run verify` says nothing about what is serving traffic.                                                                                                          | **Open.** Nothing in the repo compares the deployed bundle to `HEAD`. Probing the live site for a route added after the last known-good deploy dates the running build in one request, and is how the fourteen days were found. |
 
 ## Provider

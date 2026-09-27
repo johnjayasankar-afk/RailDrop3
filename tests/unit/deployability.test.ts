@@ -30,6 +30,7 @@ const EXTENSIONS = ["ts", "tsx", "js", "jsx", "mjs"];
 /** Read, not imported, so a malformed vercel.json fails here rather than at build. */
 const vercelConfig = JSON.parse(readFileSync(path.join(ROOT, "vercel.json"), "utf8")) as {
   functions?: Record<string, { memory?: number; maxDuration?: number }>;
+  crons?: Array<{ path: string; schedule: string }>;
 };
 
 function locate(base: string): string[] {
@@ -81,6 +82,32 @@ describe("the app can actually be built for production", () => {
       ([, config]) => (config.maxDuration ?? 0) > MAX_HOBBY_DURATION_S,
     );
     expect(tooLong.map(([route, config]) => `${route} wants ${config.maxDuration}s`)).toEqual([]);
+  });
+
+  it("does not schedule a cron more often than the cheapest plan allows", () => {
+    /* The third thing that silently stopped deployments, and the one left
+     * standing after the memory ceiling was fixed.
+     *
+     * vercel.json scheduled "5 * * * *" — hourly. Hobby is limited to cron jobs
+     * that run ONCE PER DAY, and a more frequent expression does not warn or
+     * degrade: the deployment fails outright with "Hobby accounts are limited
+     * to daily cron jobs. This cron expression would run more than once per
+     * day." Like the memory ceiling, it is rejected before any build, so there
+     * are no build logs and it reads as nothing deploying at all.
+     *
+     * The app still needs its hourly wake to claim three slots a day per
+     * timezone. That now runs from .github/workflows/fare-checks.yml, and the
+     * cron left here is a daily safety net.
+     */
+    const runsAtMostDaily = (expression: string): boolean => {
+      const [minute, hour] = expression.trim().split(/\s+/);
+      // A single literal minute AND a single literal hour is once a day at most.
+      // Anything else — *, a list, a step, a range — fires more than once.
+      const single = (field: string | undefined) => /^\d+$/.test(field ?? "");
+      return single(minute) && single(hour);
+    };
+    const offenders = (vercelConfig.crons ?? []).filter((job) => !runsAtMostDaily(job.schedule));
+    expect(offenders.map((job) => `${job.path} runs "${job.schedule}"`)).toEqual([]);
   });
 
   it("has exactly one of them, so the routing rules are not silently absent", () => {

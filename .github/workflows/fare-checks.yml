@@ -1,0 +1,64 @@
+# The scheduler the app actually needs, run from here instead of Vercel Cron.
+#
+# RailDrop checks each watch three times a day, in the watch's own timezone
+# (MORNING / AFTERNOON / EVENING). It does that with an hourly wake that asks
+# "has a slot passed in this watch's zone that nobody has claimed yet" — which
+# is also how a missed hour catches up instead of skipping a check.
+#
+# Vercel Cron cannot do that on a Hobby plan. Hobby is limited to cron jobs that
+# run ONCE PER DAY, and a more frequent expression does not degrade or warn: the
+# deployment fails outright with "Hobby accounts are limited to daily cron jobs."
+# That is what blocked every deployment of this repo, in both mirrors, after the
+# function-memory ceiling was fixed.
+#
+# So vercel.json keeps a single daily cron as a safety net, and the hourly wake
+# lives here. GitHub Actions schedules are free, and /api/cron/dispatch only
+# enqueues work, so calling it costs one short function invocation.
+#
+# Setup: add two repository secrets under Settings -> Secrets and variables ->
+# Actions:
+#   RAILDROP_URL   https://your-deployment.vercel.app   (no trailing slash)
+#   CRON_SECRET    the same value as the CRON_SECRET env var in Vercel
+#
+# Caveats worth knowing: GitHub delays scheduled runs under load, sometimes by
+# 10-15 minutes, and disables schedules in a repo with no activity for 60 days.
+# Neither breaks anything here — claiming a slot is idempotent and a late wake
+# still catches up — but if checks stop entirely, look at this first.
+name: Fare checks
+
+on:
+  schedule:
+    - cron: "5 * * * *"
+  workflow_dispatch:
+
+# A slow dispatch must not overlap with the next hour's.
+concurrency:
+  group: fare-checks
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Wake the dispatcher
+        env:
+          RAILDROP_URL: ${{ secrets.RAILDROP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RAILDROP_URL:-}" ] || [ -z "${CRON_SECRET:-}" ]; then
+            echo "::error::RAILDROP_URL and CRON_SECRET must both be set as repository secrets."
+            exit 1
+          fi
+          # --fail-with-body so a 401 or 503 fails the run AND shows the reason.
+          # The secret goes in a header, never a query string: a query string
+          # would land in Vercel's access logs and in any Referer sent onward.
+          code=$(curl --silent --show-error --fail-with-body \
+            --max-time 120 --retry 2 --retry-delay 20 --retry-connrefused \
+            -o response.json -w '%{http_code}' \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "${RAILDROP_URL}/api/cron/dispatch")
+          echo "HTTP ${code}"
+          # Counts of what was enqueued, so a run that did nothing is visible.
+          head -c 2000 response.json; echo
