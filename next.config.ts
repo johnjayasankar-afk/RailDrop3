@@ -55,6 +55,41 @@ const nextConfig: NextConfig = {
     "puppeteer-core",
     "@sparticuz/chromium",
   ],
+
+  /* The browser binary, which tracing does not find on its own.
+   *
+   * This is why the deployed app never returned a price. serverExternalPackages
+   * above keeps @sparticuz/chromium out of the bundle and lets it be required at
+   * runtime, and tracing duly shipped its JavaScript — build/index.js,
+   * build/lambdafs.js, build/paths.js. It did not ship bin/chromium.br, because
+   * nothing imports that file: executablePath() builds the path at runtime
+   * (`inflate(join(input, "chromium.br"))`, @sparticuz/chromium build/index.js)
+   * and a static trace cannot follow a computed path.
+   *
+   * So every serverless function had the loader for a browser and no browser.
+   * executablePath() resolved a path that did not exist, launchBrowser threw
+   * "Serverless Chromium missing at ...", and every date in the window came back
+   * PROVIDER_ERROR. On the board that rendered as "The fare search did not get
+   * through either. Nothing to show." — on a corridor where the search works
+   * perfectly from a laptop, which is what made it look like a scraper bug.
+   *
+   * Verified by reading each route's .nft.json trace under .next/server/app
+   * before and after: zero browser-archive entries before, four after.
+   *
+   * Only the routes that actually launch a browser. Each inclusion adds ~66 MB
+   * to that function, taking it to ~84 MB against Vercel's 250 MB uncompressed
+   * ceiling; adding it everywhere would waste that headroom on routes that
+   * never scrape. `*` stands in for `[id]` on purpose — these keys are picomatch
+   * globs, and a literal `[id]` would be read as a character class.
+   */
+  outputFileTracingIncludes: {
+    "/api/fares": ["./node_modules/@sparticuz/chromium/bin/**"],
+    "/api/watches": ["./node_modules/@sparticuz/chromium/bin/**"],
+    "/api/watches/*/check": ["./node_modules/@sparticuz/chromium/bin/**"],
+    "/api/cron/worker": ["./node_modules/@sparticuz/chromium/bin/**"],
+    "/api/cron/dispatch": ["./node_modules/@sparticuz/chromium/bin/**"],
+    "/api/health/provider": ["./node_modules/@sparticuz/chromium/bin/**"],
+  },
   turbopack: {
     root: process.cwd(),
   },

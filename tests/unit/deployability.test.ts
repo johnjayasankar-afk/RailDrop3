@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -108,6 +108,64 @@ describe("the app can actually be built for production", () => {
     };
     const offenders = (vercelConfig.crons ?? []).filter((job) => !runsAtMostDaily(job.schedule));
     expect(offenders.map((job) => `${job.path} runs "${job.schedule}"`)).toEqual([]);
+  });
+
+  it("ships the browser binary to every route that launches a browser", async () => {
+    /* Why the deployed app never returned a price, for the whole fortnight and
+     * before it.
+     *
+     * serverExternalPackages keeps @sparticuz/chromium out of the bundle so it
+     * is required at runtime. Tracing then shipped its JavaScript and none of
+     * its bin/*.br archives, because nothing imports those: executablePath()
+     * composes the path at runtime and a static trace cannot follow a computed
+     * path. Every function got the loader for a browser and no browser, threw
+     * "Serverless Chromium missing at ...", recorded PROVIDER_ERROR for every
+     * date, and the board said "The fare search did not get through either" —
+     * on a corridor that searches fine from a laptop, which is what made it read
+     * as a scraper bug rather than a packaging one.
+     *
+     * Nothing in a normal test run touches this, because locally Playwright's
+     * own Chromium is used and the archives are never needed. So the check is
+     * static: any route that asks for a fare provider must be covered by an
+     * outputFileTracingIncludes key.
+     */
+    const config = (await import("../../next.config")).default;
+    const patterns = Object.keys(config.outputFileTracingIncludes ?? {});
+
+    // Route globs are picomatch; "*" matches one segment and brackets are literal
+    // here because Next's own docs escape them for exactly that reason.
+    const covers = (pattern: string, route: string): boolean =>
+      new RegExp(
+        `^${pattern
+          .replace(/[.+^${}()|\\]/g, "\\$&")
+          .replace(/\[/g, "\\[")
+          .replace(/\]/g, "\\]")
+          .replace(/\*/g, "[^/]+")}$`,
+      ).test(route);
+
+    // readdirSync rather than fs.globSync: the latter is not in this @types/node,
+    // and vitest would not have told us — it does not typecheck. tsc did.
+    const routeFiles: string[] = [];
+    const walk = (dir: string): void => {
+      for (const entry of readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
+        const next = `${dir}/${entry.name}`;
+        if (entry.isDirectory()) walk(next);
+        else if (entry.name === "route.ts") routeFiles.push(next);
+      }
+    };
+    walk("src/app/api");
+
+    const needBrowser = routeFiles
+      .filter((relative) =>
+        /getFareProvider|createFareProvider/.test(readFileSync(path.join(ROOT, relative), "utf8")),
+      )
+      .map((relative) => relative.replace(/^src\/app/, "").replace(/\/route\.ts$/, ""));
+
+    expect(needBrowser.length).toBeGreaterThan(0); // the glob still finds routes
+    const uncovered = needBrowser.filter(
+      (route) => !patterns.some((pattern) => covers(pattern, route)),
+    );
+    expect(uncovered).toEqual([]);
   });
 
   it("has exactly one of them, so the routing rules are not silently absent", () => {
