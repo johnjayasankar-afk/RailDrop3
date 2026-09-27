@@ -11,6 +11,54 @@ size are essentially the same in both. This machine is also fast and
 high-refresh; a mid-range phone will not reproduce the frame numbers below, and
 nothing here has been measured on one.
 
+## Where the time actually goes (measured 2026-09-27, production build)
+
+`next start` against the local file store, five-date BOS→NYP window, real
+Wanderu scraping. Every number below is a median of at least three runs.
+
+| Stage                             | Cost         | Notes                                |
+| --------------------------------- | ------------ | ------------------------------------ |
+| Board page, server render (warm)  | **53–92 ms** | 110 KB of HTML                       |
+| Dashboard, server render (warm)   | **26–32 ms** |                                      |
+| Board page, first render (cold)   | 750 ms       | One-off, per process                 |
+| JS the board loads, gzipped       | **218 KB**   | 12 chunks                            |
+| **One live fare search**          | **2–12 s**   | Per date. Dominates everything else. |
+| **Creating a watch (5 dates)**    | **15 s**     | What a person actually waits for     |
+| A repeat search inside 20 minutes | **0.3 s**    | The dedup cache, doing its job       |
+
+**The render path is not the problem and optimising it would be theatre.** A
+warm board renders in under 100 ms; one date of live scraping costs fifty times
+that. Everything a traveler experiences as slow is Wanderu's page loading in a
+headless browser, and the only two things that have ever moved that number are
+the dedup cache (0.3 s instead of 15 s on a repeat) and search concurrency.
+
+### Search concurrency, and a wrong answer that looked right
+
+A single slow cycle showed three concurrent searches at 41 s each where two had
+taken 8.5 s. The obvious inference — three headless pages starve each other —
+was wrong, and it survived long enough to get written into the code.
+
+Wall clock for the same five-date window, medians of three runs:
+
+| Pages at once | Wall clock |
+| ------------- | ---------- |
+| 1             | ~22 s      |
+| 2             | ~18 s      |
+| **3**         | **~15 s**  |
+| 4             | ~28 s      |
+
+Three is the best of them and four falls off a cliff, which is where the
+contention actually starts. The 41 s observation was the live site having a bad
+minute: run-to-run variance at a fixed setting spans 12 s to 29 s, wide enough
+to swallow any difference between 1, 2 and 3.
+
+The lesson is in the code as a comment, because it is the kind of mistake that
+repeats: **do not re-tune this from one observation.** `WANDERU_MAX_PAGES` and
+`RAILDROP_SEARCH_PARALLEL` override it without a deploy, capped at 4.
+
+Serverless stays at 1, for memory rather than speed — a Lambda has a fraction of
+the RAM and an OOM costs the whole cycle.
+
 ## The headline
 
 **There was no scroll problem to fix.** This was measured before any change, at

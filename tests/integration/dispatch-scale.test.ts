@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { MemoryRepository } from "@/lib/db/memory-store";
 import { RecordingMailer } from "@/lib/notifications/resend-mailer";
 import { FixtureFareProvider } from "@/lib/providers/fixture-fare-provider";
@@ -58,6 +58,12 @@ async function checkedWatchIds(repo: MemoryRepository): Promise<Set<string>> {
 }
 
 describe("dispatch at scale", () => {
+  /* These drive fifty watches through the real cycle machinery, which is slow
+     on purpose — it is what the test is about. The default 5s is a bet that the
+     machine is idle, and it loses on a busy laptop or a shared CI box. A test
+     that fails because something else was compiling is not telling anyone
+     anything about dispatch. */
+  vi.setConfig({ testTimeout: 30_000 });
   it("eventually checks all 50 watches across successive wakes, with no burned slots", async () => {
     const repo = new MemoryRepository();
     const provider = new FixtureFareProvider();

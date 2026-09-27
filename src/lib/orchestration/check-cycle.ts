@@ -117,8 +117,13 @@ export async function runWatchCycle(input: {
   let providerRequests = 0;
   let reusedSearches = 0;
   let credits = 0;
-  // Local can fan out; Vercel keeps concurrency low (Chromium memory) but >1 when possible.
-  const parallel = config.isE2E ? 1 : config.isLocal ? 3 : 1;
+  /* How many dates to search at once.
+   *
+   * Three locally, measured — see the note on MAX_CONCURRENT_PAGES in
+   * wanderu-browser-provider.ts for the numbers and for why the first, wrong
+   * answer looked so convincing. One on serverless, for memory rather than
+   * speed. RAILDROP_SEARCH_PARALLEL overrides, for tuning without a deploy. */
+  const parallel = config.isE2E ? 1 : searchParallelism(config.isLocal);
 
   // With concurrency 1 on serverless, three slow dates can ask for more wall
   // clock than the function has. Past the deadline the remaining dates are
@@ -720,3 +725,10 @@ async function mapPool<T, R>(
 }
 
 export { BookingLinkResolver };
+
+/** Date-level fan-out. See the note at its call site. */
+function searchParallelism(isLocal: boolean): number {
+  const raw = Number.parseInt(process.env.RAILDROP_SEARCH_PARALLEL ?? "", 10);
+  if (Number.isFinite(raw) && raw >= 1 && raw <= 4) return raw;
+  return isLocal ? 3 : 1;
+}

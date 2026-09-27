@@ -33,7 +33,38 @@ type PlaywrightResponse = {
   json: () => Promise<unknown>;
 };
 
-const MAX_CONCURRENT_PAGES = isServerlessRuntime() ? 1 : 3;
+/* How many Wanderu pages may be open at once.
+ *
+ * Measured rather than reasoned about, because reasoning about it was wrong.
+ * A single slow cycle looked like contention — three searches at 41s where two
+ * had taken 8.5s — and the obvious inference was that three headless pages
+ * starve each other. Repeating it said otherwise. Wall clock for a five-date
+ * BOS→NYP window, medians of three runs:
+ *
+ *     1 page  ~22s      3 pages ~15s
+ *     2 pages ~18s      4 pages ~28s
+ *
+ * Three is the best of them and four falls off a cliff — that is where the
+ * contention actually starts. The 41s run was the live site having a bad
+ * minute, and run-to-run variance (12s to 29s at the same setting) is wide
+ * enough to swallow any difference between 1, 2 and 3. Do not re-tune this from
+ * one observation; it is what produced the wrong answer the first time.
+ *
+ * Serverless stays at 1 for memory, not speed: a Lambda has a fraction of the
+ * RAM and an OOM costs the whole cycle.
+ *
+ * Overridable because the right number depends on the machine, and an operator
+ * finding this out at 2am should not need a deploy to act on it.
+ */
+const MAX_CONCURRENT_PAGES = readConcurrency();
+
+function readConcurrency(): number {
+  const raw = Number.parseInt(process.env.WANDERU_MAX_PAGES ?? "", 10);
+  // Capped at 4 because 4 is measurably worse; anything above it is not a
+  // setting anyone should reach for by accident.
+  if (Number.isFinite(raw) && raw >= 1 && raw <= 4) return raw;
+  return isServerlessRuntime() ? 1 : 3;
+}
 const PAGE_GOTO_TIMEOUT_MS = isServerlessRuntime() ? 55000 : 45000;
 const TRIP_WAIT_MS = isServerlessRuntime() ? 28000 : 35000;
 const EXTRA_WAIT_MS = isServerlessRuntime() ? 5000 : 8000;

@@ -122,6 +122,32 @@ describe("falling back to the local store", () => {
     expect(config.localByDefault).toBe(false);
   });
 
+  it("allows a production build to run locally, which is how it gets measured", () => {
+    /* The guard used to key on NODE_ENV, which `next start` sets, so there was
+       no way to run a production build on a laptop at all. */
+    const config = env({ NODE_ENV: "production", RAILDROP_LOCAL: "1" });
+    expect(config.isLocal).toBe(true);
+    // And it actually reaches the file store, rather than falling through to a
+    // Supabase that is not configured.
+    expect(config.isOffline).toBe(true);
+    expect(config.isProduction).toBe(true);
+  });
+
+  it("cannot be offline on a deployment, however the flags are set", () => {
+    // The invariant the production guard exists for, stated directly.
+    expect(env({ NODE_ENV: "production", VERCEL: "1", ...SUPABASE }).isOffline).toBe(false);
+    expect(env({ NODE_ENV: "development", VERCEL: "1" }).isOffline).toBe(false);
+    expect(env({ NODE_ENV: "development", VERCEL: "1", VERCEL_ENV: "preview" }).isOffline).toBe(
+      false,
+    );
+  });
+
+  it("still refuses it on a deployed environment, which is where the risk is", () => {
+    expect(() => env({ NODE_ENV: "production", VERCEL: "1", RAILDROP_LOCAL: "1" })).toThrow(
+      /deployed/i,
+    );
+  });
+
   it("is asked-for even when Supabase is configured", () => {
     const config = env({ NODE_ENV: "development", RAILDROP_LOCAL: "1", ...SUPABASE });
     expect(config.isLocal).toBe(true);

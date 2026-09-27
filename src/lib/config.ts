@@ -107,8 +107,19 @@ export function getConfig(): AppConfig {
   if (isProduction && isE2E) {
     throw new Error("E2E_TEST cannot be enabled in production");
   }
-  if (isProduction && isLocal) {
-    throw new Error("RAILDROP_LOCAL cannot be enabled in production");
+  /* Deployed, not merely built for production.
+   *
+   * The guard exists so a real deployment can never quietly write trips into a
+   * JSON file, and it should. But it keyed on NODE_ENV, which `next start` sets
+   * — so there was no way to run a production build on a laptop at all, and no
+   * way to measure one. Keying on Vercel keeps the protection exactly where the
+   * risk is and gives the local production build back. */
+  /* The raw variable, not askedForLocal — which already excludes Vercel, so a
+     guard on it could never fire. Setting this on a deployment is a mistake
+     worth a loud failure rather than a silent ignore: somebody believes the
+     app is using a file store and it is not. */
+  if (onVercel && (parsed.RAILDROP_LOCAL === "1" || parsed.NEXT_PUBLIC_RAILDROP_LOCAL === "1")) {
+    throw new Error("RAILDROP_LOCAL cannot be enabled on a deployed environment");
   }
 
   cached = {
@@ -128,7 +139,18 @@ export function getConfig(): AppConfig {
     isE2E,
     isLocal,
     localByDefault,
-    isOffline: (isE2E || isLocal) && !isProduction,
+    /* No `&& !isProduction`.
+     *
+     * That clause was the second half of the same papercut: even with
+     * RAILDROP_LOCAL set, a local production build fell through to Supabase, so
+     * `next start` on a laptop could not work and could not be measured.
+     *
+     * Dropping it is safe because the invariant is enforced where the risk
+     * actually is. isE2E throws in production, and isLocal is only reachable
+     * off Vercel — askedForLocal excludes it and now throws on it, and
+     * localByDefault is development-only. So isOffline cannot be true on a
+     * deployment, which is the property that matters. */
+    isOffline: isE2E || isLocal,
     isProduction,
   };
   return cached;
