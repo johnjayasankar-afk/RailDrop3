@@ -23,6 +23,55 @@ type ChromiumModule = {
 
 const LAUNCH_ARGS = ["--disable-blink-features=AutomationControlled", "--disable-dev-shm-usage"];
 
+/**
+ * How long a launch candidate gets before we move on.
+ *
+ * The first one tried is given far longer than the rest, and that asymmetry is
+ * the point. A cold container has to inflate a 190 MB browser out of the .br
+ * archive before Chromium even starts, so a tight deadline on the first attempt
+ * would abandon the configuration that works while it was still unpacking — a
+ * live search became a dead one to protect against a hang that was not
+ * happening. Later candidates are only reached because an earlier one failed, so
+ * there the risk is reversed and a short leash is right.
+ *
+ * Worst case is 45 s + five times 20 s, which leaves room inside the 300 s the
+ * search routes are given; the expected case is the first candidate answering,
+ * and once one has won it is tried first on every warm invocation after.
+ */
+const FIRST_STRATEGY_DEADLINE_MS = 45_000;
+const LATER_STRATEGY_DEADLINE_MS = 20_000;
+
+/** Reject if a promise has not settled in time, without leaking a browser. */
+async function withDeadline<T>(work: Promise<T>, ms: number, message: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      work,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error(message)), ms);
+      }),
+    ]);
+  } catch (error) {
+    /* Only on the losing path. A candidate that timed out may still be starting
+     * a browser that nobody holds a reference to, and an orphaned Chromium in a
+     * serverless container keeps its memory until the container dies. Doing this
+     * in `finally` instead would close the browser on success as well — which is
+     * to say, close the one we are about to return and use. */
+    void work.then(
+      (value) => {
+        const orphan = value as { close?: () => Promise<void> } | null;
+        if (orphan && typeof orphan.close === "function") {
+          void orphan.close().catch(() => undefined);
+        }
+      },
+      () => undefined,
+    );
+    throw error;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 /* What the last serverless launch did, for the health probe to report.
  *
  * The launch happens deep inside a provider call and its only trace was a log
@@ -176,6 +225,22 @@ async function launchServerlessChromium(): Promise<PlaywrightBrowser | null> {
 
   const bundled = chromiumPkg.args ?? [];
   const withoutSingleProcess = bundled.filter((arg) => arg !== "--single-process");
+  /* --single-process and --no-zygote are shipped as a pair and are meant to work
+   * as one. Removing only the first leaves Chromium forking renderers with no
+   * zygote, which is a configuration neither flag was tested against, so there
+   * has to be a candidate without either — otherwise every candidate could fail
+   * for the same reason and the fallback chain would prove nothing. */
+  const multiProcess = withoutSingleProcess.filter((arg) => arg !== "--no-zygote");
+  /* Last resort: the smallest set that is known to run Chromium in a container
+   * at all. No GPU, no zygote games, nothing clever. Slower and heavier, but if
+   * this cannot open a page then the problem is not the flags. */
+  const minimal = [
+    "--no-sandbox",
+    "--disable-setuid-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-gpu",
+    "--headless=shell",
+  ];
 
   /* Four ways to start it, and each one is made to prove it works.
    *
@@ -229,6 +294,17 @@ async function launchServerlessChromium(): Promise<PlaywrightBrowser | null> {
       },
     },
     {
+      name: "playwright-core+noflagpair",
+      open: async () => {
+        const { chromium } = await import("playwright-core");
+        return (await chromium.launch({
+          args: [...multiProcess, ...LAUNCH_ARGS],
+          executablePath,
+          headless: true,
+        })) as unknown as PlaywrightBrowser;
+      },
+    },
+    {
       // The package's documented Puppeteer pairing, this time actually followed.
       name: "puppeteer-core",
       open: async () => {
@@ -259,15 +335,54 @@ async function launchServerlessChromium(): Promise<PlaywrightBrowser | null> {
         return wrapPuppeteerBrowser(browser as unknown as PuppeteerBrowserLike);
       },
     },
+    {
+      name: "playwright-core+minimal",
+      open: async () => {
+        const { chromium } = await import("playwright-core");
+        return (await chromium.launch({
+          args: [...minimal, ...LAUNCH_ARGS],
+          executablePath,
+          headless: true,
+        })) as unknown as PlaywrightBrowser;
+      },
+    },
   ];
+
+  /* Whatever worked last time, first.
+   *
+   * Six candidates each costing a launch and two pages is fine once on a cold
+   * start and wasteful on every warm invocation after it. The container keeps
+   * module scope between requests, so the winner is remembered and tried first;
+   * the rest stay in their original order behind it as the fallback. */
+  const preferred = lastLaunch?.strategy;
+  const ordered = preferred
+    ? [
+        ...strategies.filter((candidate) => candidate.name === preferred),
+        ...strategies.filter((candidate) => candidate.name !== preferred),
+      ]
+    : strategies;
 
   let lastError: unknown = null;
   const tried: string[] = [];
-  for (const strategy of strategies) {
+  for (const [index, strategy] of ordered.entries()) {
+    const deadlineMs = index === 0 ? FIRST_STRATEGY_DEADLINE_MS : LATER_STRATEGY_DEADLINE_MS;
     let browser: PlaywrightBrowser | null = null;
     try {
-      browser = await strategy.open();
-      await proveItCanOpenAPage(browser);
+      /* Bounded, because a candidate that hangs is worse than one that fails.
+       * Without this the first stuck launch would spend the request's whole
+       * budget and the remaining candidates would never be reached — the
+       * function would simply be killed, which is what a blank screen looked
+       * like from the outside. */
+      browser = await withDeadline(
+        strategy.open(),
+        deadlineMs,
+        `${strategy.name} did not launch within ${deadlineMs}ms`,
+      );
+      await withDeadline(
+        proveItCanOpenAPage(browser),
+        deadlineMs,
+        `${strategy.name} launched but could not open a page within ${deadlineMs}ms`,
+      );
       tried.push(`${strategy.name}=ok`);
       lastLaunch = { strategy: strategy.name, tried: [...tried], at: new Date().toISOString() };
       logger.info("provider.serverless_chromium_launch", {

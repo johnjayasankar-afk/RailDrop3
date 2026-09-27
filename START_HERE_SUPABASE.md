@@ -40,15 +40,24 @@ You only need a browser. Check each box as you go. When you finish **Part A**, p
 ### A4. Create the database tables
 
 1. Unzip your RailDrop zip if needed.
-2. Open this file on your computer:  
-   `supabase/migrations/20260902100000_init.sql`
+2. Open this one file on your computer:  
+   **`supabase/SETUP_ALL.sql`**
 3. Select **all** text → Copy.
 4. In Supabase: left sidebar → **SQL Editor** → **New query**
 5. Paste → click **Run**
 6. You want a success / “Success. No rows returned” style message — not a red error.
 
-7. **Also run** (required for optional sign-in / guest watches): open  
-   `supabase/migrations/20260904140000_guest_profiles.sql` → copy all → New query → **Run**.
+That is the whole schema. It is generated from every file in
+`supabase/migrations/`, in order, and it is safe to run again if a first attempt
+half-finished.
+
+> **This step used to name two migration files, and there are nine.** Following it
+> produced a database missing seven of them — no corridor history, no email
+> suppression, no alert decisions, no observed-price column — which does not fail
+> at setup. It fails later, at runtime, against a column that does not exist, a
+> long way from the cause. `supabase/SETUP_ALL.sql` exists so that cannot happen,
+> and `tests/unit/setup-sql.test.ts` fails if a new migration is added without
+> regenerating it (`node scripts/build-setup-sql.mjs`).
 
 ### A5. Copy your 3 keys
 
