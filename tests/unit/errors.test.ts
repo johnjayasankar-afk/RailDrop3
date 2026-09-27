@@ -70,9 +70,13 @@ describe("errorMessage", () => {
   });
 
   it("still passes through a message that is genuinely actionable", () => {
-    // The one-time guest migration is something the operator can actually do.
+    /* Running the schema is something the operator can actually do. It names the
+       whole schema rather than one migration: naming a single file is how a
+       database ends up with two of the nine applied, which then fails later
+       against a column that does not exist instead of at setup. */
     const shown = errorMessage({ message: "insert violates profiles_id_fkey", code: "23503" });
-    expect(shown).toContain("supabase/migrations/20260904140000_guest_profiles.sql");
+    expect(shown).toContain("supabase/SETUP_ALL.sql");
+    expect(shown).toMatch(/SQL Editor/i);
   });
 
   it("keeps a configuration error verbatim, since it names the fix", () => {
@@ -157,5 +161,59 @@ describe("errorDetail", () => {
     const noisy = { message: "TypeError: fetch failed", details: "x".repeat(5_000), code: "" };
     expect(errorDetail(noisy).length).toBeLessThan(400);
     expect(errorDetail(noisy)).not.toContain("\n");
+  });
+});
+
+/* "Try again in a minute" is a claim, and it has to be true.
+ *
+ * The Supabase project a deployment pointed at was deleted, so its hostname
+ * returned NXDOMAIN — permanently. The save path told everyone to try again in a
+ * minute for two weeks. That is the same class of statement as inventing a price:
+ * a confident sentence about something we did not observe.
+ */
+describe("a database we cannot reach", () => {
+  function dnsFailure(): Error {
+    const error = new TypeError("fetch failed");
+    Object.defineProperty(error, "cause", {
+      value: new Error("getaddrinfo ENOTFOUND hsztdjmrifsgpspvrnbz.supabase.co"),
+    });
+    return error;
+  }
+
+  it("does not promise a minute will fix a name that does not resolve", () => {
+    const shown = errorMessage(dnsFailure());
+    expect(shown).not.toMatch(/try again in a minute/i);
+    expect(shown).toMatch(/does not resolve/i);
+  });
+
+  it("says the fare search still works, because it does", () => {
+    // The live lookup needs no database. Leaving that out sends someone away
+    // from the one thing that was working.
+    expect(errorMessage(dnsFailure())).toMatch(/fare search/i);
+  });
+
+  it("still tells them nothing was saved", () => {
+    expect(errorMessage(dnsFailure())).toMatch(/nothing was saved/i);
+  });
+
+  it("keeps the retry advice for a failure that really is transient", () => {
+    /* A reset connection means something answered and the exchange failed. That
+       one does get better by waiting, so the old sentence is still correct. */
+    const transient = new Error("connect ECONNRESET 10.0.0.1:5432");
+    expect(errorMessage(transient)).toMatch(/try again in a minute/i);
+  });
+
+  it("still matches what the form looks for before showing fares instead", () => {
+    /* new-watch-form tests the message with /could not reach|try again in a
+       minute/ to decide whether to fall back to a fare preview. Both branches
+       have to keep matching or a failed save shows no prices at all. */
+    for (const error of [dnsFailure(), new Error("connect ETIMEDOUT")]) {
+      expect(errorMessage(error)).toMatch(/could not reach|try again in a minute/i);
+    }
+  });
+
+  it("does not leak the hostname to the reader, but keeps it for the log", () => {
+    expect(errorMessage(dnsFailure())).not.toMatch(/supabase\.co/);
+    expect(errorDetail(dnsFailure())).toMatch(/supabase\.co/);
   });
 });

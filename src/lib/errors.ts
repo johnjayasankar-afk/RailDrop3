@@ -15,6 +15,15 @@ import { ZodError } from "zod";
  */
 
 /** Transport-level failure: the request never reached anything. */
+/**
+ * Transport failures that mean the name itself has no answer.
+ *
+ * A subset of TRANSPORT_SIGNS, and the reason the two are separate: these do not
+ * get better by waiting. A Supabase project that has been deleted resolves to
+ * NXDOMAIN forever.
+ */
+const UNRESOLVED_SIGNS = ["enotfound", "eai_again", "getaddrinfo", "nxdomain"];
+
 const TRANSPORT_SIGNS = [
   "fetch failed",
   "failed to fetch",
@@ -123,7 +132,7 @@ export function toAppError(error: unknown): Error {
     return new Error(detail || "Invalid watch details");
   }
   if (error instanceof Error) {
-    const rewritten = new Error(friendlyDbMessage(error.message));
+    const rewritten = new Error(friendlyDbMessage(error.message, "", errorDetail(error)));
     return isTransportFailure(error) ? markTransport(rewritten, error) : rewritten;
   }
   if (typeof error === "object" && error && "message" in error) {
@@ -132,26 +141,49 @@ export function toAppError(error: unknown): Error {
       "code" in error && (error as { code: unknown }).code != null
         ? String((error as { code: unknown }).code)
         : "";
-    const rewritten = new Error(friendlyDbMessage(message, code));
+    const rewritten = new Error(friendlyDbMessage(message, code, errorDetail(error)));
     return isTransportFailure(error) ? markTransport(rewritten, error) : rewritten;
   }
   return new Error("Could not create watch");
 }
 
-function friendlyDbMessage(message: string, code = ""): string {
-  const lower = message.toLowerCase();
+/**
+ * @param diagnostic The untouched text including any cause, used only to classify.
+ *   undici puts "fetch failed" on the message and the errno on the cause, so
+ *   deciding from `message` alone could not tell a name that does not resolve
+ *   from a connection that was reset — and got it wrong in the direction that
+ *   told people to wait for something permanent.
+ */
+function friendlyDbMessage(message: string, code = "", diagnostic = message): string {
+  const lower = `${message} ${diagnostic}`.toLowerCase();
   if (TRANSPORT_SIGNS.some((sign) => lower.includes(sign))) {
-    // The request did not arrive anywhere. Saying so is the whole message: the
-    // reader did nothing wrong, nothing was saved, and retrying is reasonable.
-    // What broke is in the log, not on their screen.
-    return "We could not reach the RailDrop database, so nothing was saved. This is a problem on our side — try again in a minute.";
+    /* Two different failures were wearing one sentence.
+     *
+     * "Try again in a minute" is right for a reset connection or a timeout: the
+     * database is there and the request was unlucky. It is false for a hostname
+     * that does not resolve, which is what a deleted Supabase project looks
+     * like — that cannot come back on its own, and no number of attempts will
+     * change it. Telling someone to wait a minute for a permanent
+     * misconfiguration is the same class of claim as inventing a price: a
+     * confident sentence about something we did not observe.
+     *
+     * The distinction is available in the error itself. getaddrinfo ENOTFOUND
+     * and EAI_AGAIN mean DNS had no answer; ECONNRESET, ETIMEDOUT and the rest
+     * mean something answered and the exchange failed. */
+    return UNRESOLVED_SIGNS.some((sign) => lower.includes(sign))
+      ? "We could not reach the RailDrop database, so nothing was saved. Its address does not resolve, so this is a setting that needs fixing rather than a passing glitch — trying again will not help until it is. Live fare search does not use the database and still works."
+      : "We could not reach the RailDrop database, so nothing was saved. This is a problem on our side — try again in a minute.";
   }
   if (
     code === "23503" ||
     lower.includes("profiles_id_fkey") ||
     (lower.includes("foreign key") && lower.includes("profiles"))
   ) {
-    return "Database needs a one-time guest fix: in Supabase SQL Editor run file supabase/migrations/20260904140000_guest_profiles.sql then try again.";
+    /* Points at the whole schema, not one migration. Naming a single file is how
+       a database ends up with two of the nine applied — which is what the setup
+       instructions used to produce, and it fails later against a column that
+       does not exist rather than at setup. */
+    return "The database is missing part of its schema: in the Supabase SQL Editor, run supabase/SETUP_ALL.sql, then try again.";
   }
   if (lower.includes("service role") || lower.includes("supabase is not configured")) {
     return message;
