@@ -129,6 +129,13 @@ function buildFixtureJourneys(request: FareSearchRequest, day: number): JourneyO
     trainNumber: "93",
     departureAt: `${request.travelDate}T17:00:00`,
     arrivalAt: `${request.travelDate}T21:10:00`,
+    // Same reason as the bus: this spreads `cheap` and overrides its times, so
+    // it inherited a duration belonging to a different train. On the Acela day
+    // that was 198 minutes for a 250-minute journey.
+    durationMinutes: minutesBetween(
+      `${request.travelDate}T17:00:00`,
+      `${request.travelDate}T21:10:00`,
+    ),
     fares: [
       fare("FLX", "Coach", 11900, request.passengers.adultCount, `${request.travelDate}:eve`),
     ],
