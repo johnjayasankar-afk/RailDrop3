@@ -4,6 +4,7 @@ import { BookingLinkResolver } from "@/lib/booking/booking-link-resolver";
 import { generateSearchDates } from "@/lib/domain/calendar";
 import { collectEligibleFares } from "@/lib/domain/eligibility";
 import { screenJourneys } from "@/lib/domain/fare-screen";
+import { suspectEmptyDates, type DateOutcome } from "@/lib/domain/empty-result";
 import { cheapestByDate, rankCandidates } from "@/lib/domain/ranking";
 import { OpportunityComparator } from "@/lib/domain/opportunity";
 import { decideAlert } from "@/lib/domain/alert-policy";
@@ -26,7 +27,7 @@ import type {
   FareSearchResult,
   JourneyOption,
 } from "@/lib/domain/types";
-import type { FareCheckCycleRecord, WatchRecord } from "@/lib/db/models";
+import type { DateSnapshotRecord, FareCheckCycleRecord, WatchRecord } from "@/lib/db/models";
 import type { RailDropRepository } from "@/lib/db/repository";
 import type { FareProvider } from "@/lib/providers/fare-provider";
 import { sendFareDropEmail, type Mailer } from "@/lib/notifications/send-alert";
@@ -113,6 +114,17 @@ export async function runWatchCycle(input: {
   const datesFailed: string[] = [];
   /** Dates we reached but could not read. Different from a date we never got. */
   const unreadableDates: string[] = [];
+  /* What each date returned, so a zero can be judged against its neighbours.
+   *
+   * The provider eval found PHL→NYP returning zero trains on one date,
+   * reproducibly, while the next day on the same corridor returned 33. A
+   * served corridor runs trains daily, so that is a failed read — but from
+   * inside a single date's search it is indistinguishable from an empty
+   * timetable, and the board was calling it "nothing listed, not a problem at
+   * our end". The window as a whole knows better. */
+  const outcomes: DateOutcome[] = [];
+  /** Snapshots for empty dates, held until the window can judge them. */
+  const deferredSnapshots: Array<{ travelDate: string; snapshot: DateSnapshotRecord }> = [];
   const allJourneys: JourneyOption[] = [];
   let providerRequests = 0;
   let reusedSearches = 0;
@@ -435,7 +447,13 @@ export async function runWatchCycle(input: {
       allJourneys.push(...screened.journeys);
     }
 
-    await input.repo.insertDateSnapshot({
+    outcomes.push({
+      travelDate,
+      journeyCount: result.journeys.length,
+      ok: result.status !== "PROVIDER_ERROR",
+    });
+
+    const snapshot: DateSnapshotRecord = {
       id: crypto.randomUUID(),
       cycleId,
       watchId: watch.id,
@@ -446,7 +464,37 @@ export async function runWatchCycle(input: {
       errorMessage:
         result.providerError?.message ??
         (screened.verdict.trustworthy ? null : screened.verdict.summary),
+    };
+    // An empty date cannot be judged until its neighbours have reported.
+    if (status === "NO_INVENTORY") deferredSnapshots.push({ travelDate, snapshot });
+    else await input.repo.insertDateSnapshot(snapshot);
+  }
+
+  /* Now the window can say which zeros to believe. A date with no trains at
+   * all, beside dates with dozens, is a failed read — not an empty corridor,
+   * and certainly not grounds for telling the traveler nothing is listed. */
+  const suspect = suspectEmptyDates(outcomes);
+  for (const { travelDate, snapshot } of deferredSnapshots) {
+    const reason = suspect.get(travelDate);
+    if (!reason) {
+      await input.repo.insertDateSnapshot(snapshot);
+      continue;
+    }
+    logger.warn("provider.implausibly_empty", {
+      watch_id: watch.id,
+      cycle_id: cycleId,
+      travel_date: travelDate,
+      reason,
     });
+    await input.repo.insertDateSnapshot({
+      ...snapshot,
+      status: "PROVIDER_ERROR",
+      errorMessage: reason,
+    });
+    const at = datesSucceeded.indexOf(travelDate);
+    if (at >= 0) datesSucceeded.splice(at, 1);
+    if (!datesFailed.includes(travelDate)) datesFailed.push(travelDate);
+    unreadableDates.push(travelDate);
   }
 
   const eligible = collectEligibleFares(allJourneys, {
