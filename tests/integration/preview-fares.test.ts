@@ -179,7 +179,7 @@ describe('what it refuses', () => {
         } as unknown as FareSearchResult;
       },
       getStations: async () => [],
-      healthCheck: async () => ({ ok: false, message: 'down' }),
+      healthCheck: async () => ({ ok: false, message: 'down', latencyMs: 1 }),
     };
     const preview = await previewFares({ body, provider: dead, now });
     expect(preview.ranked).toHaveLength(0);
