@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { NextResponse } from "next/server";
 import { routeGuard } from "@/lib/api/respond";
+import { loadPageData } from "@/lib/pages/load-guard";
 import { errorDetail, errorMessage, isTransportFailure, toAppError } from "@/lib/errors";
 import { createWatchAndScan } from "@/lib/watches/create-watch";
 import { MemoryRepository } from "@/lib/db/memory-store";
@@ -175,5 +176,93 @@ describe("creating a watch when the database is unreachable", () => {
     });
     expect(watch.id).toBeTruthy();
     expect(watch.lastCheckCycleId).toBeTruthy();
+  });
+});
+
+/* The pages, which for two weeks had no guard at all.
+ *
+ * Every API route was wrapped in routeGuard. The pages were not, so /dashboard,
+ * /watches/[id], /settings and /unsubscribe all threw into app/error.tsx and
+ * told the reader "The board could not load ... Try again: this is usually a
+ * brief hitch" — while the live fare search, which needs no database, was
+ * working the whole time.
+ */
+describe("a page whose database is unreachable", () => {
+  /** Every call fails the way a dead host fails. */
+  function brokenRepo(): RailDropRepository {
+    return new Proxy({} as RailDropRepository, {
+      get() {
+        return async () => {
+          throw asSupabaseSees;
+        };
+      },
+    });
+  }
+
+  /** The shape /unsubscribe runs: read the watch, suppress, clear the address. */
+  async function runUnsubscribe(repo: RailDropRepository) {
+    const stopped = await loadPageData(
+      { page: "/unsubscribe", watchId: "w1" },
+      async (): Promise<"done" | "already"> => {
+        const watch = await repo.getWatch("w1");
+        const email = watch?.alertEmail?.trim();
+        if (!watch || !email) return "already";
+        await repo.suppressEmail({
+          email,
+          reason: "UNSUBSCRIBED",
+          watchId: "w1",
+          detail: "Unsubscribe link in an alert email.",
+        });
+        await repo.updateWatch("w1", { alertEmail: "" });
+        return "done";
+      },
+    );
+    return stopped.reachable ? stopped.data : "unreachable";
+  }
+
+  it("never claims to have stopped mail it could not stop", async () => {
+    /* The worst available answer on this page. Someone has just asked us to
+       stop emailing them; "Stopped." would be a promise we did not keep, and
+       they would find out by receiving the next alert. */
+    expect(await runUnsubscribe(brokenRepo())).toBe("unreachable");
+  });
+
+  it("does not tell them there was nothing to stop, either", async () => {
+    /* The tempting wrong fix: a bare try/catch that falls through to "already".
+       That reads as "that trip has no alert email on it", which blames their
+       link for our outage and is just as false as claiming success. */
+    expect(await runUnsubscribe(brokenRepo())).not.toBe("already");
+  });
+
+  it("still stops the mail when the database is there", async () => {
+    // The guard must not have broken the path that matters.
+    const repo = new MemoryRepository();
+    const watch = await repo.createWatch({
+      userId: "u1",
+      originCode: "BOS",
+      destinationCode: "NYP",
+      desiredTravelDate: "2026-10-09",
+      dateFlexibilityDays: 0,
+      currentBookedPriceCents: 12_800,
+      alertEmail: "traveler@example.com",
+    } as Parameters<MemoryRepository["createWatch"]>[0]);
+    const stopped = await loadPageData(
+      { page: "/unsubscribe", watchId: watch.id },
+      async (): Promise<"done" | "already"> => {
+        const found = await repo.getWatch(watch.id);
+        if (!found?.alertEmail?.trim()) return "already";
+        await repo.updateWatch(watch.id, { alertEmail: "" });
+        return "done";
+      },
+    );
+    expect(stopped).toEqual({ reachable: true, data: "done" });
+    expect((await repo.getWatch(watch.id))?.alertEmail ?? "").toBe("");
+  });
+
+  it("lets a board read degrade instead of throwing", async () => {
+    const loaded = await loadPageData({ page: "/dashboard", userId: "u1" }, () =>
+      brokenRepo().listWatchesForUser("u1"),
+    );
+    expect(loaded.reachable).toBe(false);
   });
 });

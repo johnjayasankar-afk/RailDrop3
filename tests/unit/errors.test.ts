@@ -129,4 +129,33 @@ describe("errorDetail", () => {
     // The whole point of two functions.
     expect(errorDetail(supabaseNetworkError)).not.toBe(errorMessage(supabaseNetworkError));
   });
+
+  it("finds the hostname where supabase-js actually puts it", () => {
+    /* Copied out of a real server log, not invented. supabase-js rejects with a
+       plain object and no `cause`, so this function — the one whose job is to
+       keep the hostname in the log — used to drop it for the only client that
+       reads the database, and an outage logged "TypeError: fetch failed" with
+       no host in it. The fixture above has details: "", which is why the gap
+       survived having tests. */
+    const fromProduction = {
+      message: "TypeError: fetch failed",
+      details:
+        "TypeError: fetch failed\n\nCaused by: Error: getaddrinfo ENOTFOUND " +
+        "hsztdjmrifsgpspvrnbz.supabase.co (ENOTFOUND)\nError: getaddrinfo ENOTFOUND " +
+        "hsztdjmrifsgpspvrnbz.supabase.co\n    at GetAddrInfoReqWrap.onlookupall " +
+        "[as oncomplete] (node:dns:122:26)",
+      hint: "",
+      code: "",
+    };
+    const detail = errorDetail(fromProduction);
+    expect(detail).toContain("ENOTFOUND");
+    expect(detail).toContain("hsztdjmrifsgpspvrnbz.supabase.co");
+  });
+
+  it("does not put a stack trace in the log line", () => {
+    // Diagnosable, still one line.
+    const noisy = { message: "TypeError: fetch failed", details: "x".repeat(5_000), code: "" };
+    expect(errorDetail(noisy).length).toBeLessThan(400);
+    expect(errorDetail(noisy)).not.toContain("\n");
+  });
 });

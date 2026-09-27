@@ -10,13 +10,28 @@ import { watchAttention } from "@/lib/domain/board-act";
 import { soonestWatch } from "@/lib/domain/board-picks";
 import { daysUntilFlap, formatDisplayDate } from "@/lib/domain/calendar";
 import { redirect } from "next/navigation";
+import { loadPageData } from "@/lib/pages/load-guard";
+import { RecordsUnreachable } from "@/components/records-unreachable";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const user = await getSessionUser();
   if (!user) redirect(guestEntryHref("/dashboard"));
-  const watches = await getRepository().listWatchesForUser(user.id);
+  const loaded = await loadPageData({ page: "/dashboard", userId: user.id }, () =>
+    getRepository().listWatchesForUser(user.id),
+  );
+  if (!loaded.reachable) {
+    return (
+      <PageFrame email={user.email} isGuest={Boolean(user.isGuest)}>
+        <main id="main" className="mx-auto max-w-6xl px-4 py-8">
+          <h1 className="serif text-4xl">Your watches</h1>
+          <RecordsUnreachable what="watches" retryHref="/dashboard" />
+        </main>
+      </PageFrame>
+    );
+  }
+  const watches = loaded.data;
   const ranked = [...watches].sort((a, b) => (b.bestSavingsCents ?? 0) - (a.bestSavingsCents ?? 0));
   const active = watches.filter((watch) => watch.status === "ACTIVE");
   const bestSavings = Math.max(0, ...watches.map((watch) => watch.bestSavingsCents ?? 0));

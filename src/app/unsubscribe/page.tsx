@@ -4,6 +4,7 @@ import { PageFrame } from "@/components/page-frame";
 import { getRepository } from "@/lib/services";
 import { unsubscribeTokenValid } from "@/lib/notifications/unsubscribe";
 import { logger } from "@/lib/logger";
+import { loadPageData } from "@/lib/pages/load-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -27,31 +28,56 @@ export default async function UnsubscribePage({
   searchParams: Promise<{ w?: string; t?: string }>;
 }) {
   const { w: watchId, t: token } = await searchParams;
-  let outcome: "done" | "already" | "invalid" = "invalid";
+  let outcome: "done" | "already" | "invalid" | "unreachable" = "invalid";
 
   if (watchId && token && unsubscribeTokenValid(watchId, token)) {
-    const repo = getRepository();
-    const watch = await repo.getWatch(watchId);
-    const email = watch?.alertEmail?.trim();
-    if (watch && email) {
-      await repo.suppressEmail({
-        email,
-        reason: "UNSUBSCRIBED",
-        watchId,
-        detail: "Unsubscribe link in an alert email.",
-      });
-      await repo.updateWatch(watchId, { alertEmail: "" });
-      logger.info("alert.unsubscribed", { watch_id: watchId, via: "page" });
-      outcome = "done";
-    } else {
-      outcome = "already";
-    }
+    /* A fourth outcome, because the other three would all be lies.
+     *
+     * These five database calls were unguarded, so an unreachable database sent
+     * the most sensitive page in the app to "The board could not load. Try
+     * again: this is usually a brief hitch" — leaving someone who had just
+     * asked us to stop emailing them with no idea whether we had. Saying
+     * "Stopped." would claim a write that failed; saying "not valid" would
+     * blame their link. Neither is true, so this says the true thing.
+     */
+    const stopped = await loadPageData(
+      { page: "/unsubscribe", watchId },
+      async (): Promise<"done" | "already"> => {
+        const repo = getRepository();
+        const watch = await repo.getWatch(watchId);
+        const email = watch?.alertEmail?.trim();
+        if (!watch || !email) return "already";
+        await repo.suppressEmail({
+          email,
+          reason: "UNSUBSCRIBED",
+          watchId,
+          detail: "Unsubscribe link in an alert email.",
+        });
+        await repo.updateWatch(watchId, { alertEmail: "" });
+        logger.info("alert.unsubscribed", { watch_id: watchId, via: "page" });
+        return "done";
+      },
+    );
+    outcome = stopped.reachable ? stopped.data : "unreachable";
   }
 
   return (
     <PageFrame>
       <main id="main" className="mx-auto max-w-xl px-4 py-16">
-        {outcome === "invalid" ? (
+        {outcome === "unreachable" ? (
+          <>
+            <p className="kicker">Unsubscribe</p>
+            <h1 className="serif mt-3 text-3xl">We could not stop it just now.</h1>
+            <p className="mt-4 text-ink-soft">
+              Your link is valid and nothing is wrong on your end — we cannot reach our own records
+              at the moment, so we will not claim to have stopped anything we have not. The link
+              does not expire on this failure: opening it again later will work.
+            </p>
+            <p className="mt-3 text-ink-soft">
+              If you would rather not wait, reply to any RailDrop email and we will stop it by hand.
+            </p>
+          </>
+        ) : outcome === "invalid" ? (
           <>
             <p className="kicker">Unsubscribe</p>
             <h1 className="serif mt-3 text-3xl">This link is not valid.</h1>

@@ -77,12 +77,25 @@ function markTransport(error: Error, original: unknown): Error {
 export function errorDetail(error: unknown): string {
   const raw = rawMessage(error);
   if (!raw) return "unknown error";
-  const cause =
+  const extra = [
+    // undici puts the useful half — the hostname, the errno — on the cause.
     typeof error === "object" && error && "cause" in error
       ? rawMessage((error as { cause: unknown }).cause)
-      : "";
-  // undici puts the useful half — the hostname, the errno — on the cause.
-  return cause && !raw.includes(cause) ? `${raw} (cause: ${cause})` : raw;
+      : "",
+    /* supabase-js does not use `cause`. It rejects with a plain object and puts
+     * the same information in `details`, so this function — whose whole job is
+     * to keep the hostname in the log — was dropping it for the one client that
+     * actually reads the database. A real outage logged
+     * `page.records_unreachable ... detail: "TypeError: fetch failed"` and named
+     * no host, which is the mystery log line the split exists to prevent. */
+    typeof error === "object" && error && "details" in error
+      ? String((error as { details: unknown }).details ?? "")
+      : "",
+  ]
+    // A stack trace in a log line is noise; the hostname and errno lead it.
+    .map((part) => part.replace(/\s+/g, " ").trim().slice(0, 300))
+    .filter((part) => part && !raw.includes(part));
+  return extra.length > 0 ? `${raw} (${extra.join("; ")})` : raw;
 }
 
 function rawMessage(error: unknown): string {

@@ -11,6 +11,9 @@ import { localIsoDate } from "@/lib/domain/timezone";
 import { boardMoves } from "@/lib/domain/board-moves";
 import { WatchDetail } from "@/components/watch-detail";
 import { fareProviderStatus } from "@/lib/providers/create-provider";
+import { loadPageData } from "@/lib/pages/load-guard";
+import { RecordsUnreachable } from "@/components/records-unreachable";
+import type { Route } from "next";
 
 export const dynamic = "force-dynamic";
 
@@ -20,34 +23,117 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const watch = await getRepository().getWatch(id);
-  if (!watch) return { title: "Watch" };
-  return { title: `${watch.originCode} → ${watch.destinationCode}` };
+  /* The page's own guard does not cover this: Next renders metadata separately,
+   * so an unreachable database threw here too and logged a second, uncaught
+   * error for a request the page had already handled gracefully. A title is
+   * cosmetic — the outage is logged once, by the page — so this degrades
+   * quietly rather than logging the same failure twice. */
+  try {
+    const watch = await getRepository().getWatch(id);
+    if (!watch) return { title: "Watch" };
+    return { title: `${watch.originCode} → ${watch.destinationCode}` };
+  } catch {
+    return { title: "Watch" };
+  }
 }
 
 export default async function WatchPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await getSessionUser();
   const { id } = await params;
   if (!user) redirect(guestEntryHref(`/watches/${id}`));
-  const repo = getRepository();
-  const watch = await repo.getWatch(id);
-  if (!watch || watch.userId !== user.id) notFound();
-  const journeys = watch.lastCheckCycleId
-    ? (await repo.listJourneysForCycle(watch.lastCheckCycleId)).map((item) => item.option)
-    : [];
-  const snapshots = watch.lastCheckCycleId
-    ? await repo.listDateSnapshots(watch.lastCheckCycleId)
-    : [];
-  const events = await repo.listPriceEvents(id);
-  const cycle = watch.lastCheckCycleId ? await repo.getCycle(watch.lastCheckCycleId) : null;
-  const cycles = await repo.listCyclesForWatch(id);
-  const previousCycle = cycles.find(
-    (item) =>
-      item.id !== watch.lastCheckCycleId && item.status !== "RUNNING" && item.journeysReturned > 0,
+  /* One clock read for the whole render.
+   *
+   * There were three, and they could straddle a midnight in the watch's zone —
+   * the search window built against one day and `today` against the next, which
+   * would mark every date in the window as one day out. Reading it once also
+   * satisfies the compiler's purity rule, which is pointing at a real hazard
+   * even on a server component. */
+  const renderedAt = new Date();
+
+  /* Every read this page needs, behind one guard.
+   *
+   * There were eight unguarded repository calls here. A database we cannot
+   * reach threw past all of them into app/error.tsx, which told the reader the
+   * board could not load and to try again shortly — see src/lib/pages/load-guard.ts
+   * for why all three of those claims were wrong. notFound() is raised inside
+   * this block on purpose: the guard rethrows it untouched, so a watch that is
+   * not yours is still a 404 and not an outage. */
+  const loaded = await loadPageData(
+    { page: "/watches/[id]", watchId: id, userId: user.id },
+    async () => {
+      const repo = getRepository();
+      const watch = await repo.getWatch(id);
+      if (!watch || watch.userId !== user.id) notFound();
+      const journeys = watch.lastCheckCycleId
+        ? (await repo.listJourneysForCycle(watch.lastCheckCycleId)).map((item) => item.option)
+        : [];
+      const snapshots = watch.lastCheckCycleId
+        ? await repo.listDateSnapshots(watch.lastCheckCycleId)
+        : [];
+      const events = await repo.listPriceEvents(id);
+      const cycle = watch.lastCheckCycleId ? await repo.getCycle(watch.lastCheckCycleId) : null;
+      const cycles = await repo.listCyclesForWatch(id);
+      const previousCycle = cycles.find(
+        (item) =>
+          item.id !== watch.lastCheckCycleId &&
+          item.status !== "RUNNING" &&
+          item.journeysReturned > 0,
+      );
+      const previousJourneys = previousCycle
+        ? (await repo.listJourneysForCycle(previousCycle.id)).map((item) => item.option)
+        : [];
+      const alerts = (await repo.listAlertsForWatch(id))
+        .slice()
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .slice(0, 5)
+        .map((alert) => ({ id: alert.id, subject: alert.subject, createdAt: alert.createdAt }));
+      /* What this route has cost across every watch, not just this one.
+       *
+       * The shared half of the product. A watch only ever knew about itself, so
+       * its first words were "we have no price history for this trip yet" — while
+       * we had been scraping this exact corridor for somebody else all week.
+       * Thirty days is long enough to describe a route and short enough that it
+       * still describes the one running now. */
+      const observations = await repo.corridorObservations({
+        originCode: watch.originCode,
+        destinationCode: watch.destinationCode,
+        sinceIso: new Date(renderedAt.getTime() - 30 * 86_400_000).toISOString(),
+      });
+      return {
+        watch,
+        journeys,
+        snapshots,
+        events,
+        cycle,
+        cycles,
+        previousJourneys,
+        alerts,
+        observations,
+      };
+    },
   );
-  const previousJourneys = previousCycle
-    ? (await repo.listJourneysForCycle(previousCycle.id)).map((item) => item.option)
-    : [];
+
+  if (!loaded.reachable) {
+    return (
+      <PageFrame email={user.email} isGuest={Boolean(user.isGuest)}>
+        <main id="main" className="mx-auto max-w-3xl px-4 py-8">
+          <RecordsUnreachable what="board" retryHref={`/watches/${id}` as Route} />
+        </main>
+      </PageFrame>
+    );
+  }
+
+  const {
+    watch,
+    journeys,
+    snapshots,
+    events,
+    cycle,
+    cycles,
+    previousJourneys,
+    alerts,
+    observations,
+  } = loaded.data;
   const previousEligible = collectEligibleFares(previousJourneys, {
     includeRestrictedFares: watch.includeRestrictedFares,
     includeThruway: watch.includeThruway,
@@ -59,11 +145,6 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
     preferredDepartureTime: watch.preferredDepartureTime,
     currentBookedPriceCents: watch.currentBookedPriceCents,
   });
-  const alerts = (await repo.listAlertsForWatch(id))
-    .slice()
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .slice(0, 5)
-    .map((alert) => ({ id: alert.id, subject: alert.subject, createdAt: alert.createdAt }));
   const eligible = collectEligibleFares(journeys, {
     includeRestrictedFares: watch.includeRestrictedFares,
     includeThruway: watch.includeThruway,
@@ -76,15 +157,6 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
     currentBookedPriceCents: watch.currentBookedPriceCents,
   });
   const byDate = cheapestByDate(ranked);
-  /* One clock read for the whole render.
-   *
-   * There were three, and they could straddle a midnight in the watch's zone —
-   * the search window built against one day and `today` against the next, which
-   * would mark every date in the window as one day out. Reading it once also
-   * satisfies the compiler's purity rule, which is pointing at a real hazard
-   * even on a server component. */
-  const renderedAt = new Date();
-
   const window = generateSearchDates(
     watch.desiredTravelDate,
     watch.dateFlexibilityDays,
@@ -92,20 +164,7 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
   );
   const fareSource = fareProviderStatus();
 
-  /* What this route has cost across every watch, not just this one.
-   *
-   * The shared half of the product. A watch only ever knew about itself, so its
-   * first words were "we have no price history for this trip yet" — while we
-   * had been scraping this exact corridor for somebody else all week. Thirty
-   * days is long enough to describe a route and short enough that it still
-   * describes the one running now. */
-  const corridor = summarizeCorridor(
-    await repo.corridorObservations({
-      originCode: watch.originCode,
-      destinationCode: watch.destinationCode,
-      sinceIso: new Date(renderedAt.getTime() - 30 * 86_400_000).toISOString(),
-    }),
-  );
+  const corridor = summarizeCorridor(observations);
 
   return (
     <PageFrame email={user.email} isGuest={Boolean(user.isGuest)}>

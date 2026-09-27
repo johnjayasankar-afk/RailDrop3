@@ -23,8 +23,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const body = (await request.json().catch(() => null)) as { email?: string; next?: string } | null;
-  const next = safeNext(body?.next ?? null);
+  const body = (await request.json().catch(() => null)) as { email?: string } | null;
   const existing = parseGuestCookie(request.cookies.get(GUEST_COOKIE)?.value);
   const user = existing ?? mintGuestUser(typeof body?.email === "string" ? body.email : "");
   if (existing && typeof body?.email === "string" && body.email.trim()) {
