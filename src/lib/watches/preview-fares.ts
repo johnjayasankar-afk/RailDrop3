@@ -16,15 +16,15 @@
  * watch would be worse than the error it replaces.
  */
 
-import { generateSearchDates } from '@/lib/domain/calendar';
-import { collectEligibleFares } from '@/lib/domain/eligibility';
-import { screenJourneys } from '@/lib/domain/fare-screen';
-import { cheapestByDate, rankCandidates } from '@/lib/domain/ranking';
-import { localIsoDate, isValidTimeZone } from '@/lib/domain/timezone';
-import { logger } from '@/lib/logger';
-import type { FareProvider } from '@/lib/providers/fare-provider';
-import type { JourneyOption, RankedCandidate } from '@/lib/domain/types';
-import { previewFaresSchema, type PreviewFaresInput } from '@/lib/validation/watch';
+import { generateSearchDates } from "@/lib/domain/calendar";
+import { collectEligibleFares } from "@/lib/domain/eligibility";
+import { screenJourneys } from "@/lib/domain/fare-screen";
+import { cheapestByDate, rankCandidates } from "@/lib/domain/ranking";
+import { localIsoDate, isValidTimeZone } from "@/lib/domain/timezone";
+import { logger } from "@/lib/logger";
+import type { FareProvider } from "@/lib/providers/fare-provider";
+import type { JourneyOption, RankedCandidate } from "@/lib/domain/types";
+import { previewFaresSchema, type PreviewFaresInput } from "@/lib/validation/watch";
 
 export interface FarePreview {
   originCode: string;
@@ -58,15 +58,15 @@ export async function previewFares(input: {
 }): Promise<FarePreview> {
   const parsed: PreviewFaresInput = previewFaresSchema.parse(input.body);
   if (parsed.originCode === parsed.destinationCode) {
-    throw new Error('Origin and destination must differ');
+    throw new Error("Origin and destination must differ");
   }
-  const timezone = isValidTimeZone(parsed.timezone) ? parsed.timezone : 'America/New_York';
+  const timezone = isValidTimeZone(parsed.timezone) ? parsed.timezone : "America/New_York";
   const now = input.now ?? new Date();
   const today = localIsoDate(now, timezone);
 
   const window = generateSearchDates(parsed.desiredTravelDate, parsed.dateFlexibilityDays, today);
   if (window.dates.length === 0) {
-    throw new Error('All dates in the travel window have already passed');
+    throw new Error("All dates in the travel window have already passed");
   }
   /* Centred on the date they actually asked for. Trimming from the ends would
    * be arbitrary; trimming to the requested date and its nearest neighbours is
@@ -86,7 +86,7 @@ export async function previewFares(input: {
       travelDate,
       passengers: { adultCount: parsed.passengerCount },
     });
-    if (result.status === 'PROVIDER_ERROR') {
+    if (result.status === "PROVIDER_ERROR") {
       failedDates.push(travelDate);
       continue;
     }
@@ -109,7 +109,7 @@ export async function previewFares(input: {
   const eligible = collectEligibleFares(journeys, {
     includeRestrictedFares: parsed.includeRestrictedFares,
     includeThruway: parsed.includeThruway,
-    travelClass: 'COACH',
+    travelClass: "COACH",
     requireAvailable: true,
   });
   const ranked = rankCandidates(eligible, {
@@ -121,7 +121,7 @@ export async function previewFares(input: {
     currentBookedPriceCents: 0,
   });
 
-  logger.info('fares.preview', {
+  logger.info("fares.preview", {
     origin: parsed.originCode,
     destination: parsed.destinationCode,
     dates: dates.length,

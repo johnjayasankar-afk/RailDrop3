@@ -1,9 +1,9 @@
-import { NextResponse } from 'next/server';
-import { getFareProvider } from '@/lib/services';
-import { previewFares } from '@/lib/watches/preview-fares';
-import { ProviderNotConfiguredError } from '@/lib/providers/fare-provider';
-import { errorDetail, errorMessage, isTransportFailure } from '@/lib/errors';
-import { logger } from '@/lib/logger';
+import { NextResponse } from "next/server";
+import { getFareProvider } from "@/lib/services";
+import { previewFares } from "@/lib/watches/preview-fares";
+import { ProviderNotConfiguredError } from "@/lib/providers/fare-provider";
+import { errorDetail, errorMessage, isTransportFailure } from "@/lib/errors";
+import { logger } from "@/lib/logger";
 
 export const maxDuration = 300;
 
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ preview });
   } catch (error) {
     const message = errorMessage(error);
-    logger.error('fares.preview_failed', {
+    logger.error("fares.preview_failed", {
       transport: isTransportFailure(error),
       message,
       detail: errorDetail(error),

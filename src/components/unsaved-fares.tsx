@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { formatUsdCompact } from '@/lib/domain/money';
-import { formatDisplayDate } from '@/lib/domain/calendar';
-import { formatClock } from '@/lib/domain/timezone';
-import { trainLabel } from '@/lib/domain/board-decision';
-import type { FarePreview } from '@/lib/watches/preview-fares';
+import { formatUsdCompact } from "@/lib/domain/money";
+import { formatDisplayDate } from "@/lib/domain/calendar";
+import { formatClock } from "@/lib/domain/timezone";
+import { trainLabel } from "@/lib/domain/board-decision";
+import type { FarePreview } from "@/lib/watches/preview-fares";
 
 /* The fares, when the watch could not be saved.
  *
@@ -36,8 +36,8 @@ export function UnsavedFares({ preview }: { preview: FarePreview }) {
       {rows.length === 0 ? (
         <p className="unsaved-empty">
           {preview.failedDates.length > 0
-            ? 'The fare search did not get through either. Nothing to show.'
-            : 'No fares are listed for these dates right now.'}
+            ? "The fare search did not get through either. Nothing to show."
+            : "No fares are listed for these dates right now."}
         </p>
       ) : (
         <ul className="unsaved-list">
@@ -47,7 +47,7 @@ export function UnsavedFares({ preview }: { preview: FarePreview }) {
                 {formatUsdCompact(candidate.totalPartyPriceCents)}
               </span>
               <span className="unsaved-when">
-                {formatDisplayDate(candidate.journey.searchedTravelDate)} ·{' '}
+                {formatDisplayDate(candidate.journey.searchedTravelDate)} ·{" "}
                 {formatClock(candidate.journey.departureAt)}
               </span>
               <span className="unsaved-train">{trainLabel(candidate)}</span>
@@ -58,7 +58,7 @@ export function UnsavedFares({ preview }: { preview: FarePreview }) {
 
       {preview.failedDates.length > 0 && rows.length > 0 ? (
         <p className="unsaved-note">
-          {preview.failedDates.map((date) => formatDisplayDate(date)).join(', ')} could not be
+          {preview.failedDates.map((date) => formatDisplayDate(date)).join(", ")} could not be
           checked, so the list above may not be the cheapest there is.
         </p>
       ) : null}
