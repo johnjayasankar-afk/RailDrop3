@@ -162,35 +162,144 @@ async function launchServerlessChromium(): Promise<PlaywrightBrowser | null> {
     throw new Error(`Serverless Chromium missing at ${executablePath || "(empty)"}`);
   }
 
-  const args = [...(chromiumPkg.args ?? []), ...LAUNCH_ARGS];
-  logger.info("provider.serverless_chromium_launch", {
-    executablePath,
-    args: args.length,
-  });
+  const bundled = chromiumPkg.args ?? [];
+  const withoutSingleProcess = bundled.filter((arg) => arg !== "--single-process");
 
-  // Prefer puppeteer-core on Lambda — it is the supported pairing for @sparticuz/chromium.
-  try {
-    const puppeteer = await import("puppeteer-core");
-    const browser = await puppeteer.default.launch({
-      args,
-      defaultViewport: { width: 1440, height: 900 },
-      executablePath,
-      headless: true,
-    });
-    return wrapPuppeteerBrowser(browser as unknown as PuppeteerBrowserLike);
-  } catch (error) {
-    logger.error("provider.puppeteer_launch_failed", {
-      message: error instanceof Error ? error.message : String(error),
-    });
+  /* Four ways to start it, and each one is made to prove it works.
+   *
+   * The deployed app failed with "Protocol error (Target.createTarget): Target
+   * closed" on every search. Launching succeeded; what failed was the next
+   * step. The provider asks for a context and then a page, and each of those is
+   * a new target — which Chromium cannot create when it is running with
+   * --single-process, a flag @sparticuz/chromium includes by default (its own
+   * comment says it is there to avoid `prctl(PR_SET_NO_NEW_PRIVS) failed`, which
+   * --no-sandbox and --disable-setuid-sandbox, both also present, already
+   * handle). So the browser died the first time it was asked for a page, and it
+   * died the same way every time: this was never intermittent.
+   *
+   * We also were not following either pairing the package documents. Its
+   * puppeteer example passes `defaultArgs({ args, headless: "shell" })` with
+   * `headless: "shell"`; we passed the raw args with `headless: true`, so
+   * puppeteer added a second, different headless flag on top of the
+   * `--headless='shell'` already in the list. Its playwright example is our
+   * exact newContext/newPage usage, and we only reached that path if puppeteer
+   * threw — which it did not.
+   *
+   * Rather than pick the one right combination from a laptop that cannot
+   * reproduce the runtime, each candidate is smoke-tested against the operation
+   * that actually broke — open a context, open a page — and the first one that
+   * survives is used. Which one won is logged, because that is the fact worth
+   * having the next time this moves.
+   */
+  type Strategy = { name: string; open: () => Promise<PlaywrightBrowser> };
+  const strategies: Strategy[] = [
+    {
+      // The package's documented Playwright pairing, and our own calling style.
+      name: "playwright-core",
+      open: async () => {
+        const { chromium } = await import("playwright-core");
+        return (await chromium.launch({
+          args: [...bundled, ...LAUNCH_ARGS],
+          executablePath,
+          headless: true,
+        })) as unknown as PlaywrightBrowser;
+      },
+    },
+    {
+      name: "playwright-core+multiprocess",
+      open: async () => {
+        const { chromium } = await import("playwright-core");
+        return (await chromium.launch({
+          args: [...withoutSingleProcess, ...LAUNCH_ARGS],
+          executablePath,
+          headless: true,
+        })) as unknown as PlaywrightBrowser;
+      },
+    },
+    {
+      // The package's documented Puppeteer pairing, this time actually followed.
+      name: "puppeteer-core",
+      open: async () => {
+        const puppeteer = await import("puppeteer-core");
+        const args = await puppeteer.default.defaultArgs({
+          args: [...bundled, ...LAUNCH_ARGS],
+          headless: "shell",
+        });
+        const browser = await puppeteer.default.launch({
+          args,
+          defaultViewport: { width: 1440, height: 900 },
+          executablePath,
+          headless: "shell",
+        });
+        return wrapPuppeteerBrowser(browser as unknown as PuppeteerBrowserLike);
+      },
+    },
+    {
+      name: "puppeteer-core+multiprocess",
+      open: async () => {
+        const puppeteer = await import("puppeteer-core");
+        const browser = await puppeteer.default.launch({
+          args: [...withoutSingleProcess, ...LAUNCH_ARGS],
+          defaultViewport: { width: 1440, height: 900 },
+          executablePath,
+          headless: "shell",
+        });
+        return wrapPuppeteerBrowser(browser as unknown as PuppeteerBrowserLike);
+      },
+    },
+  ];
+
+  let lastError: unknown = null;
+  for (const strategy of strategies) {
+    let browser: PlaywrightBrowser | null = null;
+    try {
+      browser = await strategy.open();
+      await proveItCanOpenAPage(browser);
+      logger.info("provider.serverless_chromium_launch", {
+        strategy: strategy.name,
+        executablePath,
+      });
+      return browser;
+    } catch (error) {
+      lastError = error;
+      logger.warn("provider.serverless_chromium_strategy_failed", {
+        strategy: strategy.name,
+        message: error instanceof Error ? error.message.split("\n")[0] : String(error),
+      });
+      await browser?.close().catch(() => undefined);
+    }
   }
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("No serverless Chromium configuration could open a page");
+}
 
-  // Fallback: playwright-core against the same binary.
-  const { chromium } = await import("playwright-core");
-  return chromium.launch({
-    args,
-    executablePath,
-    headless: true,
-  }) as Promise<PlaywrightBrowser>;
+/**
+ * The check that would have caught this on the first deploy.
+ *
+ * A launch that returns a browser object proves nothing: the failure was one
+ * step later, when the first context and page were created. So a candidate is
+ * only accepted once it has done exactly that and cleaned up after itself.
+ */
+async function proveItCanOpenAPage(browser: PlaywrightBrowser): Promise<void> {
+  /* newContext is typed Promise<unknown> because the puppeteer wrapper and the
+     real Playwright browser only agree on the shape used here. */
+  const context = (await browser.newContext({})) as {
+    newPage: () => Promise<{ close?: () => Promise<void> }>;
+    close?: () => Promise<void>;
+  };
+  try {
+    /* Twice, sequentially, because that is the shape of the real work: the
+       provider opens a page per date and closes it. Under --single-process the
+       first target can succeed and the second kill the browser, so a one-page
+       check would hand back a configuration that fails on the second date. */
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const page = await context.newPage();
+      await page.close?.().catch(() => undefined);
+    }
+  } finally {
+    await context.close?.().catch(() => undefined);
+  }
 }
 
 type SparticuzChromium = {

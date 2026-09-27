@@ -351,7 +351,21 @@ export class WanderuBrowserProvider implements FareProvider {
   private async context(): Promise<PlaywrightContext> {
     const existing = globalBrowser.__raildropWanderuContext;
     if (existing && globalBrowser.__raildropWanderuBrowser?.isConnected?.() !== false) {
-      return existing;
+      /* isConnected() is not enough to trust a cached context here.
+       *
+       * Between two invocations the serverless container is frozen, and the
+       * Chromium child can be gone while the client still believes its socket is
+       * open — so isConnected() returns true and the next newPage() fails with
+       * "Protocol error (Target.createTarget): Target closed", the same message
+       * a bad launch produces. Opening and closing one page is cheap and settles
+       * it; if it fails we drop the cache and build a fresh browser below. */
+      try {
+        const probe = await existing.newPage();
+        await probe.close().catch(() => undefined);
+        return existing;
+      } catch {
+        await this.resetBrowser();
+      }
     }
     const browser = await this.browser();
     globalBrowser.__raildropWanderuContext = await browser.newContext({
