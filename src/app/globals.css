@@ -3705,3 +3705,186 @@ a.depart-strip:hover {
     padding: 0.8rem 1rem;
   }
 }
+
+/* ── Date field ────────────────────────────────────────────────────────────
+   Replaces <input type="date">, whose calendar is the browser's: a different
+   shape in each, light-only in several whatever the page theme says, and unable
+   to draw the one thing that matters when choosing a date here — a watch
+   searches a window, not a day, so the flexibility setting is shown on the
+   calendar itself. */
+
+.datefield {
+  position: relative;
+  display: block;
+  font-size: 0.875rem;
+}
+
+.datefield-label {
+  display: block;
+}
+
+.datefield-control {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.datefield-input {
+  padding-right: 2.6rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.datefield-toggle {
+  position: absolute;
+  right: 0.4rem;
+  top: 50%;
+  /* The field has margin-top, so centring is from the control, not the label. */
+  transform: translateY(calc(-50% + 0.17rem));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.datefield-toggle:hover {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+}
+
+.datefield-read {
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+
+.datefield-pop {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  width: min(20.5rem, calc(100vw - 2rem));
+  padding: 0.75rem;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--paper-elevated);
+  box-shadow: var(--sh-3);
+}
+
+.datefield-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.datefield-month {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.datefield-page {
+  width: 1.9rem;
+  height: 1.9rem;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.datefield-page:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.datefield-week {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.datefield-dow {
+  display: block;
+  text-align: center;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  padding-bottom: 0.25rem;
+}
+
+.datefield-day {
+  width: 100%;
+  aspect-ratio: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.83rem;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition:
+    background 120ms var(--ease),
+    border-color 120ms var(--ease);
+}
+
+.datefield-day:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--forest-2) 12%, transparent);
+}
+
+.datefield-day:focus-visible {
+  outline: 2px solid var(--forest-2);
+  outline-offset: 1px;
+}
+
+/* Days borrowed from the months either side. Drawn, because a hole would
+   misalign the week and the column headings would stop meaning anything. */
+.datefield-day.is-outside {
+  color: color-mix(in srgb, var(--ink-soft) 70%, transparent);
+}
+
+.datefield-day:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.datefield-day.is-today {
+  border-color: var(--forest-2);
+}
+
+/* The days the watch will also search. The whole reason this is not the
+   browser's calendar. */
+.datefield-day.is-window {
+  background: color-mix(in srgb, var(--forest-2) 14%, transparent);
+}
+
+.datefield-day.is-selected {
+  background: var(--forest-2);
+  color: #fff;
+  border-color: var(--forest-2);
+  font-weight: 600;
+}
+
+.datefield-hint {
+  margin: 0.55rem 0 0;
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .datefield-day {
+    transition: none;
+  }
+}

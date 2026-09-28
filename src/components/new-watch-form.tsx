@@ -11,6 +11,7 @@ import type { WatchFormInitial } from "@/lib/domain/watch-query";
 import { RouteRibbon } from "@/components/route-ribbon";
 import { Flap } from "@/components/flap";
 import { UnsavedFares } from "@/components/unsaved-fares";
+import { DateField } from "@/components/date-field";
 import type { FarePreview } from "@/lib/watches/preview-fares";
 import { changeRuleNote } from "@/lib/domain/board-moves";
 
@@ -235,17 +236,15 @@ export function NewWatchForm({
                 value={destination}
                 onChange={setDestination}
               />
-              <label className="block text-sm">
-                Desired travel date
-                <input
-                  type="date"
-                  required
-                  min={today}
-                  value={date}
-                  onChange={(event) => setDate(event.target.value)}
-                  className="field"
-                />
-              </label>
+              {/* The flexibility is passed in so the calendar can shade the days
+                  the watch will also search — the reason this is not the
+                  browser's date picker. */}
+              <DateField
+                value={date}
+                onChange={setDate}
+                today={today}
+                flexibilityDays={flexibility}
+              />
               <fieldset className="text-sm">
                 <legend className="mb-2">Date flexibility</legend>
                 {[
