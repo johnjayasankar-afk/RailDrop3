@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
-import { monthGrid, monthOf, moveByKey, shiftMonth, WEEKDAY_LABELS } from "@/lib/domain/month-grid";
+import { monthGrid, monthOf, moveByKey, WEEKDAY_LABELS } from "@/lib/domain/month-grid";
 import { addUtcDays, compareIsoDates, formatDisplayDateLong } from "@/lib/domain/calendar";
 
 /* Picking the travel date.
@@ -37,20 +37,20 @@ export function DateField({
   const [month, setMonth] = useState(() => monthOf(value || today));
   /** The day the arrow keys are on. Separate from the selection until Enter. */
   const [cursor, setCursor] = useState(value || today);
-  const [typed, setTyped] = useState(value);
+  /* The text mid-edit, or null when the field should just show `value`.
+   *
+   * Holding the text in its own state and syncing it to `value` from an effect
+   * is the obvious shape and the wrong one — it sets state during an effect,
+   * which cascades a second render on every keystroke and is what
+   * react-hooks/set-state-in-effect is pointing at. A null draft means "no edit
+   * in progress, show the value", so there is nothing to keep in step. */
+  const [draft, setDraft] = useState<string | null>(null);
+  const typed = draft ?? value;
   const root = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const id = useId();
 
   const max = useMemo(() => addUtcDays(today, WINDOW_MAX_DAYS), [today]);
-
-  useEffect(() => {
-    setTyped(value);
-    if (value) {
-      setCursor(value);
-      setMonth(monthOf(value));
-    }
-  }, [value]);
 
   useEffect(() => {
     if (!open) return;
@@ -86,10 +86,20 @@ export function DateField({
   const pick = useCallback(
     (iso: string) => {
       onChange(iso);
+      setDraft(null);
       setOpen(false);
     },
     [onChange],
   );
+
+  /* Opening is an event, so the calendar is put back in step here rather than
+     from an effect watching `value`. */
+  const openCalendar = useCallback(() => {
+    const anchor = value || today;
+    setCursor(anchor);
+    setMonth(monthOf(anchor));
+    setOpen(true);
+  }, [value, today]);
 
   function onGridKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
     if (event.key === "Escape") {
@@ -122,11 +132,11 @@ export function DateField({
           inputMode="numeric"
           placeholder="YYYY-MM-DD"
           onChange={(event) => {
-            setTyped(event.target.value);
+            setDraft(event.target.value);
             // Only commit a complete, in-range date; partial typing is not a choice.
             if (/^\d{4}-\d{2}-\d{2}$/.test(event.target.value)) onChange(event.target.value);
           }}
-          onFocus={() => setOpen(true)}
+          onFocus={openCalendar}
           autoComplete="off"
         />
         <button
@@ -135,7 +145,7 @@ export function DateField({
           aria-expanded={open}
           aria-controls={`${id}-cal`}
           aria-label={open ? "Close the calendar" : "Open the calendar"}
-          onClick={() => setOpen((was) => !was)}
+          onClick={() => (open ? setOpen(false) : openCalendar())}
         >
           <CalendarGlyph />
         </button>
