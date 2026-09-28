@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { AppHeader } from "@/components/app-header";
 import { AppFooter } from "@/components/app-footer";
+import { Spotlight } from "@/components/spotlight";
 
 export function PageFrame({
   email,
@@ -18,6 +19,7 @@ export function PageFrame({
       <a href="#main" className="skip-link">
         Skip to content
       </a>
+      <Spotlight />
       <AppHeader email={email} isGuest={isGuest} />
       <div className="flex-1">{children}</div>
       <AppFooter signedIn={active} isGuest={isGuest} />

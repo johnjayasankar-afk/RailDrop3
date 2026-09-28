@@ -1859,17 +1859,28 @@ export function WatchDetail({
       ) : null}
       {missed ? <p className="mt-2 text-sm text-drop">{missed}</p> : null}
       <div className={`verdict mt-4 px-4 py-3 verdict-${verdict.kind}`}>
-        <p className="serif text-2xl">{verdict.label}</p>
+        <p className="verdict-label">{verdict.label}</p>
         {best && best.savingsCents > 0 ? (
-          <p className="mt-1 text-save">
-            Save up to {formatUsdCompact(best.savingsCents)}
-            {pct != null ? ` · ${pct}%` : ""}
-            {feeCents > 0
-              ? netBest > 0
-                ? ` · ${formatUsdCompact(netBest)} after fee`
-                : " · fee may wipe listed savings"
-              : ""}
-          </p>
+          /* The saving is the answer to the question this panel exists to ask,
+             so it is set as a figure and the qualifications sit beneath it.
+             Five sentences at one weight is a paragraph, not a decision. */
+          <div className="verdict-figure">
+            <span className="micro">Save up to</span>
+            <span className="readout readout-lg text-save">
+              <span className="readout-mark" aria-hidden>
+                $
+              </span>
+              {Math.round(best.savingsCents / 100)}
+            </span>
+            <span className="verdict-qual">
+              {pct != null ? `${pct}% off what you paid` : ""}
+              {feeCents > 0
+                ? netBest > 0
+                  ? ` · ${formatUsdCompact(netBest)} after your fee estimate`
+                  : " · a fee may wipe this out"
+                : ""}
+            </span>
+          </div>
         ) : (
           <p className="mt-1 text-sm opacity-80">{verdict.copy}</p>
         )}

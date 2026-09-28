@@ -4959,3 +4959,250 @@ body::after {
   letter-spacing: -0.035em;
   font-variant-numeric: tabular-nums slashed-zero;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   THE BOARD
+   ───────────────────────────────────────────────────────────────────────────
+   The core screen, and the one that still read as unfinished.
+
+   The diagnosis was one thing repeated everywhere: prices were rendered inside
+   .flap — a boxed chip with its own dark fill — so on an already dark card a
+   fare looked like a grey placeholder rather than the most important number on
+   the page. "from [$82]" reads as a label and a widget. It should read as a
+   measurement.
+
+   Nothing below touches the markup. The flap is kept where it is genuinely a
+   flap (the departure strip, where the split-flap animation means something)
+   and stripped back to bare numerals everywhere it was standing in for a
+   readout.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Date cards ──────────────────────────────────────────────────────────── */
+
+.date-card {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  gap: 0.15rem;
+  align-content: start;
+  padding: 0.85rem 0.95rem 0.95rem;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--ink) 3%, transparent), transparent 42%),
+    var(--paper-elevated);
+  box-shadow:
+    inset 0 1px 0 var(--edge-hi),
+    var(--sh-1);
+}
+
+/* The eyebrow: date, then how far it sits from the one they asked for. */
+.date-card > :first-child {
+  font-family: var(--font-code);
+  font-size: var(--step--2);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+/* "from" stops shouting. It is a preposition, not data. */
+.date-card .from-label,
+.date-card > * > .from-label {
+  font-size: var(--step--2);
+  color: var(--ink-soft);
+  letter-spacing: 0.06em;
+}
+
+/* The price: out of its box and into the open. */
+.date-card .flap {
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+  font-family: var(--font-body);
+  font-size: var(--step-2);
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums slashed-zero;
+  line-height: 1.05;
+  color: var(--ink);
+}
+
+.date-card .flap-face {
+  animation: none;
+}
+
+/* The chosen date earns a rail and a wash rather than only a border colour. */
+.date-card.is-on {
+  border-color: color-mix(in srgb, var(--forest-2) 55%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--forest-2) 10%, transparent), transparent 55%),
+    var(--paper-elevated);
+}
+
+.date-card.is-on::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2px;
+  background: linear-gradient(180deg, var(--mint-3), var(--forest-2));
+}
+
+/* ── Gradient hairlines ──────────────────────────────────────────────────────
+   A single flat border around a dark panel reads as a drawn rectangle. A
+   stroke that is brighter where the light would fall reads as an edge. Done
+   with a mask so it stays one pixel and never fills the shape. */
+
+.edge-lit {
+  position: relative;
+}
+
+.edge-lit::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+    150deg,
+    color-mix(in srgb, var(--mint-3) 38%, transparent),
+    transparent 38%,
+    transparent 62%,
+    color-mix(in srgb, var(--forest-2) 30%, transparent)
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+
+/* ── Pointer spotlight ───────────────────────────────────────────────────────
+   A soft highlight that follows the cursor across a panel. The coordinates
+   come from a pointermove handler writing two custom properties; with no
+   pointer, or no JavaScript, the gradient sits at the default centre and the
+   panel simply looks lit from the middle. */
+
+.spotlight,
+.date-card,
+.verdict,
+.ticket,
+.assistant,
+.lookup-head,
+.metric {
+  position: relative;
+  isolation: isolate;
+}
+
+.spotlight::before,
+.date-card::before,
+.verdict::before,
+.ticket::before,
+.assistant::before,
+.lookup-head::before,
+.metric::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--t-slow) var(--ease-out);
+  background: radial-gradient(
+    18rem 18rem at var(--px, 50%) var(--py, 0%),
+    color-mix(in srgb, var(--mint-3) 13%, transparent),
+    transparent 60%
+  );
+}
+
+.spotlight:hover::before,
+.date-card:hover::before,
+.verdict:hover::before,
+.ticket:hover::before,
+.assistant:hover::before,
+.lookup-head:hover::before,
+.metric:hover::before {
+  opacity: 1;
+}
+
+/* ── The verdict panel ───────────────────────────────────────────────────────
+   Was five sentences stacked at the same weight, which is a paragraph, not a
+   decision. The headline and the number carry it; the qualifications step
+   back to where qualifications belong. */
+
+.verdict {
+  position: relative;
+  overflow: hidden;
+}
+
+.verdict > h2,
+.verdict > h3 {
+  font-size: var(--step-2);
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+}
+
+.verdict .verdict-headline,
+.verdict > p:first-of-type {
+  font-size: var(--step-1);
+  letter-spacing: -0.02em;
+}
+
+.verdict .eyebrow,
+.verdict .kicker {
+  font-family: var(--font-code);
+  font-size: var(--step--2);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spotlight::before {
+    transition: none;
+  }
+}
+
+/* The verdict, led by its number. */
+.verdict-label {
+  font-size: var(--step-2);
+  line-height: 1.04;
+  letter-spacing: -0.035em;
+  margin: 0;
+}
+
+.verdict-figure {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    "micro micro"
+    "figure qual";
+  align-items: baseline;
+  gap: 0.15rem 0.8rem;
+  margin-top: 0.55rem;
+}
+
+.verdict-figure > .micro {
+  grid-area: micro;
+}
+
+.verdict-figure > .readout {
+  grid-area: figure;
+}
+
+.verdict-qual {
+  grid-area: qual;
+  font-size: var(--step--1);
+  color: var(--ink-soft);
+  line-height: 1.4;
+}
+
+/* Inside the dark verdict panel the soft ink token disappears. */
+.verdict .verdict-qual,
+.verdict .micro {
+  color: var(--board-mute);
+}
