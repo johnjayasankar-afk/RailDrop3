@@ -32,6 +32,9 @@ export function AppHeader({
               <Link href="/dashboard" className="hidden sm:inline hover:text-ink">
                 Watches
               </Link>
+              <Link href="/fares" className="hidden sm:inline hover:text-ink">
+                Check a fare
+              </Link>
               <Link href="/watches/new" className="nav-watch text-ink">
                 Watch trip
               </Link>

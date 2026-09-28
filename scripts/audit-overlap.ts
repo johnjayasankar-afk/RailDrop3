@@ -134,6 +134,7 @@ async function main(): Promise<void> {
 
   const paths = [
     "/",
+    "/fares",
     "/watches/new",
     "/dashboard",
     "/how-it-works",

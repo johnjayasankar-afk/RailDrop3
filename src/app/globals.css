@@ -4118,3 +4118,232 @@ a.depart-strip:hover {
     transform: none;
   }
 }
+
+/* ── Fare lookup ────────────────────────────────────────────────────────────
+   The page for the question the product is fastest at: what is this listed at
+   right now. Two columns where there is room, because the form and the answer
+   are read together — you change ±1 to ±2 and watch the cheapest move. */
+
+.lookup {
+  display: grid;
+  gap: 1.25rem;
+  margin-top: 1.75rem;
+  align-items: start;
+}
+
+@media (min-width: 900px) {
+  .lookup {
+    grid-template-columns: minmax(0, 20rem) minmax(0, 1fr);
+    gap: 1.5rem;
+  }
+}
+
+.lookup-form {
+  display: grid;
+  gap: 0.9rem;
+  padding: 1.1rem;
+}
+
+.lookup-route {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 0.5rem;
+  align-items: end;
+}
+
+.lookup-swap {
+  height: 2.5rem;
+  width: 2.25rem;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  color: var(--ink-soft);
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.lookup-swap:hover {
+  color: var(--ink);
+  border-color: var(--forest-2);
+}
+
+.lookup-flex {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.lookup-flex legend {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  margin-bottom: 0.35rem;
+}
+
+.lookup-pax {
+  display: block;
+  font-size: 0.875rem;
+  max-width: 8rem;
+}
+
+.lookup-go {
+  width: 100%;
+  justify-content: center;
+}
+
+.lookup-caveat {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+.lookup-empty {
+  padding: 1.5rem;
+  min-height: 12rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* An indeterminate bar, because the wait is real — a browser is loading a
+   corridor — and a spinner that could mean anything is worse than a bar that
+   says "still going". */
+.lookup-bar {
+  margin-top: 1rem;
+  height: 3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--forest-2) 16%, transparent);
+  overflow: hidden;
+}
+
+.lookup-bar span {
+  display: block;
+  height: 100%;
+  width: 34%;
+  border-radius: inherit;
+  background: var(--forest-2);
+  animation: lookup-slide 1.5s var(--ease-out) infinite;
+}
+
+@keyframes lookup-slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(330%);
+  }
+}
+
+.lookup-results {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.lookup-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.lookup-best {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+
+.lookup-best .price {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.lookup-best-note {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+
+.lookup-days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lookup-day {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  font-size: 0.82rem;
+}
+
+.lookup-day-label {
+  color: var(--ink-soft);
+}
+
+.lookup-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 1px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--line-2);
+}
+
+.lookup-row {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: baseline;
+  padding: 0.7rem 0.9rem;
+  background: var(--paper-elevated);
+  font-size: 0.88rem;
+}
+
+@media (max-width: 560px) {
+  .lookup-row {
+    grid-template-columns: 5rem minmax(0, 1fr);
+  }
+
+  .lookup-row-train {
+    grid-column: 2;
+    color: var(--ink-soft);
+    font-size: 0.8rem;
+  }
+}
+
+.lookup-row-price {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.lookup-row-when {
+  color: var(--ink-soft);
+}
+
+.lookup-note {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lookup-bar span {
+    animation: none;
+    width: 100%;
+    opacity: 0.5;
+  }
+}
