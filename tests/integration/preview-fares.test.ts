@@ -281,3 +281,142 @@ describe("when one date merely fails", () => {
     expect(preview.failureReason).toMatch(/timed out/i);
   });
 });
+
+/* Answering as it happens.
+ *
+ * The window is searched one date at a time, so the first answer exists
+ * seconds in and the last can be half a minute later. Holding everything back
+ * until the slowest date returns throws away information the caller already
+ * has — and on a page where somebody is watching a progress bar, that is most
+ * of the wait.
+ */
+describe("progress while the window is still being searched", () => {
+  function slowProvider(delayMs: number, seen: string[]): FareProvider {
+    const fixture = new FixtureFareProvider();
+    return {
+      id: "slow",
+      async searchTrips(request: FareSearchRequest): Promise<FareSearchResult> {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        seen.push(request.travelDate);
+        return fixture.searchTrips(request);
+      },
+      async getStations() {
+        return [];
+      },
+      async healthCheck() {
+        return { ok: true };
+      },
+    } as unknown as FareProvider;
+  }
+
+  it("reports a date before the whole search has finished", async () => {
+    /* The property that makes streaming worth anything. If the reports only
+       arrived with the resolved promise, every one of them would be useless. */
+    const reported: string[] = [];
+    let resolved = false;
+    const searched: string[] = [];
+    const pending = previewFares({
+      body,
+      provider: slowProvider(25, searched),
+      now,
+      onProgress: (progress) => {
+        // Must be true at least once while the outer promise is still pending.
+        if (!resolved) reported.push(progress.travelDate);
+      },
+    }).then((preview) => {
+      resolved = true;
+      return preview;
+    });
+    const preview = await pending;
+    expect(reported.length).toBe(preview.dates.length);
+    expect(reported).toEqual(preview.dates);
+  });
+
+  it("numbers each date so a caller can say 2 of 3 without counting", async () => {
+    const seen: { index: number; total: number }[] = [];
+    await previewFares({
+      body,
+      provider: slowProvider(1, []),
+      now,
+      onProgress: (progress) => seen.push({ index: progress.index, total: progress.total }),
+    });
+    expect(seen.map((s) => s.index)).toEqual([1, 2, 3]);
+    expect(new Set(seen.map((s) => s.total))).toEqual(new Set([3]));
+  });
+
+  it("carries the cheapest on that date, and only that date", async () => {
+    /* Not the ranking. Ordering fares across a window is a comparison between
+       dates and cannot be done one date at a time, so a progress line must not
+       look like a final answer. */
+    const cheapest: (number | null)[] = [];
+    const preview = await previewFares({
+      body,
+      provider: slowProvider(1, []),
+      now,
+      onProgress: (progress) => cheapest.push(progress.cheapestCents),
+    });
+    expect(cheapest.every((cents) => cents === null || cents > 0)).toBe(true);
+    const best = Math.min(...cheapest.filter((c): c is number => c !== null));
+    expect(best).toBe(preview.ranked[0]!.totalPartyPriceCents);
+  });
+
+  it("never flashes a price the finished board does not offer", async () => {
+    /* The invariant that matters, and the one this got wrong first time. The
+       per-date figure was the lowest number on the page rather than the
+       cheapest *eligible* fare, so a restricted or unavailable seat could show
+       $49 and the board settle at $74 a second later. A price that appears and
+       then withdraws is the same broken promise as one that was never there. */
+    const flashed: number[] = [];
+    const preview = await previewFares({
+      body,
+      provider: new FixtureFareProvider(),
+      now,
+      onProgress: (progress) => {
+        if (progress.cheapestCents !== null) flashed.push(progress.cheapestCents);
+      },
+    });
+    const offered = new Set(preview.ranked.map((candidate) => candidate.totalPartyPriceCents));
+    for (const price of flashed) expect(offered.has(price)).toBe(true);
+  });
+
+  it("reports a refused date too, rather than going quiet", async () => {
+    // Silence during a failure is indistinguishable from a slow search.
+    const outcomes: string[] = [];
+    await previewFares({
+      body,
+      provider: {
+        id: "refusing",
+        async searchTrips(request: FareSearchRequest): Promise<FareSearchResult> {
+          return {
+            request,
+            status: "PROVIDER_ERROR",
+            journeys: [],
+            providerError: { message: "Live fare site blocked this check." },
+          } as unknown as FareSearchResult;
+        },
+        async getStations() {
+          return [];
+        },
+        async healthCheck() {
+          return { ok: false };
+        },
+      } as unknown as FareProvider,
+      now,
+      onProgress: (progress) => outcomes.push(progress.outcome),
+    });
+    expect(outcomes).toContain("failed");
+  });
+
+  it("does not let a broken listener cost the traveller the window", async () => {
+    /* A caller that throws on one date must not lose the other two. */
+    const preview = await previewFares({
+      body,
+      provider: new FixtureFareProvider(),
+      now,
+      onProgress: () => {
+        throw new Error("the renderer fell over");
+      },
+    });
+    expect(preview.ranked.length).toBeGreaterThan(0);
+  });
+});

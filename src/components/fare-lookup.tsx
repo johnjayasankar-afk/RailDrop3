@@ -8,7 +8,7 @@ import { formatUsdCompact } from "@/lib/domain/money";
 import { formatDisplayDate } from "@/lib/domain/calendar";
 import { formatClock } from "@/lib/domain/timezone";
 import { trainLabel } from "@/lib/domain/board-decision";
-import type { FarePreview } from "@/lib/watches/preview-fares";
+import type { DateProgress, FarePreview } from "@/lib/watches/preview-fares";
 
 /* What does this cost, right now.
  *
@@ -24,7 +24,10 @@ import type { FarePreview } from "@/lib/watches/preview-fares";
 
 type State =
   | { status: "idle" }
-  | { status: "searching" }
+  /* Dates land one at a time, so the waiting state carries the ones that have.
+     The first is usually done in a third of the total — holding it back until
+     the slowest returns is most of the wait, spent showing nothing. */
+  | { status: "searching"; done: DateProgress[] }
   | { status: "done"; preview: FarePreview }
   | { status: "failed"; message: string };
 
@@ -40,9 +43,9 @@ export function FareLookup({ today }: { today: string }) {
 
   const search = useCallback(async () => {
     if (!ready) return;
-    setState({ status: "searching" });
+    setState({ status: "searching", done: [] });
     try {
-      const response = await fetch("/api/fares", {
+      const response = await fetch("/api/fares/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -53,12 +56,52 @@ export function FareLookup({ today }: { today: string }) {
           passengerCount: passengers,
         }),
       });
-      const json = (await response.json()) as { preview?: FarePreview; error?: string };
-      if (!response.ok || !json.preview) {
-        setState({ status: "failed", message: json.error ?? "The search did not get through." });
+      if (!response.ok || !response.body) {
+        setState({ status: "failed", message: "The search did not get through." });
         return;
       }
-      setState({ status: "done", preview: json.preview });
+
+      /* NDJSON: one object per line. A chunk can split a line anywhere, so the
+         tail is carried over rather than parsed — the bug this shape invites
+         is assuming a chunk is a whole message, which works locally and fails
+         the moment a real network is involved. */
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let carry = "";
+      const landed: DateProgress[] = [];
+
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        carry += decoder.decode(value, { stream: true });
+        const lines = carry.split("\n");
+        carry = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          let message: {
+            type: string;
+            progress?: DateProgress;
+            preview?: FarePreview;
+            error?: string;
+          };
+          try {
+            message = JSON.parse(line);
+          } catch {
+            continue;
+          }
+          if (message.type === "progress" && message.progress) {
+            landed.push(message.progress);
+            setState({ status: "searching", done: [...landed] });
+          } else if (message.type === "done" && message.preview) {
+            setState({ status: "done", preview: message.preview });
+          } else if (message.type === "error") {
+            setState({
+              status: "failed",
+              message: message.error ?? "The search did not get through.",
+            });
+          }
+        }
+      }
     } catch {
       setState({
         status: "failed",
@@ -165,12 +208,36 @@ function Results({ state, passengers }: { state: State; passengers: number }) {
   }
 
   if (state.status === "searching") {
+    const total = state.done[0]?.total ?? 0;
     return (
       <div className="lookup-empty panel" role="status" aria-live="polite">
         <p className="kicker">Reading the live board</p>
         <p className="mt-2 text-ink-soft">
-          A real browser is loading the corridor. Ten to thirty seconds is normal.
+          {state.done.length === 0
+            ? "A real browser is loading the corridor. Ten to thirty seconds is normal."
+            : `${state.done.length} of ${total} date${total === 1 ? "" : "s"} back.`}
         </p>
+
+        {/* Each date as it lands, rather than a bar and a promise. */}
+        {state.done.length > 0 ? (
+          <ul className="lookup-live">
+            {state.done.map((entry) => (
+              <li key={entry.travelDate} className={`lookup-live-row is-${entry.outcome}`}>
+                <span className="lookup-live-date">{formatDisplayDate(entry.travelDate)}</span>
+                <span className="lookup-live-value">
+                  {entry.cheapestCents !== null
+                    ? formatUsdCompact(entry.cheapestCents)
+                    : entry.outcome === "failed"
+                      ? "not answered"
+                      : entry.outcome === "unreadable"
+                        ? "could not read"
+                        : "nothing listed"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
         <div className="lookup-bar" aria-hidden>
           <span />
         </div>

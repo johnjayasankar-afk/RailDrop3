@@ -26,6 +26,30 @@ import type { FareProvider } from "@/lib/providers/fare-provider";
 import type { JourneyOption, RankedCandidate } from "@/lib/domain/types";
 import { previewFaresSchema, type PreviewFaresInput } from "@/lib/validation/watch";
 
+/**
+ * One date, the moment it finishes.
+ *
+ * The search walks its window one date at a time, so the first answer exists
+ * seconds in and the last can be half a minute later. Holding all of it back
+ * until the slowest date returns is throwing away information the caller
+ * already has — and on a page where somebody is watching a bar, that is most
+ * of the wait.
+ *
+ * Deliberately small. It is a progress report, not a second copy of the board:
+ * the authoritative ranking still comes from the finished FarePreview, because
+ * ranking across dates cannot be done a date at a time.
+ */
+export interface DateProgress {
+  travelDate: string;
+  /** 1-based, for "2 of 3" without the caller counting. */
+  index: number;
+  total: number;
+  outcome: "fares" | "empty" | "failed" | "unreadable";
+  /** Cheapest believable total on this date, or null when there was none. */
+  cheapestCents: number | null;
+  journeys: number;
+}
+
 export interface FarePreview {
   originCode: string;
   destinationCode: string;
@@ -64,6 +88,14 @@ export async function previewFares(input: {
   body: unknown;
   provider: FareProvider;
   now?: Date;
+  /**
+   * Called as each date lands, before the whole window is done.
+   *
+   * Optional, and never awaited: a caller that is slow to render must not
+   * slow the search down, and one that throws must not lose a window that was
+   * otherwise fine.
+   */
+  onProgress?: (progress: DateProgress) => void;
 }): Promise<FarePreview> {
   const parsed: PreviewFaresInput = previewFaresSchema.parse(input.body);
   if (parsed.originCode === parsed.destinationCode) {
@@ -100,6 +132,14 @@ export async function previewFares(input: {
     if (result.status === "PROVIDER_ERROR") {
       failedDates.push(travelDate);
       failureReason ??= result.providerError?.message ?? null;
+      report(input.onProgress, {
+        travelDate,
+        index: index + 1,
+        total: dates.length,
+        outcome: "failed",
+        cheapestCents: null,
+        journeys: 0,
+      });
       /* A block is a fact about us, not about this date.
        *
        * Every date goes to the same host from the same address, so once we are
@@ -124,9 +164,44 @@ export async function previewFares(input: {
     if (!screened.verdict.trustworthy) {
       unreadableDates.push(travelDate);
       failedDates.push(travelDate);
+      report(input.onProgress, {
+        travelDate,
+        index: index + 1,
+        total: dates.length,
+        outcome: "unreadable",
+        cheapestCents: null,
+        journeys: screened.journeys.length,
+      });
       continue;
     }
     journeys.push(...screened.journeys);
+    /* The cheapest fare on this date that the board would actually offer.
+     *
+     * Through the same eligibility filter the finished window uses, not simply
+     * the lowest number on the page. Without it a progress line could show $49
+     * from a restricted or unavailable fare and the board settle at $74 a
+     * moment later — a price that appears and then withdraws is the same
+     * broken promise as one that was never there.
+     *
+     * Still not the ranking: ordering across dates is a comparison between
+     * them and cannot be done a date at a time. */
+    const cheapestHere = collectEligibleFares(screened.journeys, {
+      includeRestrictedFares: parsed.includeRestrictedFares,
+      includeThruway: parsed.includeThruway,
+      travelClass: "COACH",
+      requireAvailable: true,
+    })
+      .map((item) => item.fare.totalPartyPriceCents)
+      .filter((cents): cents is number => typeof cents === "number" && cents > 0)
+      .sort((a, b) => a - b)[0];
+    report(input.onProgress, {
+      travelDate,
+      index: index + 1,
+      total: dates.length,
+      outcome: screened.journeys.length > 0 ? "fares" : "empty",
+      cheapestCents: cheapestHere ?? null,
+      journeys: screened.journeys.length,
+    });
   }
 
   const eligible = collectEligibleFares(journeys, {
@@ -194,4 +269,26 @@ function isRefusal(message: string | null): boolean {
   return (
     lower.includes("blocked") || lower.includes("bot check") || lower.includes("just a moment")
   );
+}
+
+/**
+ * Hand a progress report to the caller without letting it affect the search.
+ *
+ * Never awaited and never allowed to throw: a slow renderer must not slow the
+ * provider down, and a caller that blows up on one date must not cost the
+ * traveller the rest of the window.
+ */
+function report(
+  onProgress: ((progress: DateProgress) => void) | undefined,
+  progress: DateProgress,
+): void {
+  if (!onProgress) return;
+  try {
+    onProgress(progress);
+  } catch (error) {
+    logger.warn("fares.progress_listener_failed", {
+      travelDate: progress.travelDate,
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
