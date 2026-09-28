@@ -8,6 +8,7 @@ import { formatUsdCompact } from "@/lib/domain/money";
 import { formatDisplayDate } from "@/lib/domain/calendar";
 import { formatClock } from "@/lib/domain/timezone";
 import { trainLabel } from "@/lib/domain/board-decision";
+import { FareProvenance } from "@/components/fare-provenance";
 import type { DateProgress, FarePreview } from "@/lib/watches/preview-fares";
 import { sharedSearchHref, type SharedSearch } from "@/lib/domain/share-search";
 
@@ -303,16 +304,25 @@ function Results({ state, passengers }: { state: State; passengers: number }) {
 
   return (
     <section className="lookup-results" aria-label="Listed fares">
-      <header className="lookup-head">
-        <p className="kicker">
-          {preview.originCode} → {preview.destinationCode}
-        </p>
-        <p className="lookup-best">
-          <span className="price serif">{formatUsdCompact(cheapest!.totalPartyPriceCents)}</span>
-          <span className="lookup-best-note">
-            cheapest of {preview.ranked.length} listed
-            {passengers > 1 ? ` · ${passengers} passengers, total` : ""}
-          </span>
+      <header className="lookup-head bracketed">
+        <div>
+          <p className="micro">
+            {preview.originCode} <span aria-hidden>→</span> {preview.destinationCode}
+          </p>
+          <p className="lookup-best">
+            {/* The currency mark is stepped back so the digits carry the line;
+                at full weight it competes with the number it labels. */}
+            <span className="readout readout-lg">
+              <span className="readout-mark" aria-hidden>
+                $
+              </span>
+              {(cheapest!.totalPartyPriceCents / 100).toFixed(0)}
+            </span>
+          </p>
+        </div>
+        <p className="lookup-best-note">
+          cheapest of {preview.ranked.length} listed
+          {passengers > 1 ? ` · ${passengers} passengers, total` : ""}
         </p>
       </header>
 
@@ -320,7 +330,7 @@ function Results({ state, passengers }: { state: State; passengers: number }) {
         <ul className="lookup-days stagger">
           {preview.byDate.map(([day, candidate]) => (
             <li key={day} className={`lookup-day${day === preview.byDate[0]?.[0] ? "" : ""}`}>
-              <span className="lookup-day-label">{formatDisplayDate(day)}</span>
+              <span className="lookup-day-label micro">{formatDisplayDate(day)}</span>
               <span className="price">{formatUsdCompact(candidate.totalPartyPriceCents)}</span>
             </li>
           ))}
@@ -338,6 +348,18 @@ function Results({ state, passengers }: { state: State; passengers: number }) {
               {formatClock(candidate.journey.departureAt)}
             </span>
             <span className="lookup-row-train">{trainLabel(candidate)}</span>
+            {/* The claim this product makes is unusual enough to be worth
+                being able to check. Collapsed, because most people want the
+                fare and not the derivation. */}
+            <FareProvenance
+              candidate={candidate}
+              context={{
+                originCode: preview.originCode,
+                destinationCode: preview.destinationCode,
+                travelDate: candidate.journey.searchedTravelDate,
+                passengerCount: passengers,
+              }}
+            />
           </li>
         ))}
       </ol>

@@ -85,7 +85,10 @@ export default async function HomePage() {
       <main id="main" className="mx-auto max-w-6xl px-4 py-16 md:py-24">
         <div className="grid items-end gap-12 lg:grid-cols-[1.15fr_0.85fr]">
           <div className="reveal">
-            <p className="kicker">Amtrak fare watch</p>
+            <p className="lookup-eyebrow">
+              <span className="pulse" aria-hidden />
+              <span className="micro">Amtrak fare watch · live inventory</span>
+            </p>
             <h1 className="serif mt-4 max-w-3xl text-[2.85rem] leading-[1.02] sm:text-5xl md:text-7xl">
               RailDrop
             </h1>

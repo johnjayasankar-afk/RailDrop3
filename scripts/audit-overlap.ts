@@ -120,6 +120,29 @@ async function collect(page: Page): Promise<Omit<Finding, "page" | "width">[]> {
         });
     }
 
+    /* The pair comparison. Restored after an edit that removed the contrast
+       block sliced this out with it — for two runs the audit reported "no
+       colliding text" while checking none, which is precisely the gate that
+       passes for the wrong reason. */
+    for (let i = 0; i < leaves.length; i += 1) {
+      const a = leaves[i]!;
+      // Text running off the side is the same failure, differently dressed.
+      if (a.r.left < -2 || a.r.right > document.documentElement.clientWidth + 2) {
+        out.push({ kind: "offscreen", a: a.text });
+      }
+      for (let j = i + 1; j < leaves.length; j += 1) {
+        const b = leaves[j]!;
+        if (a.el.contains(b.el) || b.el.contains(a.el)) continue;
+        // Deliberate layering is not a defect.
+        if (layered(a.el) || layered(b.el)) continue;
+        const ox = Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left);
+        const oy = Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top);
+        if (ox > 1 && oy > 1 && ox * oy >= minArea) {
+          out.push({ kind: "overlap", area: Math.round(ox * oy), a: a.text, b: b.text });
+        }
+      }
+    }
+
     return out;
   }, MIN_AREA);
 }

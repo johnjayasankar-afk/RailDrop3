@@ -51,13 +51,17 @@ export default async function FaresPage({
 
   return (
     <PageFrame email={user?.email} isGuest={Boolean(user?.isGuest)}>
-      <main id="main" className="mx-auto max-w-5xl px-4 py-10">
-        <p className="kicker">Live board</p>
-        <h1 className="serif mt-3 text-4xl">What does this trip cost?</h1>
-        <p className="mt-3 max-w-xl text-ink-soft">
+      <main id="main" className="ambient mx-auto max-w-5xl px-4 py-10">
+        <div className="lookup-eyebrow">
+          <span className="pulse" aria-hidden />
+          <span className="micro">Live board · reads Amtrak inventory directly</span>
+        </div>
+        <h1 className="lookup-title">What does this trip cost?</h1>
+        <p className="lookup-lede">
           RailDrop reads what Amtrak is actually listing, right now, for the dates you pick. It
           never estimates, and it never averages two sources into a number neither of them said.
         </p>
+        <div className="tick-rule is-major mt-6" aria-hidden />
         <FareLookup today={today} initial={shared} />
       </main>
     </PageFrame>

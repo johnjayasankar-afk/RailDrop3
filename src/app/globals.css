@@ -4305,7 +4305,9 @@ a.depart-strip:hover {
 
 .lookup-row {
   display: grid;
-  grid-template-columns: 5.5rem minmax(0, 1fr) minmax(0, 1fr);
+  /* A fourth column for the source disclosure, which sits on its own row
+     when it opens. */
+  grid-template-columns: 5.5rem minmax(0, 1fr) minmax(0, 1fr) auto;
   gap: 0.75rem;
   align-items: baseline;
   padding: 0.7rem 0.9rem;
@@ -4418,4 +4420,542 @@ a.depart-strip:hover {
 .lookup-share:hover {
   color: var(--ink);
   border-color: var(--forest-2);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   INSTRUMENT
+   ───────────────────────────────────────────────────────────────────────────
+   The visual language moves from "clean web page" to "precision instrument",
+   without touching the palette: still porcelain ground, forest ink, mint for a
+   saving, amber for urgency, burgundy for the rail.
+
+   The brief was that it read too plainly, and it did. What was missing was not
+   colour or decoration — it was the vocabulary a measuring device has and a
+   document does not. Tick rules. Corner brackets. Optical sizing. Numerals
+   that line up in a column and a currency mark that gets out of their way. A
+   live indicator that is actually tied to something live. Grain, so a large
+   flat field looks like a surface rather than an absence.
+
+   Each piece below is opt-in by class, so nothing changes until a component
+   asks for it and no existing screen shifts underneath itself.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Type: a wider scale than a document needs, so a headline and a label read
+     as different kinds of thing rather than two sizes of the same thing. */
+  --step--2: clamp(0.68rem, 0.66rem + 0.1vw, 0.72rem);
+  --step--1: clamp(0.8rem, 0.78rem + 0.1vw, 0.85rem);
+  --step-0: clamp(0.95rem, 0.92rem + 0.15vw, 1rem);
+  --step-1: clamp(1.15rem, 1.05rem + 0.5vw, 1.4rem);
+  --step-2: clamp(1.5rem, 1.3rem + 1vw, 2rem);
+  --step-3: clamp(2rem, 1.6rem + 2vw, 3rem);
+  --step-4: clamp(2.6rem, 1.9rem + 3.4vw, 4.5rem);
+
+  /* Hairlines. A rule at 1px is a border; a rule at these weights is a scale
+     marking, and the difference is most of the effect. */
+  --tick: color-mix(in srgb, var(--ink) 14%, transparent);
+  --tick-strong: color-mix(in srgb, var(--ink) 30%, transparent);
+  --glow-mint: color-mix(in srgb, var(--mint-3) 22%, transparent);
+  --glow-forest: color-mix(in srgb, var(--forest-2) 18%, transparent);
+}
+
+/* ── Grain ───────────────────────────────────────────────────────────────────
+   A large flat field of one colour reads as an absence of design. Two percent
+   of monochrome noise makes it read as a surface. Fixed, so it does not swim
+   when the page scrolls, and pointer-events none so it is invisible to every
+   interaction. */
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.025;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  body::after {
+    display: none;
+  }
+}
+
+/* ── Ambient light ───────────────────────────────────────────────────────────
+   Two soft pools of colour behind the page, one mint and one forest, sitting
+   under the dot grid. They give a long page somewhere for the eye to rest and
+   stop the ground reading as a single flat value from top to bottom. */
+
+.ambient {
+  position: relative;
+  isolation: isolate;
+}
+
+.ambient::before {
+  content: "";
+  position: absolute;
+  inset: -20% -10% auto -10%;
+  height: 70vh;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(38rem 28rem at 12% 0%, var(--glow-mint), transparent 70%),
+    radial-gradient(34rem 26rem at 88% 18%, var(--glow-forest), transparent 70%);
+  filter: blur(6px);
+}
+
+/* ── Tick rule ───────────────────────────────────────────────────────────────
+   A measured edge. Used above a section the way a scale is printed above a
+   readout: it says the thing below has been measured, not asserted. */
+
+.tick-rule {
+  height: 10px;
+  border-bottom: 1px solid var(--tick);
+  background-image: repeating-linear-gradient(to right, var(--tick) 0 1px, transparent 1px 12px);
+  background-position: bottom;
+  background-repeat: repeat-x;
+  background-size: 12px 5px;
+}
+
+.tick-rule.is-major {
+  background-image:
+    repeating-linear-gradient(to right, var(--tick-strong) 0 1px, transparent 1px 60px),
+    repeating-linear-gradient(to right, var(--tick) 0 1px, transparent 1px 12px);
+  background-size:
+    60px 9px,
+    12px 5px;
+}
+
+/* ── Corner brackets ─────────────────────────────────────────────────────────
+   Four short rules at the corners instead of a continuous border. A frame that
+   is mostly absent reads as a viewfinder rather than a box, and it lets a
+   panel sit on the page without being cut out of it. */
+
+.bracketed {
+  position: relative;
+}
+
+.bracketed::before,
+.bracketed::after {
+  content: "";
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
+  border-color: var(--tick-strong);
+  border-style: solid;
+}
+
+.bracketed::before {
+  top: -1px;
+  left: -1px;
+  border-width: 1px 0 0 1px;
+}
+
+.bracketed::after {
+  right: -1px;
+  bottom: -1px;
+  border-width: 0 1px 1px 0;
+}
+
+/* ── Numerals ────────────────────────────────────────────────────────────────
+   A price is a measurement, so it is set like one: tabular figures, tight
+   tracking, and the currency mark stepped back so the digits carry the line.
+   The mark at full weight competes with the number it is labelling. */
+
+.readout {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.12em;
+  font-variant-numeric: tabular-nums slashed-zero;
+  letter-spacing: -0.035em;
+  line-height: 0.95;
+}
+
+.readout-mark {
+  font-size: 0.55em;
+  opacity: 0.55;
+  letter-spacing: 0;
+  transform: translateY(-0.12em);
+}
+
+.readout-lg {
+  font-size: var(--step-3);
+}
+
+.readout-xl {
+  font-size: var(--step-4);
+}
+
+/* ── Micro labels ────────────────────────────────────────────────────────────
+   Wide-tracked, small, uppercase, monospace. The convention every instrument
+   panel uses to say "this names a value" rather than "this is prose". */
+
+.micro {
+  font-family: var(--font-code);
+  font-size: var(--step--2);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
+/* ── Live indicator ──────────────────────────────────────────────────────────
+   Tied to something live or not shown at all. A pulse that means nothing is
+   worse than no pulse, so the class is applied by a component that knows the
+   board is actually refreshing. */
+
+.pulse {
+  position: relative;
+  display: inline-block;
+  width: 0.46rem;
+  height: 0.46rem;
+  border-radius: 999px;
+  background: var(--mint-3);
+  flex: none;
+}
+
+.pulse::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: inherit;
+  animation: pulse-ring 2.4s var(--ease-out) infinite;
+}
+
+@keyframes pulse-ring {
+  0% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(3.2);
+  }
+}
+
+/* ── Signal bars ─────────────────────────────────────────────────────────────
+   Four bars, filled to a level. Used for how much evidence sits behind a
+   claim, where a percentage would imply a precision the sample does not have. */
+
+.signal {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 0.75rem;
+}
+
+.signal i {
+  display: block;
+  width: 3px;
+  border-radius: 1px;
+  background: var(--tick-strong);
+}
+
+.signal i:nth-child(1) {
+  height: 25%;
+}
+.signal i:nth-child(2) {
+  height: 50%;
+}
+.signal i:nth-child(3) {
+  height: 75%;
+}
+.signal i:nth-child(4) {
+  height: 100%;
+}
+.signal i.is-on {
+  background: var(--forest-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse::after {
+    animation: none;
+    opacity: 0.25;
+    transform: scale(1.8);
+  }
+}
+
+/* ── Fare lookup, in the instrument language ────────────────────────────── */
+
+.lookup-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.lookup-title {
+  margin: 0.9rem 0 0;
+  font-size: var(--step-3);
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+  font-weight: 400;
+}
+
+.lookup-lede {
+  margin: 0.85rem 0 0;
+  max-width: 34rem;
+  font-size: var(--step-0);
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+.lookup-head {
+  align-items: flex-start;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--paper-elevated);
+  box-shadow:
+    inset 0 1px 0 var(--edge-hi),
+    var(--sh-1);
+}
+
+.lookup-head .lookup-best {
+  margin-top: 0.35rem;
+}
+
+.lookup-best-note {
+  margin: 0;
+  font-size: var(--step--2);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  font-family: var(--font-code);
+}
+
+/* The rows read as a readout: monospace, right-aligned money, hairline ticks
+   between them rather than full borders. */
+.lookup-row-price {
+  font-variant-numeric: tabular-nums slashed-zero;
+  letter-spacing: -0.02em;
+}
+
+.lookup-day {
+  border-color: var(--tick);
+}
+
+.lookup-day .price {
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-weight: 600;
+}
+
+/* ── The form as a panel on the instrument ─────────────────────────────────
+   Field labels become micro labels: small, wide-tracked, monospace, uppercase.
+   The convention says "this names a value", which is what they do, and it
+   stops five sentence-case labels reading as five short sentences. */
+
+.lookup-form {
+  position: relative;
+  border-color: var(--line-2);
+}
+
+.lookup-form .datefield-label,
+.lookup-form .lookup-pax,
+.lookup-form .lookup-flex legend,
+.lookup-form label > :first-child {
+  font-family: var(--font-code);
+  font-size: var(--step--2);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
+/* The station fields carry their label as bare text inside the label element,
+   so the rule above cannot reach it without also hitting the input. */
+.lookup-route > label {
+  font-family: var(--font-code);
+  font-size: var(--step--2);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.lookup-route > label input,
+.lookup-pax input {
+  font-family: var(--font-body);
+  font-size: var(--step-0);
+  letter-spacing: -0.01em;
+  text-transform: none;
+  color: var(--ink);
+}
+
+.lookup-route > label input {
+  font-family: var(--font-code);
+  letter-spacing: 0.06em;
+  font-weight: 500;
+}
+
+/* Stronger ambient: the pools were too faint to do their job against a dark
+   ground, where the whole point is to stop a long page reading as one value. */
+.ambient::before {
+  inset: -24% -14% auto -14%;
+  height: 84vh;
+  background:
+    radial-gradient(42rem 30rem at 10% -4%, var(--glow-mint), transparent 68%),
+    radial-gradient(38rem 28rem at 92% 14%, var(--glow-forest), transparent 68%),
+    radial-gradient(
+      28rem 20rem at 50% 40%,
+      color-mix(in srgb, var(--rail) 8%, transparent),
+      transparent 72%
+    );
+}
+
+/* ── Provenance: the receipt behind a number ───────────────────────────────
+   Opens under the row it belongs to, in monospace, laid out as a derivation
+   rather than prose: what the source said, what we did to it, what checks it
+   survived. It looks like a log because it is one. */
+
+.prov-toggle {
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-soft);
+  font-family: var(--font-code);
+  font-size: var(--step--2);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.4rem;
+  cursor: pointer;
+  transition:
+    color var(--t-fast) var(--ease-out),
+    border-color var(--t-fast) var(--ease-out);
+}
+
+.prov-toggle:hover {
+  color: var(--ink);
+  border-color: var(--tick-strong);
+}
+
+.prov {
+  margin-top: 0.6rem;
+  border: 1px solid var(--tick);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--ink) 3%, var(--paper-elevated));
+  padding: 0.7rem 0.85rem;
+  font-family: var(--font-code);
+  font-size: var(--step--2);
+  line-height: 1.7;
+  animation: rise-in var(--t-base) var(--ease-out) both;
+}
+
+.prov-step {
+  display: grid;
+  grid-template-columns: minmax(0, 11rem) minmax(0, 1fr);
+  gap: 0.5rem 1rem;
+  padding: 0.2rem 0;
+  border-bottom: 1px dashed var(--tick);
+}
+
+.prov-step:last-of-type {
+  border-bottom: 0;
+}
+
+.prov-label {
+  color: var(--ink-soft);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.prov-value {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+
+.prov-note {
+  grid-column: 2;
+  color: var(--ink-soft);
+  font-size: 0.95em;
+  opacity: 0.85;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.prov-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.9rem;
+  margin-top: 0.6rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--tick);
+  color: var(--ink-soft);
+}
+
+.prov-ok {
+  color: var(--save);
+}
+
+.prov-bad {
+  color: var(--drop);
+}
+
+.prov-id {
+  opacity: 0.7;
+  letter-spacing: 0.06em;
+}
+
+@media (max-width: 560px) {
+  .prov-step {
+    grid-template-columns: 1fr;
+    gap: 0.1rem;
+  }
+
+  .prov-note {
+    grid-column: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prov {
+    animation: none;
+  }
+}
+
+.prov-wrap {
+  justify-self: end;
+}
+
+/* The open receipt spans the whole row rather than the column its button
+   sits in. */
+.lookup-row:has(.prov) {
+  grid-template-areas:
+    "price when train toggle"
+    "prov prov prov prov";
+}
+
+.lookup-row:has(.prov) .prov-wrap {
+  display: contents;
+}
+
+.lookup-row:has(.prov) .prov-toggle {
+  grid-area: toggle;
+  justify-self: end;
+}
+
+.lookup-row:has(.prov) .prov {
+  grid-area: prov;
+}
+
+/* Dashboard metrics, as gauges rather than cards of text. */
+.metric {
+  padding: 0.85rem 0.95rem 0.95rem;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  background: var(--paper-elevated);
+  box-shadow:
+    inset 0 1px 0 var(--edge-hi),
+    var(--sh-1);
+}
+
+.metric-value {
+  margin: 0.3rem 0 0;
+  font-size: var(--step-2);
+  line-height: 1;
+  letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums slashed-zero;
 }

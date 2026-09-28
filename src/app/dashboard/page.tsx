@@ -25,8 +25,8 @@ export default async function DashboardPage() {
   if (!loaded.reachable) {
     return (
       <PageFrame email={user.email} isGuest={Boolean(user.isGuest)}>
-        <main id="main" className="mx-auto max-w-6xl px-4 py-8">
-          <h1 className="serif text-4xl">Your watches</h1>
+        <main id="main" className="ambient mx-auto max-w-6xl px-4 py-8">
+          <h1 className="lookup-title">Your watches</h1>
           <RecordsUnreachable what="watches" retryHref="/dashboard" />
         </main>
       </PageFrame>
@@ -47,10 +47,10 @@ export default async function DashboardPage() {
 
   return (
     <PageFrame email={user.email} isGuest={Boolean(user.isGuest)}>
-      <main id="main" className="mx-auto max-w-6xl px-4 py-8">
+      <main id="main" className="ambient mx-auto max-w-6xl px-4 py-8">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="serif text-4xl">Your watches</h1>
+            <h1 className="lookup-title">Your watches</h1>
             <p className="text-ink-soft">
               {user.isGuest
                 ? "Browsing as a guest: add an alert email on a trip if you want updates."
@@ -132,11 +132,15 @@ export default async function DashboardPage() {
   );
 }
 
+/* A readout, not a card of text. Tick rule above it the way a scale is
+   printed above a gauge, the label in the micro convention, and the figure in
+   tabular numerals so four of them line up across the row. */
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="panel p-4">
-      <p className="text-xs uppercase tracking-[0.14em] text-ink-soft">{label}</p>
-      <p className="serif mt-1 text-2xl">
+    <div className="metric bracketed">
+      <div className="tick-rule" aria-hidden />
+      <p className="micro mt-2">{label}</p>
+      <p className="metric-value readout">
         <Flap>{value}</Flap>
       </p>
     </div>
