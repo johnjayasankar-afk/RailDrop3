@@ -84,6 +84,7 @@ const nextConfig: NextConfig = {
    */
   outputFileTracingIncludes: {
     "/api/fares": ["./node_modules/@sparticuz/chromium/bin/**"],
+    "/api/fares/stream": ["./node_modules/@sparticuz/chromium/bin/**"],
     "/api/watches": ["./node_modules/@sparticuz/chromium/bin/**"],
     "/api/watches/*/check": ["./node_modules/@sparticuz/chromium/bin/**"],
     "/api/cron/worker": ["./node_modules/@sparticuz/chromium/bin/**"],
