@@ -12,6 +12,7 @@ import { daysUntilFlap, formatDisplayDate } from "@/lib/domain/calendar";
 import { redirect } from "next/navigation";
 import { loadPageData } from "@/lib/pages/load-guard";
 import { RecordsUnreachable } from "@/components/records-unreachable";
+import { AssistantPanel } from "@/components/assistant-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -123,6 +124,9 @@ export default async function DashboardPage() {
             <WatchList watches={ranked} today={today} />
           </div>
         )}
+        {/* Only once there is something to compare. With no trips the answer to
+            every question is the same sentence the empty state already says. */}
+        {watches.length > 0 && <AssistantPanel />}
       </main>
     </PageFrame>
   );

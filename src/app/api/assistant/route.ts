@@ -23,7 +23,9 @@ export const runtime = "nodejs";
  */
 
 const askSchema = z.object({
-  watchId: z.string().uuid("Unknown trip"),
+  /* Absent for a dashboard question. One trip needs no tools — its fact sheet
+     is already complete — so the two scopes take different shapes. */
+  watchId: z.string().uuid("Unknown trip").optional(),
   question: z.string().trim().min(2, "Ask a question").max(500, "Keep the question shorter"),
   history: z
     .array(
@@ -44,6 +46,41 @@ export async function POST(request: Request) {
 
     const body = askSchema.parse(await request.json());
     const repo = getRepository();
+
+    /* Across the whole dashboard: a list of trips up front and the tools to
+       open the ones the question turns out to need. Handing it every board for
+       every trip would be most of a context window and almost all of it
+       irrelevant to any single question. */
+    if (!body.watchId) {
+      const tools = { repo, userId: user.id, observedCents: [] as number[] };
+      const watches = await repo.listWatchesForUser(user.id);
+      const facts = {
+        briefing:
+          watches.length === 0
+            ? "This traveller is not watching any trips yet. Say so, and that they can add one from Watch trip or look a fare up without saving it from Check a fare."
+            : `This traveller is watching ${watches.length} trip${watches.length === 1 ? "" : "s"}. Use list_trips to see them and get_trip_board to open any of them. Do not describe a fare you have not looked up.`,
+        observedCents: [] as number[],
+      };
+      try {
+        const result = await askAssistant({
+          question: body.question,
+          facts,
+          history: body.history,
+          tools,
+        });
+        return NextResponse.json({
+          answer: result.answer,
+          blocked: result.blocked,
+          groundedIn: tools.observedCents.length,
+        });
+      } catch (error) {
+        if (error instanceof AssistantNotConfiguredError) {
+          return NextResponse.json({ error: error.message }, { status: 503 });
+        }
+        throw error;
+      }
+    }
+
     const watch = await repo.getWatch(body.watchId);
     if (!watch || watch.userId !== user.id) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });

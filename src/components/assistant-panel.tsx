@@ -17,14 +17,24 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 type Turn = { role: "user" | "assistant"; content: string; blocked?: boolean };
 
-const SUGGESTIONS = [
+const TRIP_SUGGESTIONS = [
   "Should I switch, or wait?",
   "Is this a good price for this route?",
   "What is the cheapest day in my window?",
   "Why has nothing been found yet?",
 ];
 
-export function AssistantPanel({ watchId }: { watchId: string }) {
+/* Across the dashboard the useful questions are comparisons, which is exactly
+   what the trip-scoped version cannot answer. */
+const ALL_TRIPS_SUGGESTIONS = [
+  "Which of my trips has the best saving right now?",
+  "Is anything worth acting on today?",
+  "Which trip has moved the most since I added it?",
+  "Are any of my trips not finding fares?",
+];
+
+export function AssistantPanel({ watchId }: { watchId?: string }) {
+  const suggestions = watchId ? TRIP_SUGGESTIONS : ALL_TRIPS_SUGGESTIONS;
   const [turns, setTurns] = useState<Turn[]>([]);
   const [question, setQuestion] = useState("");
   const [asking, setAsking] = useState(false);
@@ -51,7 +61,9 @@ export function AssistantPanel({ watchId }: { watchId: string }) {
         const response = await fetch("/api/assistant", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ watchId, question: trimmed, history }),
+          // Omitted entirely for a dashboard question: the route branches on
+          // its absence rather than on a magic value.
+          body: JSON.stringify({ ...(watchId ? { watchId } : {}), question: trimmed, history }),
         });
         const json = (await response.json()) as {
           answer?: string;
@@ -80,14 +92,18 @@ export function AssistantPanel({ watchId }: { watchId: string }) {
       <header className="assistant-head">
         <span className="assistant-dot" aria-hidden />
         <h2 id={`${inputId}-title`} className="assistant-title">
-          Ask about this trip
+          {watchId ? "Ask about this trip" : "Ask about your trips"}
         </h2>
-        <span className="assistant-note">Answers come only from the board above</span>
+        <span className="assistant-note">
+          {watchId
+            ? "Answers come only from the board above"
+            : "Answers come only from your boards"}
+        </span>
       </header>
 
       {turns.length === 0 ? (
         <ul className="assistant-suggests">
-          {SUGGESTIONS.map((suggestion) => (
+          {suggestions.map((suggestion) => (
             <li key={suggestion}>
               <button type="button" className="assistant-chip" onClick={() => void ask(suggestion)}>
                 {suggestion}
@@ -132,14 +148,14 @@ export function AssistantPanel({ watchId }: { watchId: string }) {
         }}
       >
         <label className="sr-only" htmlFor={inputId}>
-          Ask about this trip
+          {watchId ? "Ask about this trip" : "Ask about your trips"}
         </label>
         <input
           id={inputId}
           className="assistant-input"
           value={question}
           onChange={(event) => setQuestion(event.target.value)}
-          placeholder="Should I switch, or wait?"
+          placeholder={watchId ? "Should I switch, or wait?" : "Which trip should I act on?"}
           autoComplete="off"
           disabled={asking}
           maxLength={500}
