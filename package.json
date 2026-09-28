@@ -18,6 +18,7 @@
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
     "test:e2e": "playwright test",
+    "audit:overlap": "tsx scripts/audit-overlap.ts",
     "playwright:install": "PLAYWRIGHT_BROWSERS_PATH=\"$PWD/.playwright\" npx playwright install chromium",
     "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build",
     "dev:qa": "E2E_TEST=1 NEXT_PUBLIC_APP_URL=http://127.0.0.1:${PORT:-3000} next dev --hostname 127.0.0.1 --port ${PORT:-3000}",
