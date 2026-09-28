@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import Link from "next/link";
 import { StationField } from "@/components/station-field";
 import { DateField } from "@/components/date-field";
 import { formatUsdCompact } from "@/lib/domain/money";
@@ -251,9 +252,9 @@ function Results({ state, passengers }: { state: State; passengers: number }) {
 
       <p className="lookup-note">
         Listed fares, not a booking, and nothing here is being watched.{" "}
-        <a href="/watches/new" className="underline">
+        <Link href="/watches/new" className="underline">
           Watch this trip
-        </a>{" "}
+        </Link>{" "}
         to be told when one drops.
       </p>
     </section>
