@@ -13,6 +13,7 @@ import { WatchDetail } from "@/components/watch-detail";
 import { fareProviderStatus } from "@/lib/providers/create-provider";
 import { loadPageData } from "@/lib/pages/load-guard";
 import { RecordsUnreachable } from "@/components/records-unreachable";
+import { AssistantPanel } from "@/components/assistant-panel";
 import type { Route } from "next";
 
 export const dynamic = "force-dynamic";
@@ -210,6 +211,11 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
           .reverse()
           .map((cycle) => ({ id: cycle.id, status: cycle.status, at: cycle.startedAt }))}
       />
+      {/* Below the board on purpose. The answers are derived from it, so the
+          evidence should already be on screen when the reader gets here. */}
+      <div className="mx-auto max-w-6xl px-4 pb-10">
+        <AssistantPanel watchId={watch.id} />
+      </div>
     </PageFrame>
   );
 }

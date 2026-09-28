@@ -985,6 +985,24 @@ kbd {
   line-height: 1.6;
 }
 
+/* How much of the viewport the dock is allowed to cover, and the space the
+   document reserves so it never covers anything permanently. Expanded on
+   mobile the dock is taller, so the room grows with it. */
+:root {
+  --dock-room: 13rem;
+}
+
+@media (max-width: 767px) {
+  :root {
+    --dock-room: 16rem;
+  }
+}
+
+.dock-scroll-room {
+  height: var(--dock-room);
+  pointer-events: none;
+}
+
 .action-dock {
   position: sticky;
   bottom: max(0.75rem, env(safe-area-inset-bottom));
@@ -996,7 +1014,10 @@ kbd {
   border-radius: var(--radius);
   /* Same reason as .site-header: the dock was a white strip at the foot of a
      dark board. */
-  background: color-mix(in srgb, var(--paper-elevated) 92%, transparent);
+  /* Opaque. At 92% the content underneath showed through the blur as a smear
+     of half-legible digits — depth is not worth a price you cannot read. The
+     blur stays for the edge, where it falls over the page background. */
+  background: var(--paper-elevated);
   -webkit-backdrop-filter: blur(14px) saturate(1.4);
   backdrop-filter: blur(14px) saturate(1.4);
   box-shadow: 0 -12px 40px -8px rgba(15, 42, 29, 0.18);
@@ -3453,5 +3474,234 @@ a.depart-strip:hover {
   .unsaved-train {
     grid-column: 1 / -1;
     text-align: left;
+  }
+}
+
+/* ── Assistant ──────────────────────────────────────────────────────────────
+   Built on the existing tokens, so it inherits light and dark for free and
+   cannot drift from the rest of the product's colour. The one new idea is the
+   left rail on an answer: it ties a sentence to the board it was derived from,
+   and it turns amber when an answer was withheld for quoting a price the board
+   never saw. */
+
+.assistant {
+  position: relative;
+  margin-top: 1.5rem;
+  padding: 1.15rem 1.25rem 1.25rem;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--paper-elevated);
+  box-shadow: var(--sh-2);
+  /* A hairline of forest along the top edge, the same gesture the board uses. */
+  background-image: linear-gradient(var(--forest-2) 0 0);
+  background-size: 100% 2px;
+  background-repeat: no-repeat;
+  background-position: 0 0;
+}
+
+.assistant-head {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.assistant-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--forest-2);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--forest-2) 18%, transparent);
+  flex: none;
+}
+
+.assistant-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.assistant-note {
+  margin-left: auto;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+}
+
+.assistant-suggests {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0.9rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.assistant-chip {
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 0.4rem 0.8rem;
+  font-size: 0.82rem;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 160ms var(--ease),
+    background 160ms var(--ease),
+    transform 160ms var(--ease);
+}
+
+.assistant-chip:hover {
+  border-color: var(--forest-2);
+  background: color-mix(in srgb, var(--forest-2) 7%, var(--paper));
+}
+
+.assistant-chip:active {
+  transform: translateY(1px);
+}
+
+.assistant-thread {
+  margin: 0.9rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.7rem;
+  max-height: 22rem;
+  overflow-y: auto;
+  /* Scrolled content must not collide with the rounded edge. */
+  padding-right: 0.25rem;
+}
+
+.assistant-turn {
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.assistant-turn p {
+  margin: 0;
+  /* A pasted station list or a long word must wrap, not widen the panel. */
+  overflow-wrap: anywhere;
+}
+
+.assistant-turn.is-user {
+  justify-self: end;
+  max-width: 85%;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--forest-2) 10%, var(--paper));
+  padding: 0.5rem 0.75rem;
+}
+
+.assistant-turn.is-assistant {
+  border-left: 2px solid var(--forest-2);
+  padding-left: 0.75rem;
+}
+
+.assistant-turn.is-assistant.is-blocked {
+  border-left-color: var(--drop);
+}
+
+.assistant-blocked-tag {
+  margin: 0 0 0.3rem;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--drop);
+}
+
+.assistant-status {
+  margin: 0.7rem 0 0;
+  min-height: 1.1rem;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.assistant-error {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: var(--danger);
+}
+
+.assistant-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.assistant-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  color: var(--ink);
+  padding: 0.6rem 0.8rem;
+  font-size: 0.9rem;
+  transition: border-color 160ms var(--ease);
+}
+
+.assistant-input:focus {
+  outline: none;
+  border-color: var(--forest-2);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--forest-2) 16%, transparent);
+}
+
+.assistant-send {
+  flex: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--primary-grad);
+  color: #fff;
+  padding: 0.6rem 1.1rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 160ms var(--ease);
+}
+
+.assistant-send:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assistant-chip,
+  .assistant-input,
+  .assistant-send {
+    transition: none;
+  }
+}
+
+/* ── The dock stops covering the board on desktop ──────────────────────────
+   The dock is sticky to the foot of the viewport, so its height is a slice of
+   the screen taken away from the board for as long as you are on the page. At
+   206px that was 23% of a 900px window, and the three date cards sat 50px
+   underneath it: "from $96" clipped mid-digit at rest, readable only after
+   scrolling 50px to shift a number that is supposed to be glanceable.
+
+   Compacting it was the first attempt and it does not work — the column is
+   246px wide, so the button and its link wrap however they are told to, and
+   the row came back taller than it started. The honest fix is that pinning a
+   bar to the bottom of the screen is a phone pattern. On a phone it earns the
+   space it costs, because the actions would otherwise be a long scroll away.
+   On a desktop the whole board is already on screen and the dock can simply be
+   the last thing on the page, covering nothing.
+
+   Below 768px it stays exactly as it was, collapsed by default, with the
+   summary line as the tap target. */
+@media (min-width: 768px) {
+  .action-dock {
+    position: static;
+    box-shadow: var(--sh-2);
+  }
+
+  /* Room only exists to let content scroll clear of a floating dock. */
+  .dock-scroll-room {
+    display: none;
+  }
+
+  .live-compare {
+    padding: 0.8rem 1rem;
   }
 }

@@ -34,6 +34,30 @@ function deadHostname(): TypeError {
 /** And what supabase-js turns that into by the time a caller sees it. */
 const asSupabaseSees = { message: "TypeError: fetch failed", details: "", hint: "", code: "" };
 
+describe("what status a failure earns", () => {
+  it("answers 400 when the caller sent something invalid", async () => {
+    /* Every route validates with zod, and routeGuard had no branch for a
+       ZodError — so "you sent me something invalid" came back as 500, which
+       tells a client the server broke and that retrying the same body is
+       reasonable. It is not, and it never would be. */
+    const { z } = await import("zod");
+    const response = await routeGuard({ route: "/test" }, async () => {
+      z.object({ question: z.string().min(2, "Ask a question") }).parse({ question: "x" });
+      return NextResponse.json({ ok: true });
+    });
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toBe("Ask a question");
+  });
+
+  it("still answers 503 for a database we could not reach", async () => {
+    // The new branch must not shadow the transport one.
+    const response = await routeGuard({ route: "/test" }, async () => {
+      throw deadHostname();
+    });
+    expect(response.status).toBe(503);
+  });
+});
+
 describe("a route whose database is unreachable", () => {
   it("answers 503, not 500 and not 400", async () => {
     // 400 blames the caller for a request that could not have succeeded either

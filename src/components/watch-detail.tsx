@@ -2961,6 +2961,16 @@ export function WatchDetail({
         </div>
       ) : null}
 
+      {/* Room for the dock to float over.
+          The dock is sticky to the bottom of the viewport and translucent, so
+          whatever sits directly above it is permanently underneath it — on a
+          900px window that was the three date cards, clipped by 50px, with
+          "from $96" half readable through the blur. Sticky elements only stop
+          covering content once they reach their own place in the flow, so the
+          fix is to give the document somewhere to scroll to. Height is the
+          dock's, from the same variable the dock sizes itself with. */}
+      <div className="dock-scroll-room no-print" aria-hidden />
+
       <section className={`action-dock no-print mt-8 text-sm${dockOpen ? " is-expanded" : ""}`}>
         {/* Rendered only below 768px, by CSS. The summary is the tap target. */}
         <button

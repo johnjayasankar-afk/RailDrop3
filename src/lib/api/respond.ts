@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ZodError } from "zod";
 import { errorDetail, errorMessage, isTransportFailure } from "@/lib/errors";
 import { ProviderNotConfiguredError } from "@/lib/providers/fare-provider";
 import { logger } from "@/lib/logger";
@@ -36,6 +37,13 @@ export async function routeGuard(
     });
     if (error instanceof ProviderNotConfiguredError) {
       return NextResponse.json({ error: errorMessage(error) }, { status: 503 });
+    }
+    /* A request we could not parse is the caller's to fix, and 500 says the
+     * opposite — it tells a client the server broke and that retrying the same
+     * body is reasonable. Every route validates with zod, so every route was
+     * answering 500 to "you sent me something invalid". */
+    if (error instanceof ZodError) {
+      return NextResponse.json({ error: errorMessage(error) }, { status: 400 });
     }
     return NextResponse.json(
       { error: errorMessage(error) },
