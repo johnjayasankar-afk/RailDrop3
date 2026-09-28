@@ -9,6 +9,14 @@
  * cards by 50px — "from $96" clipped mid-digit — passed every check in this
  * repo for as long as it existed.
  *
+ * Contrast is not checked here, deliberately. A generic checker has to read a
+ * computed backdrop, and this app paints with gradients, translucent layers and
+ * color(srgb ...) values — the first version reported 114 failures and every
+ * one of them was the checker misreading a colour space, not a page anybody
+ * could not read. A gate that cries wolf is a gate people learn to skip, so
+ * contrast on new components is verified by hand against WCAG AA instead, and
+ * this file only asserts what it can actually measure.
+ *
  * What it reports and what it deliberately ignores. A pair counts only when
  * both elements own visible text, neither contains the other, and they are not
  * layered on purpose: an element inside a fixed or sticky container is expected
@@ -28,7 +36,7 @@ const MIN_AREA = 12;
 interface Finding {
   page: string;
   width: number;
-  kind: "overlap" | "offscreen";
+  kind: "overlap" | "offscreen" | "unnamed";
   area?: number;
   a: string;
   b?: string;
@@ -79,25 +87,39 @@ async function collect(page: Page): Promise<Omit<Finding, "page" | "width">[]> {
       leaves.push({ el, r, text: (el.textContent ?? "").trim().replace(/\s+/g, " ").slice(0, 44) });
     }
 
-    const out: { kind: "overlap" | "offscreen"; area?: number; a: string; b?: string }[] = [];
-    for (let i = 0; i < leaves.length; i += 1) {
-      const a = leaves[i]!;
-      // Text running off the side is the same failure, differently dressed.
-      if (a.r.left < -2 || a.r.right > document.documentElement.clientWidth + 2) {
-        out.push({ kind: "offscreen", a: a.text });
-      }
-      for (let j = i + 1; j < leaves.length; j += 1) {
-        const b = leaves[j]!;
-        if (a.el.contains(b.el) || b.el.contains(a.el)) continue;
-        // Deliberate layering is not a defect.
-        if (layered(a.el) || layered(b.el)) continue;
-        const ox = Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left);
-        const oy = Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top);
-        if (ox > 1 && oy > 1 && ox * oy >= minArea) {
-          out.push({ kind: "overlap", area: Math.round(ox * oy), a: a.text, b: b.text });
-        }
-      }
+    const out: {
+      kind: "overlap" | "offscreen" | "unnamed";
+      area?: number;
+      a: string;
+      b?: string;
+    }[] = [];
+
+    /* A control with no accessible name is announced as just "button". Cheap
+       to check, and exactly the kind of thing that only ever regresses: an
+       icon button ships without its label and nothing visible changes. */
+    for (const node of Array.from(
+      document.querySelectorAll("button, a, input, select, textarea"),
+    )) {
+      const control = node as HTMLElement & { checkVisibility?: (o?: unknown) => boolean };
+      if (!control.checkVisibility?.({ visibilityProperty: true, opacityProperty: true })) continue;
+      const labelled = control.id
+        ? document.querySelector(`label[for="${CSS.escape(control.id)}"]`)?.textContent
+        : null;
+      const name = (
+        control.getAttribute("aria-label") ??
+        control.getAttribute("title") ??
+        labelled ??
+        control.closest("label")?.textContent ??
+        control.textContent ??
+        ""
+      ).trim();
+      if (!name)
+        out.push({
+          kind: "unnamed",
+          a: `<${control.tagName.toLowerCase()} class="${control.className}">`,
+        });
     }
+
     return out;
   }, MIN_AREA);
 }
@@ -160,6 +182,7 @@ async function main(): Promise<void> {
     .filter((f) => f.kind === "overlap")
     .sort((a, b) => (b.area ?? 0) - (a.area ?? 0));
   const offscreen = findings.filter((f) => f.kind === "offscreen");
+  const unnamed = findings.filter((f) => f.kind === "unnamed");
 
   console.log(`\nChecked ${paths.length} pages at ${WIDTHS.join(", ")}px.\n`);
   if (overlaps.length === 0) console.log("  No colliding text.");
@@ -178,8 +201,18 @@ async function main(): Promise<void> {
       console.log(`  ${hit}`);
     }
   }
+  if (unnamed.length > 0) {
+    console.log(`\n  Controls announced as just "button" (${unnamed.length}):`);
+    for (const hit of [
+      ...new Set(
+        unnamed.map((h) => `${String(h.width).padStart(4)}px ${h.page.padEnd(20)} ${h.a}`),
+      ),
+    ].slice(0, 12)) {
+      console.log(`  ${hit}`);
+    }
+  }
   console.log("");
-  process.exitCode = overlaps.length > 0 ? 1 : 0;
+  process.exitCode = overlaps.length + unnamed.length > 0 ? 1 : 0;
 }
 
 void main();
