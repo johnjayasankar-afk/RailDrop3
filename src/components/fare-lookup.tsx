@@ -9,6 +9,7 @@ import { formatDisplayDate } from "@/lib/domain/calendar";
 import { formatClock } from "@/lib/domain/timezone";
 import { trainLabel } from "@/lib/domain/board-decision";
 import type { DateProgress, FarePreview } from "@/lib/watches/preview-fares";
+import { sharedSearchHref, type SharedSearch } from "@/lib/domain/share-search";
 
 /* What does this cost, right now.
  *
@@ -31,13 +32,14 @@ type State =
   | { status: "done"; preview: FarePreview }
   | { status: "failed"; message: string };
 
-export function FareLookup({ today }: { today: string }) {
-  const [origin, setOrigin] = useState("BOS");
-  const [destination, setDestination] = useState("NYP");
-  const [date, setDate] = useState(today);
-  const [flexibility, setFlexibility] = useState<0 | 1 | 2>(1);
-  const [passengers, setPassengers] = useState(1);
+export function FareLookup({ today, initial }: { today: string; initial?: SharedSearch }) {
+  const [origin, setOrigin] = useState(initial?.originCode ?? "BOS");
+  const [destination, setDestination] = useState(initial?.destinationCode ?? "NYP");
+  const [date, setDate] = useState(initial?.travelDate ?? today);
+  const [flexibility, setFlexibility] = useState<0 | 1 | 2>(initial?.flexibilityDays ?? 1);
+  const [passengers, setPassengers] = useState(initial?.passengers ?? 1);
   const [state, setState] = useState<State>({ status: "idle" });
+  const [copied, setCopied] = useState(false);
 
   const ready = origin.length === 3 && destination.length === 3 && origin !== destination && date;
 
@@ -182,6 +184,36 @@ export function FareLookup({ today }: { today: string }) {
         <p className="lookup-caveat">
           Nothing is saved and nothing is watched. Listed fares only — confirm on Amtrak.
         </p>
+        {/* The link carries the route and the date and never a fare. A price in
+            a URL is one nobody observed by the time it is read, and a forged
+            one would look exactly like a real one. */}
+        <button
+          type="button"
+          className="lookup-share"
+          onClick={async () => {
+            const href = new URL(
+              sharedSearchHref({
+                originCode: origin,
+                destinationCode: destination,
+                travelDate: date,
+                flexibilityDays: flexibility,
+                passengers,
+              }),
+              window.location.origin,
+            ).toString();
+            try {
+              await navigator.clipboard.writeText(href);
+              setCopied(true);
+              window.setTimeout(() => setCopied(false), 2000);
+            } catch {
+              // Clipboard refused (permissions, insecure origin). Say nothing
+              // rather than claim a copy that did not happen.
+              setCopied(false);
+            }
+          }}
+        >
+          {copied ? "Link copied" : "Copy this search"}
+        </button>
       </form>
 
       <Results state={state} passengers={passengers} />
