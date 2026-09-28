@@ -119,7 +119,18 @@ describe("board decision", () => {
     expect(brief).toContain("confirm on Amtrak");
     expect(formatDurationDelta(18)).toBe("18m longer");
     expect(calendarIcs(cheap)).toContain("BEGIN:VEVENT");
+    /* No Z, and that is correct. A departure here is the station's wall clock
+       with no zone on it — formatClock renders it by reading the characters —
+       and RFC 5545's floating time means exactly that: show this clock
+       reading, wherever you are. Converting it to UTC would read the string in
+       the server's zone, so the same train would land at a different hour
+       depending on where the code ran: right on a laptop in New York, four
+       hours out on Vercel. */
     expect(calendarIcs(cheap)).toContain("DTSTART:20260923T061000");
+    expect(calendarIcs(cheap)).not.toContain("DTSTART:20260923T061000Z");
+    // Required by RFC 5545, and what stops a second download duplicating the event.
+    expect(calendarIcs(cheap)).toMatch(/^UID:.+@raildrop$/m);
+    expect(calendarIcs(cheap)).toMatch(/^DTSTAMP:\d{8}T\d{6}Z$/m);
     expect(
       friendText({
         originCode: "BOS",

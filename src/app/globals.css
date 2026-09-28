@@ -3888,3 +3888,233 @@ a.depart-strip:hover {
     transition: none;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ELEVATION, MOTION, FOCUS
+   ───────────────────────────────────────────────────────────────────────────
+   One layer that gives the whole product a consistent physical language,
+   written on top of the existing tokens so the palette does not move: still
+   porcelain ground, forest ink, mint for a saving, amber for urgency.
+
+   Three things were missing rather than wrong. Surfaces were flat — a border
+   and a shadow, with nothing to say which of two panels is nearer. Interaction
+   was instant, so nothing acknowledged a press. And focus was styled in four
+   places and nowhere else, which on a board you are meant to drive from the
+   keyboard is the accessibility gap that matters most.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* A light source above the page. The hairline is what reads as "raised" —
+     more convincingly than a bigger shadow, and at a fraction of the weight. */
+  --edge-hi: rgba(255, 255, 255, 0.72);
+  --edge-lo: rgba(28, 51, 38, 0.06);
+
+  /* Springy enough to feel responsive, short enough never to be in the way. */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --t-fast: 120ms;
+  --t-base: 190ms;
+  --t-slow: 320ms;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    /* In dark the highlight is the light catching a top edge, not a white line. */
+    --edge-hi: rgba(255, 255, 255, 0.07);
+    --edge-lo: rgba(0, 0, 0, 0.5);
+  }
+}
+
+:root[data-theme="dark"] {
+  --edge-hi: rgba(255, 255, 255, 0.07);
+  --edge-lo: rgba(0, 0, 0, 0.5);
+}
+
+/* ── Raised surfaces ─────────────────────────────────────────────────────── */
+
+.panel,
+.ticket,
+.station-list,
+.datefield-pop,
+.assistant {
+  box-shadow:
+    inset 0 1px 0 var(--edge-hi),
+    var(--sh-2);
+}
+
+/* A panel that can be acted on lifts a little under the pointer. Transform
+   rather than margin, so it never reflows the row it sits in. */
+.ticket-hover,
+.watch-card,
+.date-card,
+.assistant-chip {
+  transition:
+    transform var(--t-base) var(--ease-out),
+    box-shadow var(--t-base) var(--ease-out),
+    border-color var(--t-base) var(--ease-out);
+}
+
+.ticket-hover:hover,
+.watch-card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 1px 0 var(--edge-hi),
+    var(--sh-3);
+}
+
+.ticket-hover:active,
+.watch-card:active {
+  transform: translateY(0);
+  transition-duration: var(--t-fast);
+}
+
+/* ── One focus ring, everywhere ──────────────────────────────────────────────
+   Was styled on four selectors. Everything else fell back to the browser's
+   default, which on a forest-green surface is a thin blue line that several
+   of these components painted over entirely. */
+
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--forest-2);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* On the dark board the forest ring disappears into the surface. */
+.board-row:focus-visible,
+.action-dock :focus-visible,
+.depart-strip:focus-visible,
+.live-compare :focus-visible {
+  outline-color: var(--mint-2);
+}
+
+/* ── Numbers ─────────────────────────────────────────────────────────────────
+   Prices are compared down a column, so the digits have to line up. Tabular
+   figures were set on some price classes and not others, which is worse than
+   neither: two adjacent columns drifting apart looks like a rendering fault. */
+
+.price,
+.board-price,
+.datefield-day,
+.metric-value,
+[class*="price"],
+[class*="Price"] {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Entrance ────────────────────────────────────────────────────────────────
+   Board rows arrive together, which on a long board reads as a flash. A short
+   stagger makes it read as a list being dealt. Capped at ten, because past
+   that the last row is waiting on choreography rather than data. */
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.stagger > * {
+  animation: rise-in var(--t-slow) var(--ease-out) both;
+}
+
+.stagger > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+.stagger > *:nth-child(2) {
+  animation-delay: 24ms;
+}
+.stagger > *:nth-child(3) {
+  animation-delay: 48ms;
+}
+.stagger > *:nth-child(4) {
+  animation-delay: 72ms;
+}
+.stagger > *:nth-child(5) {
+  animation-delay: 96ms;
+}
+.stagger > *:nth-child(6) {
+  animation-delay: 120ms;
+}
+.stagger > *:nth-child(7) {
+  animation-delay: 144ms;
+}
+.stagger > *:nth-child(8) {
+  animation-delay: 168ms;
+}
+.stagger > *:nth-child(9) {
+  animation-delay: 192ms;
+}
+.stagger > *:nth-child(n + 10) {
+  animation-delay: 210ms;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+
+.btn {
+  transition:
+    transform var(--t-fast) var(--ease-out),
+    box-shadow var(--t-base) var(--ease-out),
+    background-color var(--t-base) var(--ease-out),
+    border-color var(--t-base) var(--ease-out);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn-primary {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    var(--sh-1);
+}
+
+.btn-primary:hover:not(:disabled) {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    var(--sh-2);
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────────
+   Flat against the page until the page moves under it, which is the moment the
+   boundary starts doing work. The class is set by the header component. */
+
+.site-header {
+  transition:
+    box-shadow var(--t-base) var(--ease-out),
+    border-color var(--t-base) var(--ease-out);
+}
+
+.site-header.is-scrolled {
+  box-shadow:
+    0 1px 0 var(--line),
+    0 10px 30px -22px rgba(15, 42, 29, 0.5);
+  border-bottom-color: var(--line-2);
+}
+
+/* ── Reduced motion ──────────────────────────────────────────────────────────
+   Not "animations off" — transforms removed, opacity kept. Someone who asked
+   for less motion still wants to see that something arrived. */
+
+@media (prefers-reduced-motion: reduce) {
+  .stagger > * {
+    animation: none;
+  }
+
+  .ticket-hover,
+  .watch-card,
+  .date-card,
+  .assistant-chip,
+  .btn {
+    transition-property: box-shadow, border-color, background-color;
+  }
+
+  .ticket-hover:hover,
+  .watch-card:hover,
+  .btn:active:not(:disabled) {
+    transform: none;
+  }
+}

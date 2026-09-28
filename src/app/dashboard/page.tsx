@@ -60,27 +60,33 @@ export default async function DashboardPage() {
             Watch trip
           </Link>
         </div>
-        <section className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <Metric label="Active watches" value={String(active.length)} />
-          <Metric
-            label="Best savings found"
-            value={bestSavings ? formatUsdCompact(bestSavings) : "—"}
-          />
-          <Metric
-            label="On the table"
-            value={
-              watches.some((watch) => (watch.bestSavingsCents ?? 0) > 0)
-                ? formatUsdCompact(
-                    watches.reduce(
-                      (sum, watch) => sum + Math.max(0, watch.bestSavingsCents ?? 0),
-                      0,
-                    ),
-                  )
-                : "—"
-            }
-          />
-          <Metric label="Needs a look" value={needsLook ? String(needsLook) : "—"} />
-        </section>
+        {/* Nothing to summarise before there is anything to summarise.
+            Four cards reading "—" above an empty state is furniture: it fills
+            the screen with the shape of information and none of it, and it
+            pushes the one thing a new visitor should read further down. */}
+        {watches.length === 0 ? null : (
+          <section className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-4 stagger">
+            <Metric label="Active watches" value={String(active.length)} />
+            <Metric
+              label="Best savings found"
+              value={bestSavings ? formatUsdCompact(bestSavings) : "—"}
+            />
+            <Metric
+              label="On the table"
+              value={
+                watches.some((watch) => (watch.bestSavingsCents ?? 0) > 0)
+                  ? formatUsdCompact(
+                      watches.reduce(
+                        (sum, watch) => sum + Math.max(0, watch.bestSavingsCents ?? 0),
+                        0,
+                      ),
+                    )
+                  : "—"
+              }
+            />
+            <Metric label="Needs a look" value={needsLook ? String(needsLook) : "—"} />
+          </section>
+        )}
         {next ? (
           <Link href={`/watches/${next.id}`} className="depart-strip mt-6 no-underline">
             <span className="text-[10px] uppercase tracking-[0.16em] opacity-70">Next trip</span>
@@ -113,7 +119,9 @@ export default async function DashboardPage() {
             </Link>
           </div>
         ) : (
-          <WatchList watches={ranked} today={today} />
+          <div className="stagger">
+            <WatchList watches={ranked} today={today} />
+          </div>
         )}
       </main>
     </PageFrame>

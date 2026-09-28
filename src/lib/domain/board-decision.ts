@@ -1,4 +1,5 @@
 import { dateBadge, formatDisplayDate, formatDurationMinutes } from "./calendar";
+import { buildIcs } from "./ics";
 import { formatUsdCompact } from "./money";
 import { formatClock } from "./timezone";
 import type { RankedCandidate } from "./types";
@@ -154,40 +155,29 @@ export function candidateIsSame(a: RankedCandidate, b: RankedCandidate): boolean
   return a.journey.id === b.journey.id && a.fare.id === b.fare.id;
 }
 
-function icsStamp(iso: string): string {
-  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(iso);
-  if (!match) return iso.replace(/[-:]/g, "").slice(0, 15);
-  return `${match[1]}${match[2]}${match[3]}T${match[4]}${match[5]}00`;
-}
-
-function icsEscape(value: string): string {
-  return value
-    .replaceAll("\\", "\\\\")
-    .replaceAll(";", "\\;")
-    .replaceAll(",", "\\,")
-    .replaceAll("\n", "\\n");
-}
-
+/* Delegates to src/lib/domain/ics.ts, which is spec-correct.
+ *
+ * The version that lived here put the train in people's calendars at the wrong
+ * time. It emitted DTSTART as a floating value — "20261009T110500", with no Z —
+ * which a calendar reads in the viewer's own timezone. The stored instant is
+ * UTC, so a Northeast Regional leaving Boston at 7:05 in the morning arrived in
+ * the calendar as 11:05, four hours late, and nothing about the file looked
+ * wrong. It also omitted UID, so a second download made a second event instead
+ * of updating the first, and DTSTAMP, which RFC 5545 requires and some clients
+ * reject a VEVENT without.
+ */
 export function calendarIcs(candidate: RankedCandidate): string {
-  const summary = icsEscape(
-    `${trainLabel(candidate)} ${candidate.journey.originCode} → ${candidate.journey.destinationCode}`,
-  );
-  const description = icsEscape(
-    `Listed ${formatUsdCompact(candidate.totalPartyPriceCents)}. Confirm on Amtrak. RailDrop is not a ticket.`,
-  );
-  return [
-    "BEGIN:VCALENDAR",
-    "VERSION:2.0",
-    "PRODID:-//RailDrop//EN",
-    "CALSCALE:GREGORIAN",
-    "BEGIN:VEVENT",
-    `DTSTART:${icsStamp(candidate.journey.departureAt)}`,
-    `DTEND:${icsStamp(candidate.journey.arrivalAt)}`,
-    `SUMMARY:${summary}`,
-    `DESCRIPTION:${description}`,
-    `LOCATION:${icsEscape(`${candidate.journey.originCode} to ${candidate.journey.destinationCode}`)}`,
-    "END:VEVENT",
-    "END:VCALENDAR",
-    "",
-  ].join("\r\n");
+  return buildIcs([
+    {
+      // Stable per journey and fare: re-downloading updates the entry rather
+      // than adding a duplicate beside it.
+      uid: `raildrop-${candidate.journey.id}-${candidate.fare.id}@raildrop`,
+      startsAt: candidate.journey.departureAt,
+      endsAt: candidate.journey.arrivalAt,
+      stamp: new Date().toISOString(),
+      title: `${trainLabel(candidate)} ${candidate.journey.originCode} → ${candidate.journey.destinationCode}`,
+      description: `Listed ${formatUsdCompact(candidate.totalPartyPriceCents)}. Confirm on Amtrak. RailDrop is not a ticket.`,
+      location: `${candidate.journey.originCode} to ${candidate.journey.destinationCode}`,
+    },
+  ]);
 }
