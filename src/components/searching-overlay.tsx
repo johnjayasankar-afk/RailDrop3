@@ -27,7 +27,10 @@ export function SearchingOverlay({
     cancelRef.current = onCancel;
   }, [onCancel]);
   const windowLabel = flexibility > 0 ? `${date} ±${flexibility}` : date;
-  const progress = Math.min(95, Math.round((elapsedSeconds / 28) * 100));
+  /* The number of dates this scan covers. Real: it is what generateSearchDates
+     produces from the same flexibility, and it is the only quantity about this
+     scan that anybody here actually knows. */
+  const dateCount = 1 + flexibility * 2;
 
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
@@ -106,21 +109,34 @@ export function SearchingOverlay({
               ? "Live board for your date window. Stay here: this can take about 20 to 40 seconds."
               : "This usually takes 15 to 30 seconds. Stay on this page: we are opening a live fare board, not inventing prices."}
         </p>
-        <div className="scan-line mt-6">
+        {/* One indeterminate indicator, and no invented figure.
+         *
+         * Underneath the sentence "we are opening a live fare board, not
+         * inventing prices" sat a progress bar reading
+         * Math.min(95, elapsed / 28 * 100) — a percentage derived from a
+         * hard-coded 28 and nothing the scan reports, exposed to assistive
+         * technology as aria-valuenow. A screen reader was told "47 percent"
+         * about a process whose completion nobody had measured, and on a
+         * sixty-second scan the bar sat at 95% for half a minute while the
+         * elapsed counter beside it kept honestly counting.
+         *
+         * A progressbar with no value is the ARIA-correct way to say "running,
+         * amount unknown", and the scan line above already says it visually,
+         * so the bar goes and the numbers that remain are ones we hold: how
+         * many dates this scan covers, and how long it has been going. If a
+         * caller ever streams per-date results — preview-fares already emits
+         * DateProgress with an index and a total — this is where a real
+         * determinate bar belongs. */}
+        <div
+          className="scan-line mt-6"
+          role="progressbar"
+          aria-label={`Searching the live fare board for ${dateCount} ${dateCount === 1 ? "date" : "dates"}`}
+        >
           <span />
         </div>
-        <div
-          className="progress mt-3"
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={progress}
-          aria-label="Scan progress estimate"
-        >
-          <span style={{ width: `${progress}%` }} />
-        </div>
         <p className="mt-4 font-mono text-sm text-ink-soft" aria-live="polite">
-          <Flap>{`${elapsedSeconds}s`}</Flap> elapsed
+          <Flap>{`${elapsedSeconds}s`}</Flap> elapsed ·{" "}
+          {dateCount === 1 ? "1 date" : `${dateCount} dates`}
         </p>
         {onCancel ? (
           <button type="button" className="btn btn-ghost mt-5 w-full py-3" onClick={onCancel}>

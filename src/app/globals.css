@@ -287,17 +287,6 @@ h2.serif {
   background: linear-gradient(90deg, var(--rail) 0 64px, var(--mint-3) 64px 80px, var(--line) 80px);
 }
 
-.board-status {
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: var(--paper-elevated);
-  padding: 0.85rem 1rem;
-}
-
-main#main.has-dock {
-  padding-bottom: max(5rem, calc(env(safe-area-inset-bottom) + 3.5rem));
-}
-
 .brand-lockup {
   text-decoration: none;
   color: inherit;
@@ -387,44 +376,6 @@ main#main.has-dock {
 .field::placeholder {
   color: color-mix(in srgb, var(--ink-soft) 80%, transparent);
   opacity: 1;
-}
-
-.money-field {
-  display: flex;
-  align-items: stretch;
-  margin-top: 0.35rem;
-  border: 1px solid var(--line-2);
-  border-radius: var(--radius-sm);
-  background: var(--paper-elevated);
-}
-
-.money-affix {
-  display: inline-flex;
-  align-items: center;
-  padding: 0 0.1rem 0 0.85rem;
-  color: var(--ink-soft);
-  font-variant-numeric: tabular-nums;
-  user-select: none;
-}
-
-.money-field .field {
-  margin-top: 0;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  flex: 1;
-  min-width: 0;
-  padding-left: 0.35rem;
-}
-
-.money-field:focus-within {
-  border-color: var(--forest-2);
-  outline: 2px solid var(--forest-2);
-  outline-offset: 2px;
-}
-
-.money-field .field:focus {
-  outline: none;
 }
 
 .btn {
@@ -560,19 +511,6 @@ input[type="radio"] {
   }
 }
 
-.timetable-row {
-  display: grid;
-  grid-template-columns: 5.5rem minmax(0, 1fr) 5.5rem;
-  gap: 1rem;
-  align-items: baseline;
-  padding: 0.9rem 1rem;
-  border-top: 1px solid var(--line);
-}
-
-.timetable-row:first-child {
-  border-top: 0;
-}
-
 .scan-dot {
   width: 0.45rem;
   height: 0.45rem;
@@ -595,37 +533,6 @@ input[type="radio"] {
   width: 40%;
   background: linear-gradient(90deg, transparent, var(--forest-2), var(--mint-3), transparent);
   animation: scan 1.6s ease-in-out infinite;
-}
-
-.progress {
-  height: 3px;
-  overflow: hidden;
-  border-radius: 3px;
-  background: var(--line);
-}
-
-.progress > span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--forest-2);
-  transition: width 200ms ease;
-}
-
-.progress-indeterminate > span {
-  width: 38% !important;
-  background: linear-gradient(90deg, var(--forest-2), var(--mint-3), var(--forest-2));
-  background-size: 200% 100%;
-  animation: progress-slide 1.5s ease-in-out infinite;
-}
-
-@keyframes progress-slide {
-  0% {
-    transform: translateX(-120%);
-  }
-  100% {
-    transform: translateX(320%);
-  }
 }
 
 @keyframes pulse {
@@ -1041,10 +948,6 @@ kbd {
   pointer-events: auto;
 }
 
-.print-only {
-  display: none;
-}
-
 /* One row, scrolled sideways if it does not fit.
  *
  * Wrapping made this 122px at 1024px and 208px at 390px, and the dock is
@@ -1077,24 +980,6 @@ kbd {
 
 .dock-btns > * {
   flex: 0 0 auto;
-}
-
-.dock-primary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.55rem;
-  align-items: center;
-  width: 100%;
-}
-
-.dock-more {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  width: 100%;
-  align-items: center;
-  padding-top: 0.15rem;
-  border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
 }
 
 .live-compare {
@@ -1392,15 +1277,6 @@ kbd {
   animation: train-run 3.6s var(--ease) infinite;
 }
 
-.ticket-stub {
-  display: inline-flex;
-  flex-direction: column;
-  border: 1px dashed var(--line-2);
-  border-radius: 12px;
-  padding: 0.55rem 0.75rem;
-  background: color-mix(in srgb, var(--paper) 70%, white);
-}
-
 .board-index {
   font-family: var(--font-code);
   font-size: 0.65rem;
@@ -1600,10 +1476,6 @@ kbd {
   vertical-align: baseline;
 }
 
-.flap-quiet {
-  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.22);
-}
-
 .duration-bar {
   height: 3px;
   width: 6.5rem;
@@ -1794,68 +1666,6 @@ kbd {
   margin-bottom: 0.2rem;
 }
 
-.board-time {
-  font-family: var(--font-code);
-  font-size: 1.1rem;
-  font-weight: 500;
-  line-height: 1.25;
-  letter-spacing: 0.01em;
-  font-variant-numeric: tabular-nums;
-  color: var(--board-ink);
-  white-space: nowrap;
-}
-
-.board-price {
-  font-family: var(--font-body);
-  font-size: 1.4rem;
-  font-weight: 500;
-  line-height: 1.2;
-  letter-spacing: -0.03em;
-  font-variant-numeric: tabular-nums;
-  color: var(--board-ink);
-  white-space: nowrap;
-}
-
-.board-dur {
-  font-size: 0.92rem;
-  line-height: 1.3;
-  color: var(--board-ink);
-  white-space: nowrap;
-}
-
-.board-save {
-  font-size: 0.92rem;
-  line-height: 1.3;
-  color: var(--board-mute);
-}
-
-.board-save.is-save {
-  color: var(--mint-2);
-}
-
-.board-overnight {
-  margin-top: 0.15rem;
-  font-family: var(--font-code);
-  font-size: 0.62rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--board-mute);
-  line-height: 1.35;
-}
-
-.board-train-name {
-  font-size: 0.95rem;
-  line-height: 1.35;
-  color: var(--board-ink);
-}
-
-.board-train-meta {
-  margin-top: 0.15rem;
-  font-size: 0.82rem;
-  line-height: 1.4;
-  color: var(--board-mute);
-}
-
 .board-row.board-grid {
   display: grid;
   grid-template-areas:
@@ -1945,14 +1755,6 @@ kbd {
     padding: 1rem;
   }
 
-  .board-time {
-    font-size: 1.02rem;
-  }
-
-  .board-price {
-    font-size: 1.32rem;
-  }
-
   .board-head {
     position: sticky;
     top: calc(3.5rem + var(--trip-rail-h, 3.25rem) + env(safe-area-inset-top));
@@ -2030,13 +1832,6 @@ kbd {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--rail);
-}
-
-.ladder-caption {
-  margin-top: 0.85rem;
-  font-size: 0.78rem;
-  line-height: 1.45;
-  color: var(--ink-soft);
 }
 
 .scan-pulse {
@@ -2983,27 +2778,12 @@ a.depart-strip:hover {
   background: color-mix(in srgb, var(--danger) 16%, transparent);
 }
 
-.footer-labs a {
-  color: var(--ink);
-  text-decoration: underline;
-  text-decoration-color: color-mix(in srgb, var(--ink) 25%, transparent);
-  text-underline-offset: 3px;
-}
-
-.footer-labs a:hover {
-  text-decoration-color: var(--forest-2);
-}
-
 @media print {
   header,
   footer,
   .skip-link,
   .no-print {
     display: none !important;
-  }
-
-  .print-only {
-    display: flex !important;
   }
 
   body {
@@ -3039,10 +2819,8 @@ a.depart-strip:hover {
   .scan-dot,
   .scan-line span,
   .route-track::after,
-  .flap-face,
   .rail-mark i:nth-child(2),
   .board-toast,
-  .progress-indeterminate > span,
   .meter-found,
   .fuse > span,
   .btn,
@@ -4395,7 +4173,6 @@ a.depart-strip:hover {
 /* A panel that can be acted on lifts a little under the pointer. Transform
    rather than margin, so it never reflows the row it sits in. */
 .ticket-hover,
-.watch-card,
 .date-card,
 .assistant-chip {
   transition:
@@ -4404,16 +4181,14 @@ a.depart-strip:hover {
     border-color var(--t-base) var(--ease-out);
 }
 
-.ticket-hover:hover,
-.watch-card:hover {
+.ticket-hover:hover {
   transform: translateY(-2px);
   box-shadow:
     inset 0 1px 0 var(--edge-hi),
     var(--sh-3);
 }
 
-.ticket-hover:active,
-.watch-card:active {
+.ticket-hover:active {
   transform: translateY(0);
   transition-duration: var(--t-fast);
 }
@@ -4443,7 +4218,6 @@ a.depart-strip:hover {
    neither: two adjacent columns drifting apart looks like a rendering fault. */
 
 .price,
-.board-price,
 .datefield-day,
 .metric-value,
 [class*="price"],
@@ -4555,7 +4329,6 @@ a.depart-strip:hover {
   }
 
   .ticket-hover,
-  .watch-card,
   .date-card,
   .assistant-chip,
   .btn {
@@ -4563,7 +4336,6 @@ a.depart-strip:hover {
   }
 
   .ticket-hover:hover,
-  .watch-card:hover,
   .btn:active:not(:disabled) {
     transform: none;
   }
@@ -5048,10 +4820,6 @@ body::after {
   font-size: var(--step-3);
 }
 
-.readout-xl {
-  font-size: var(--step-4);
-}
-
 /* ── Micro labels ────────────────────────────────────────────────────────────
    Wide-tracked, small, uppercase, monospace. The convention every instrument
    panel uses to say "this names a value" rather than "this is prose". */
@@ -5470,13 +5238,6 @@ body::after {
 }
 
 /* "from" stops shouting. It is a preposition, not data. */
-.date-card .from-label,
-.date-card > * > .from-label {
-  font-size: var(--step--2);
-  color: var(--ink-soft);
-  letter-spacing: 0.06em;
-}
-
 /* The price: out of its box and into the open. */
 .date-card .flap {
   padding: 0;
@@ -5492,8 +5253,36 @@ body::after {
   color: var(--ink);
 }
 
-.date-card .flap-face {
+/* An unboxed figure has no cell, so it must not wear the mechanism.
+ *
+ * These two rules targeted the old single-face class. The split-flap rewrite
+ * retired it and CSS said nothing, so the date-card fare and the hero fare
+ * quietly regained a hinge line across the middle and a board-coloured leaf on
+ * a paper card — which is what an unboxed number looks like when it is still
+ * wearing the box.
+ *
+ * The prices here never change in place; a new board is a new render. So there
+ * is nothing to animate: the outgoing leaf has nothing to fall onto, and the
+ * incoming one sits where it lands. */
+.date-card .flap-mech::after,
+.ticket-hero .flap-hero .flap-mech::after {
+  display: none;
+}
+
+.date-card .flap-leaf-out,
+.ticket-hero .flap-hero .flap-leaf-out {
+  display: none;
+}
+
+.date-card .flap-leaf,
+.ticket-hero .flap-hero .flap-leaf {
   animation: none;
+  background: transparent;
+}
+
+.date-card .flap-leaf::before,
+.ticket-hero .flap-hero .flap-leaf::before {
+  display: none;
 }
 
 /* The chosen date earns a rail and a wash rather than only a border colour. */
@@ -5516,34 +5305,6 @@ body::after {
    A single flat border around a dark panel reads as a drawn rectangle. A
    stroke that is brighter where the light would fall reads as an edge. Done
    with a mask so it stays one pixel and never fills the shape. */
-
-.edge-lit {
-  position: relative;
-}
-
-.edge-lit::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 1px;
-  pointer-events: none;
-  background: linear-gradient(
-    150deg,
-    color-mix(in srgb, var(--mint-3) 38%, transparent),
-    transparent 38%,
-    transparent 62%,
-    color-mix(in srgb, var(--forest-2) 30%, transparent)
-  );
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  mask-composite: exclude;
-}
 
 /* ── Pointer spotlight ───────────────────────────────────────────────────────
    A soft highlight that follows the cursor across a panel. The coordinates
@@ -5693,8 +5454,4 @@ body::after {
 .ticket-hero .price {
   line-height: 0.95;
   margin-top: 0.5rem;
-}
-
-.ticket-hero .flap-hero .flap-face {
-  animation: none;
 }
