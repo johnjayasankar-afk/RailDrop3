@@ -17,6 +17,7 @@ import { fareFamilyLabel, travelClassLabel } from "@/lib/domain/fare-family";
 import { serviceTypeLabel } from "@/lib/domain/service-type";
 import { isCheckStale } from "@/lib/domain/relative-time";
 import { RelativeTime } from "@/components/relative-time";
+import { Money } from "@/components/money";
 import { extensionWindow } from "@/lib/domain/monitoring";
 import { shouldHandleBoardKey } from "@/lib/domain/board-keys";
 import { copyText } from "@/lib/clipboard";
@@ -267,6 +268,7 @@ export function WatchDetail({
   const beatsKeyRef = useRef<string[]>([]);
   const hiddenRef = useRef<string[]>([]);
   const stripRef = useRef("");
+  const railRef = useRef<HTMLDivElement | null>(null);
   /** Set once the link and storage have been read; guards every write back. */
   const hydrated = useRef(false);
   /** The last URL this component wrote, so the sync effect can skip no-ops. */
@@ -374,6 +376,29 @@ export function WatchDetail({
   }, [feeDollars]);
   const netBest = best ? netAfterFee(best.savingsCents, feeCents) : 0;
   const feeCopy = best ? feeNote(best.savingsCents, feeCents) : null;
+  /* The board header sticks below this rail, and its offset was the literal
+     `var(--trip-rail-h, 3.25rem)` — a variable nothing ever set, so every
+     layout used the fallback. At one row that was about right; wrapped to two
+     or three on a phone the board header slid underneath the rail and covered
+     the row it was labelling. Measuring it is four lines and it is correct at
+     every width, in both orientations, and when zen mode changes the height. */
+  useEffect(() => {
+    const node = railRef.current;
+    if (!node) return;
+    const root = document.documentElement;
+    const write = () => {
+      root.style.setProperty("--trip-rail-h", `${Math.round(node.offsetHeight)}px`);
+    };
+    write();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(write);
+    observer.observe(node);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty("--trip-rail-h");
+    };
+  }, []);
+
   const verdict = useMemo(
     () => switchVerdict({ best: best ?? null, yours, feeCents }),
     [best, yours, feeCents],
@@ -1678,32 +1703,65 @@ export function WatchDetail({
         {stationLabel(watch.originCode)} to {stationLabel(watch.destinationCode)}{" "}
         {formatDisplayDate(watch.desiredTravelDate)}
       </h1>
-      <div className={`trip-rail no-print${zen ? " is-zen" : ""}`}>
-        <Flap>{watch.originCode}</Flap>
-        <span className="trip-rail-to">to</span>
-        <Flap>{watch.destinationCode}</Flap>
-        <span className="depart-strip-rule" aria-hidden />
-        <Flap>{formatDisplayDate(watch.desiredTravelDate)}</Flap>
-        {watch.dateFlexibilityDays ? (
-          <span className="trip-rail-to">±{watch.dateFlexibilityDays}</span>
-        ) : null}
-        {boardNow ? (
-          <span className="board-clock trip-rail-meta" aria-live="polite">
-            <span className="trip-rail-to">Now</span>
-            <Flap>{boardNow.label}</Flap>
+      <div
+        ref={railRef}
+        className={`trip-rail no-print${zen ? " is-zen" : ""}${scanning ? " is-scanning" : ""}`}
+      >
+        <div className="hud-cell">
+          <span className="hud-label">Route</span>
+          <span className="hud-value">
+            <span className="hud-code">{watch.originCode}</span>
+            <i className="hud-arrow" aria-hidden />
+            <span className="hud-code">{watch.destinationCode}</span>
           </span>
+        </div>
+        <div className="hud-cell">
+          <span className="hud-label">Window</span>
+          <span className="hud-value">
+            <span className="hud-code">{formatDisplayDate(watch.desiredTravelDate)}</span>
+            {watch.dateFlexibilityDays ? (
+              <em className="hud-flex">±{watch.dateFlexibilityDays}d</em>
+            ) : null}
+          </span>
+        </div>
+        {boardNow ? (
+          <div className="hud-cell trip-rail-meta">
+            <span className="hud-label">Board time</span>
+            <span className="hud-value board-clock" aria-live="polite">
+              <span className="hud-code">{boardNow.label}</span>
+            </span>
+          </div>
         ) : null}
-        <span className="trip-rail-to trip-rail-meta">You paid</span>
-        <span className="price serif trip-rail-meta">
-          {formatUsdCompact(watch.currentBookedPriceCents)}
-        </span>
-        {best ? (
-          <span className="price serif">{formatUsdCompact(best.totalPartyPriceCents)}</span>
-        ) : null}
-        <span className="trip-rail-call">{verdict.label}</span>
-        {best && best.savingsCents > 0 ? (
-          <span className="trip-rail-save">save {formatUsdCompact(best.savingsCents)}</span>
-        ) : null}
+        <div className="hud-cell trip-rail-meta">
+          <span className="hud-label">You paid</span>
+          <Money cents={watch.currentBookedPriceCents} className="hud-money is-benchmark" />
+        </div>
+        <div className="hud-cell">
+          <span className="hud-label">Best now</span>
+          {best ? (
+            <Money cents={best.totalPartyPriceCents} className="hud-money" />
+          ) : (
+            /* An em dash, not a zero and not the last figure we happened to
+               hold. Nothing on this board qualifies, and saying so is the
+               only honest thing this cell can say. */
+            <span className="hud-value hud-none">—</span>
+          )}
+        </div>
+        <div className="hud-cell">
+          <span className="hud-label">Difference</span>
+          {best && best.savingsCents > 0 ? (
+            <Money cents={-best.savingsCents} signed className="hud-delta is-down" />
+          ) : (
+            <span className="hud-delta hud-none">—</span>
+          )}
+        </div>
+        <div className="hud-cell hud-call" data-call={verdict.kind}>
+          <span className="hud-label">Call</span>
+          <span className="hud-callname">
+            <i className="hud-lamp" aria-hidden />
+            {verdict.label}
+          </span>
+        </div>
         <div className="trip-rail-tools">
           <a href="#board">Board</a>
           <button type="button" onClick={() => dispatch({ type: "TOGGLE_ZEN" })}>
@@ -1866,12 +1924,11 @@ export function WatchDetail({
              Five sentences at one weight is a paragraph, not a decision. */
           <div className="verdict-figure">
             <span className="micro">Save up to</span>
-            <span className="readout readout-lg text-save">
-              <span className="readout-mark" aria-hidden>
-                $
-              </span>
-              {Math.round(best.savingsCents / 100)}
-            </span>
+            {/* Not Math.round(cents / 100), which this read for one commit and
+                which printed "Save up to $55" over an observed saving of
+                $54.50 — a figure rounded in our own favour is a figure we
+                invented. Money renders the exact observation. */}
+            <Money cents={best.savingsCents} className="readout-lg text-save" />
             <span className="verdict-qual">
               {pct != null ? `${pct}% off what you paid` : ""}
               {feeCents > 0

@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { formatUsdCompact } from "@/lib/domain/money";
 
 export function ConnectLiveFares({ live }: { live: boolean }) {
   const router = useRouter();
@@ -31,10 +32,12 @@ export function ConnectLiveFares({ live }: { live: boolean }) {
       if (!response.ok || !json.ok) {
         throw new Error(json.error ?? "Could not verify Parse");
       }
+      /* This is a fare the provider just returned, quoted back to prove the
+         key works. toFixed(0) printed $74 for an observed $74.50 — a rounded
+         quote in the sentence whose entire job is to show the live number is
+         real. formatUsdCompact drops the cents only when there are none. */
       const price =
-        json.sample?.priceCents != null
-          ? `$${(json.sample.priceCents / 100).toFixed(0)}`
-          : "a fare";
+        json.sample?.priceCents != null ? formatUsdCompact(json.sample.priceCents) : "a fare";
       setMessage(
         `Live search worked. ${json.journeyCount ?? 0} BOS → NYP options on ${json.travelDate}, including ${json.sample?.serviceName ?? "Amtrak"} from ${price}. New watches will use live prices.`,
       );

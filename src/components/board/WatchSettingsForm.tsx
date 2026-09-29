@@ -37,7 +37,12 @@ export function WatchSettingsForm({
   }) => void;
 }) {
   const [email, setEmail] = useState(alertEmail);
-  const [threshold, setThreshold] = useState(String(Math.round(minimumSavingsCents / 100)));
+  /* Not Math.round(cents / 100). This field is seeded from the stored value
+     and multiplied straight back out on save, so a threshold of $5.50 opened
+     the form reading "6" and saving without touching it moved the traveler's
+     own setting to $6.00. Round-tripping someone's number is not a display
+     choice. */
+  const [threshold, setThreshold] = useState(String(minimumSavingsCents / 100));
   const [restricted, setRestricted] = useState(includeRestrictedFares);
   const [thruway, setThruway] = useState(includeThruway);
   const [preferred, setPreferred] = useState(preferredDepartureTime ?? "");

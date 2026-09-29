@@ -2123,53 +2123,292 @@ a.depart-strip:hover {
   color: var(--ink-soft);
 }
 
+/* ── The trip rail: a telemetry head, not a row of chips ─────────────────────
+   This is the most-looked-at element in the product. It is sticky, so it stays
+   on screen for the whole time someone reads sixty fares, and it is the only
+   thing on the page that is always true.
+
+   It used to be a wrapping row of small boxed flaps: route, date, clock, two
+   prices and a verdict, all at one size, none of them labelled, the figure the
+   whole product exists to show set at the same weight as the word "to". Read at
+   a glance it said nothing — you had to parse it.
+
+   It is now a head of instrument cells. Each cell is a rule, a micro label and
+   a value, in that order, so the bar reads like the header of a spec sheet: the
+   rule says "this is a measured column", the label says what was measured. The
+   cells carry their own rules rather than sitting between shared dividers,
+   which means the bar can wrap to two or three rows at any width and every cell
+   still looks like a cell — no orphan divider at the start of a line.
+
+   The order is the order of the question a traveler is actually asking: where,
+   when, what I paid, what it costs now, the difference, the call. */
+
 .trip-rail {
   position: sticky;
   top: calc(3.5rem + env(safe-area-inset-top));
   z-index: 18;
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 0.45rem 0.7rem;
+  align-items: stretch;
+  gap: 0.55rem 1.35rem;
   margin-top: 1rem;
   border-radius: 14px;
   background: var(--board);
   color: var(--board-ink);
-  padding: 0.7rem 0.9rem;
+  padding: 0.6rem 0.95rem 0.65rem;
   min-width: 0;
   box-shadow: 0 12px 30px -18px rgba(8, 20, 14, 0.6);
 }
 
-.trip-rail-metric {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.4rem;
-  padding: 0.15rem 0.5rem;
-  border: 1px solid color-mix(in srgb, var(--board-ink) 16%, transparent);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--board-face) 70%, transparent);
+.hud-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.24rem;
+  padding-top: 0.42rem;
+  min-width: 0;
 }
 
-.trip-rail-metric .price {
+/* Every value sat on its own baseline, because the cells stack label-then-value
+   from the top and the three type sizes here are 14.7px, 16.8px and 20.8px —
+   measured, the figures sat up to 4.6px apart along a bar whose whole job is to
+   be read in one pass.
+
+   Pushing the value to the bottom of the cell (the flex row has already made
+   every cell the same height) gets them close. text-box-trim finishes it: with
+   the box trimmed to cap height and the alphabetic baseline, "bottom-aligned"
+   and "baseline-aligned" become the same thing whatever the size. Where it is
+   unsupported the values are bottom-aligned and about a pixel apart, which is
+   the fallback you want — better than where they started, worse than nothing
+   only if you measure it. */
+@supports (text-box: trim-both cap alphabetic) {
+  .hud-cell > :last-child {
+    text-box: trim-both cap alphabetic;
+  }
+}
+
+/* Each cell's own scale mark. A shared vertical divider between cells breaks
+   the moment the bar wraps; a rule that belongs to the cell never does. */
+.hud-cell::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 1px;
+  background: color-mix(in srgb, var(--board-ink) 26%, transparent);
+}
+
+.hud-label {
+  font-family: var(--font-code);
+  font-size: 0.6rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.6;
+  white-space: nowrap;
+}
+
+.hud-value {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.36rem;
+  font-size: 0.92rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* Station codes are identifiers, not words: mono, tracked out, so BOS and NYP
+   scan as a pair of labels rather than two short syllables. */
+.hud-code {
+  font-family: var(--font-code);
+  font-size: 0.95rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+}
+
+/* The track between them, drawn rather than typed. An arrow glyph inherits the
+   text face and sits on the baseline; a rule with a chevron sits on the optical
+   centre and reads as distance. */
+.hud-arrow {
+  position: relative;
+  align-self: center;
+  width: 1.25rem;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.45;
+  flex: none;
+}
+
+.hud-arrow::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: -2px;
+  width: 4px;
+  height: 4px;
+  border-top: 1px solid currentColor;
+  border-right: 1px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.hud-flex {
+  font-family: var(--font-code);
+  font-size: 0.68rem;
+  font-style: normal;
+  letter-spacing: 0.04em;
+  opacity: 0.62;
+}
+
+.hud-money {
+  gap: 0.04em;
+  font-size: 1.3rem;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+}
+
+/* The traveler's own benchmark is context, not the answer. Same family, same
+   alignment, lighter — so the eye can compare the two figures without being
+   told which one to read first. */
+.hud-money.is-benchmark {
+  font-size: 1.05rem;
+  font-weight: 500;
+  opacity: 0.6;
+}
+
+.hud-delta {
+  font-family: var(--font-sans);
+  font-size: 1.05rem;
+  font-weight: 600;
   letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums slashed-zero;
+  line-height: 1;
+}
+
+.hud-delta.is-down {
+  color: var(--mint-2);
+}
+
+.hud-none {
+  opacity: 0.45;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The call is the one cell that is a conclusion rather than a measurement, so
+   it is the one cell whose rule is coloured and whose value carries a lamp. */
+.hud-call::before {
+  height: 2px;
+  background: var(--lamp, var(--mint-3));
+}
+
+.hud-callname {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  line-height: 1.15;
+}
+
+.hud-lamp {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--lamp, var(--mint-3));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lamp, var(--mint-3)) 20%, transparent);
+  flex: none;
+}
+
+/* --save, --drop and --board-mute rather than literal colours: the board
+   remaps its accents on dark surfaces (--gold becomes mint there, --drop
+   becomes amber), so a lamp that names a colour is a lamp that will be the
+   wrong colour on one surface or the other. This one asked for --gold and got
+   mint, which made "look closer" and "switch now" the same signal. */
+.hud-call[data-call="switch"] {
+  --lamp: var(--save);
+}
+
+.hud-call[data-call="look"] {
+  --lamp: var(--drop);
+}
+
+.hud-call[data-call="keep"] {
+  --lamp: var(--board-mute);
+}
+
+/* A scan line, and only while something is actually in flight. The class is set
+   by the component that owns the request, so the bar cannot claim to be working
+   when it is idle. */
+.trip-rail::after {
+  content: "";
+  position: absolute;
+  inset-inline: 1px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 0 0 13px 13px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--mint-3) 45%,
+    var(--mint-3) 55%,
+    transparent
+  );
+  background-size: 45% 100%;
+  background-repeat: no-repeat;
+  animation: rail-scan 1.6s linear infinite;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.trip-rail.is-scanning::after {
+  opacity: 0.9;
+}
+
+@keyframes rail-scan {
+  from {
+    background-position: -45% 0;
+  }
+  to {
+    background-position: 145% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trip-rail::after {
+    animation: none;
+    background: var(--mint-3);
+    background-size: 100% 100%;
+  }
+
+  .trip-rail.is-scanning::after {
+    opacity: 0.5;
+  }
 }
 
 @media (max-width: 767px) {
-  .trip-rail-meta {
-    display: none;
+  .trip-rail {
+    gap: 0.5rem 1rem;
   }
 
-  .trip-rail-call {
-    width: 100%;
-    order: 20;
+  .hud-money {
+    font-size: 1.15rem;
   }
 
   .trip-rail-tools {
     width: 100%;
     margin-left: 0;
-    padding-top: 0.15rem;
+    padding-top: 0.35rem;
     gap: 0.85rem;
     border-top: 1px solid color-mix(in srgb, var(--board-ink) 16%, transparent);
+  }
+}
+
+/* Below this the benchmark is the cell to lose: the delta already states the
+   difference, and the ticket panel further down restates what was paid. */
+@media (max-width: 479px) {
+  .trip-rail-meta {
+    display: none;
   }
 }
 
@@ -2204,32 +2443,14 @@ a.depart-strip:hover {
 
 .trip-rail-tools button,
 .trip-rail-tools a {
+  /* Preflight sets text-transform: none on button, so the three buttons in
+     this row rendered title case beside an uppercase link — "BOARD Zen Share
+     Commands", in one row, for as long as the row has existed. */
+  text-transform: inherit;
   text-decoration: underline;
   text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
   text-underline-offset: 3px;
   color: inherit;
-}
-
-.trip-rail-to {
-  font-family: var(--font-code);
-  font-size: 0.62rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  opacity: 0.7;
-}
-
-.trip-rail-call {
-  font-size: 0.72rem;
-  letter-spacing: 0.01em;
-  opacity: 0.88;
-}
-
-.trip-rail-save {
-  font-family: var(--font-code);
-  font-size: 0.66rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--mint-2);
 }
 
 .share-sheet {

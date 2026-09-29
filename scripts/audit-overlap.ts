@@ -161,6 +161,18 @@ async function main(): Promise<void> {
 
   // A guest session, so the authenticated pages render something.
   await page.goto(`${BASE}/api/auth/guest?next=/dashboard`, { waitUntil: "domcontentloaded" });
+  /* Compile /watches/[id] BEFORE the watch exists.
+   *
+   * In dev the first request to a route builds its module graph from scratch,
+   * which hands the in-memory repository a brand new empty Map — so a watch
+   * created seconds earlier is gone by the time the page renders it. The board
+   * page is the LAST path in the sweep, so its first visit was always its
+   * compile, and this audit spent every run reporting on "That page is not on
+   * this timetable" while claiming to have checked the fare board. A clean
+   * result from a page that was never loaded is worse than no audit. */
+  await page.goto(`${BASE}/watches/00000000-0000-0000-0000-000000000000`, {
+    waitUntil: "domcontentloaded",
+  });
   const created = await page.evaluate(async () => {
     const response = await fetch("/api/watches", {
       method: "POST",
@@ -177,25 +189,52 @@ async function main(): Promise<void> {
     return json.watch?.id ?? json.id ?? null;
   });
 
-  const paths = [
-    "/",
-    "/fares",
-    "/watches/new",
-    "/dashboard",
-    "/how-it-works",
-    "/settings",
-    "/login",
-    ...(created ? [`/watches/${created}`] : []),
+  /* Each page says what proves it rendered.
+   *
+   * The first version of this guard asked only "does <main> have more than a
+   * hundred characters", which the 404 page passes with room to spare — it is
+   * a designed page with a headline and two paragraphs. An audit that cannot
+   * tell the fare board from "That page is not on this timetable" reports a
+   * clean sweep of a page it never saw. The selector is the contract. */
+  const paths: { path: string; must: string }[] = [
+    { path: "/", must: ".ticket" },
+    { path: "/fares", must: ".lookup" },
+    { path: "/watches/new", must: "form" },
+    { path: "/dashboard", must: ".lookup-title, .watch-card, .board-note" },
+    { path: "/how-it-works", must: ".method-prose" },
+    { path: "/settings", must: ".panel" },
+    { path: "/login", must: "form" },
+    ...(created ? [{ path: `/watches/${created}`, must: ".trip-rail" }] : []),
   ];
 
+  if (!created) {
+    console.error("\n  Could not create a watch — the board page would not be audited.\n");
+    process.exitCode = 1;
+    await browser.close();
+    return;
+  }
+
   const findings: Finding[] = [];
+  const missing: string[] = [];
   for (const width of WIDTHS) {
     await page.setViewportSize({ width, height: 900 });
-    for (const path of paths) {
+    for (const { path, must } of paths) {
       await page.goto(`${BASE}${path}`, { waitUntil: "networkidle" });
       // Let fonts settle: a fallback face measures differently and invents overlaps.
       await page.evaluate(() => document.fonts.ready);
       await page.waitForTimeout(350);
+      const shown = await page.evaluate(
+        (selector) => ({
+          found: Boolean(document.querySelector(selector)),
+          url: location.pathname,
+        }),
+        must,
+      );
+      if (!shown.found || shown.url !== path) {
+        missing.push(
+          `${String(width).padStart(4)}px ${path} → ${shown.url}  (no ${must})`.replace(/\s+$/, ""),
+        );
+      }
       for (const hit of await collect(page)) findings.push({ page: path, width, ...hit });
     }
   }
@@ -208,6 +247,13 @@ async function main(): Promise<void> {
   const unnamed = findings.filter((f) => f.kind === "unnamed");
 
   console.log(`\nChecked ${paths.length} pages at ${WIDTHS.join(", ")}px.\n`);
+  if (missing.length > 0) {
+    console.log(
+      `  NOT ACTUALLY CHECKED — these rendered nothing, or redirected (${missing.length}):`,
+    );
+    for (const line of missing) console.log(`  ${line}`);
+    console.log("");
+  }
   if (overlaps.length === 0) console.log("  No colliding text.");
   for (const hit of overlaps.slice(0, 25)) {
     console.log(
@@ -235,7 +281,7 @@ async function main(): Promise<void> {
     }
   }
   console.log("");
-  process.exitCode = overlaps.length + unnamed.length > 0 ? 1 : 0;
+  process.exitCode = overlaps.length + unnamed.length + missing.length > 0 ? 1 : 0;
 }
 
 void main();

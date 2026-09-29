@@ -9,6 +9,7 @@ import { formatDisplayDate } from "@/lib/domain/calendar";
 import { formatClock } from "@/lib/domain/timezone";
 import { trainLabel } from "@/lib/domain/board-decision";
 import { FareProvenance } from "@/components/fare-provenance";
+import { Money } from "@/components/money";
 import type { DateProgress, FarePreview } from "@/lib/watches/preview-fares";
 import { sharedSearchHref, type SharedSearch } from "@/lib/domain/share-search";
 
@@ -310,14 +311,10 @@ function Results({ state, passengers }: { state: State; passengers: number }) {
             {preview.originCode} <span aria-hidden>→</span> {preview.destinationCode}
           </p>
           <p className="lookup-best">
-            {/* The currency mark is stepped back so the digits carry the line;
-                at full weight it competes with the number it labels. */}
-            <span className="readout readout-lg">
-              <span className="readout-mark" aria-hidden>
-                $
-              </span>
-              {(cheapest!.totalPartyPriceCents / 100).toFixed(0)}
-            </span>
+            {/* toFixed(0) here showed $74 for an observed $74.50. The mark is
+                still stepped back so the digits carry the line — that lives in
+                Money now, with the cents. */}
+            <Money cents={cheapest!.totalPartyPriceCents} className="readout-lg" />
           </p>
         </div>
         <p className="lookup-best-note">
