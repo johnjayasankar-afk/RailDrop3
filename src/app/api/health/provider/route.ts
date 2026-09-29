@@ -6,7 +6,6 @@ import { fareProviderStatus } from "@/lib/providers/create-provider";
 import { isServerlessRuntime, lastServerlessLaunch } from "@/lib/providers/playwright-launch";
 
 export const maxDuration = 120;
-export const runtime = "nodejs";
 
 /**
  * Live fare plumbing probe for Vercel debugging.

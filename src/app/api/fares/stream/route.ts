@@ -5,8 +5,6 @@ import { errorDetail, errorMessage } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 
 export const maxDuration = 300;
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 /* The same search, answered as it happens.
  *

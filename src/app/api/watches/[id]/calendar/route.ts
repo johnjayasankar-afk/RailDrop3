@@ -7,8 +7,6 @@ import { collectEligibleFares } from "@/lib/domain/eligibility";
 import { rankCandidates } from "@/lib/domain/ranking";
 import { formatUsdCompact } from "@/lib/domain/money";
 
-export const dynamic = "force-dynamic";
-
 /* The trip, as a calendar file.
  *
  * A route rather than a click handler, so the link works with JavaScript off

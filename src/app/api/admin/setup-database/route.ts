@@ -5,7 +5,6 @@ import { logger } from "@/lib/logger";
 import { ProvisionUnavailableError, provisionDatabase } from "@/lib/db/provision";
 import { errorDetail } from "@/lib/errors";
 
-export const runtime = "nodejs";
 /* Nine migrations against a cold Supabase project. The default 10s is not
    enough and a half-applied schema is the state this exists to end. */
 export const maxDuration = 300;

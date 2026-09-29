@@ -3,7 +3,6 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
-import { PageFrame } from "@/components/page-frame";
 import { RouteRibbon } from "@/components/route-ribbon";
 import { Flap } from "@/components/flap";
 
@@ -97,7 +96,7 @@ export function LoginForm({
   }
 
   return (
-    <PageFrame>
+    <>
       <main id="main" className="mx-auto max-w-md px-4 py-8 md:py-16">
         <div className="depart-strip">
           <Flap>SIGN</Flap>
@@ -170,6 +169,6 @@ export function LoginForm({
           </p>
         ) : null}
       </main>
-    </PageFrame>
+    </>
   );
 }

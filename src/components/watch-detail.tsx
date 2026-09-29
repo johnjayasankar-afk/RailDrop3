@@ -75,7 +75,7 @@ import type { RankedCandidate } from "@/lib/domain/types";
 import type { BookingPriceEvent, DateSnapshotRecord, WatchRecord } from "@/lib/db/models";
 import { SearchingOverlay } from "@/components/searching-overlay";
 import { SavingsMeter } from "@/components/savings-meter";
-import { BackLink } from "@/components/page-frame";
+import { BackLink } from "@/components/back-link";
 import { Sparkline } from "@/components/sparkline";
 import { Flap } from "@/components/flap";
 import { stationLabel } from "@/lib/stations/catalog";

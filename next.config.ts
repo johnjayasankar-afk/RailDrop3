@@ -25,6 +25,22 @@ const CSP = [
 
 const nextConfig: NextConfig = {
   typedRoutes: true,
+  /* A static shell for every page, and links that prefetch it.
+   *
+   * Before this the build table had no static page in it: all eight carried
+   * `export const dynamic = "force-dynamic"`, several of them only so the
+   * header could read a session cookie — /how-it-works is a hero and twelve
+   * hard-coded FAQ strings and was rendered on demand for every visitor.
+   *
+   * The session now resolves behind a Suspense boundary inside the header and
+   * the footer, so the chrome, the headings and the page structure prerender
+   * and only the part that genuinely differs per person streams. Every page
+   * reports as Partial Prerender.
+   *
+   * partialPrefetching requires cacheComponents and makes each visible <Link>
+   * fetch its destination's shell ahead of the click. */
+  cacheComponents: true,
+  partialPrefetching: true,
   async headers() {
     return [
       {

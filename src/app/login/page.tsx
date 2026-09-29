@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { LoginForm } from "@/components/login-form";
+import { PageFrame } from "@/components/page-frame";
 
 export default function LoginPage() {
   // Read on the server at request time (works with Vercel Production env vars).
@@ -9,12 +10,14 @@ export default function LoginPage() {
     process.env.RAILDROP_LOCAL === "1" || process.env.NEXT_PUBLIC_RAILDROP_LOCAL === "1";
 
   return (
-    <Suspense fallback={<main className="mx-auto max-w-md px-4 py-16">Loading…</main>}>
-      <LoginForm
-        supabaseUrl={supabaseUrl}
-        supabaseAnonKey={supabaseAnonKey}
-        localMode={localMode}
-      />
-    </Suspense>
+    <PageFrame>
+      <Suspense fallback={<main className="mx-auto max-w-md px-4 py-16">Loading…</main>}>
+        <LoginForm
+          supabaseUrl={supabaseUrl}
+          supabaseAnonKey={supabaseAnonKey}
+          localMode={localMode}
+        />
+      </Suspense>
+    </PageFrame>
   );
 }

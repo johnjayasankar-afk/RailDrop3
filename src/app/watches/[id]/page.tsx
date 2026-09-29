@@ -16,8 +16,6 @@ import { RecordsUnreachable } from "@/components/records-unreachable";
 import { AssistantPanel } from "@/components/assistant-panel";
 import type { Route } from "next";
 
-export const dynamic = "force-dynamic";
-
 export async function generateMetadata({
   params,
 }: {
@@ -116,7 +114,7 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
 
   if (!loaded.reachable) {
     return (
-      <PageFrame email={user.email} isGuest={Boolean(user.isGuest)}>
+      <PageFrame>
         <main id="main" className="mx-auto max-w-3xl px-4 py-8">
           {/* The page still needs its one h1, the same way /dashboard keeps
               "Your watches" above this card. Without it the board's unreachable
@@ -178,7 +176,7 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
   const corridor = summarizeCorridor(observations);
 
   return (
-    <PageFrame email={user.email} isGuest={Boolean(user.isGuest)}>
+    <PageFrame>
       <WatchDetail
         watch={watch}
         ranked={ranked}

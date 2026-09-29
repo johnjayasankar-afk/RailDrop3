@@ -1,13 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PageFrame } from "@/components/page-frame";
-import { getSessionUser } from "@/lib/auth/session";
 import { cadenceSentence } from "@/lib/domain/cadence";
 import { STATION_BY_CODE } from "@/lib/stations/catalog";
 import { unmappedStationCodes } from "@/lib/stations/coverage";
 import { WANDERU_STATION_IDS } from "@/lib/providers/wanderu-station-map";
-
-export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "How it works",
@@ -28,13 +25,12 @@ export const metadata: Metadata = {
  * on its own. If it regresses, the page admits that too.
  */
 export default async function HowItWorksPage() {
-  const user = await getSessionUser();
   const totalStations = STATION_BY_CODE.size;
   const verified = Object.keys(WANDERU_STATION_IDS).length;
   const unverified = unmappedStationCodes().length;
 
   return (
-    <PageFrame email={user?.email} isGuest={Boolean(user?.isGuest)}>
+    <PageFrame>
       <main id="main" className="mx-auto max-w-3xl px-4 py-12 sm:py-16">
         <p className="kicker">Methodology</p>
         <h1 className="serif mt-3 text-4xl leading-tight sm:text-5xl">

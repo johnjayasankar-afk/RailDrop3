@@ -14,8 +14,6 @@ import { loadPageData } from "@/lib/pages/load-guard";
 import { RecordsUnreachable } from "@/components/records-unreachable";
 import { AssistantPanel } from "@/components/assistant-panel";
 
-export const dynamic = "force-dynamic";
-
 export default async function DashboardPage() {
   const user = await getSessionUser();
   if (!user) redirect(guestEntryHref("/dashboard"));
@@ -24,7 +22,7 @@ export default async function DashboardPage() {
   );
   if (!loaded.reachable) {
     return (
-      <PageFrame email={user.email} isGuest={Boolean(user.isGuest)}>
+      <PageFrame>
         <main id="main" className="ambient mx-auto max-w-6xl px-4 py-8">
           <h1 className="lookup-title">Your watches</h1>
           <RecordsUnreachable what="watches" retryHref="/dashboard" permanent={loaded.permanent} />
@@ -46,7 +44,7 @@ export default async function DashboardPage() {
   const next = soonestWatch(watches, today);
 
   return (
-    <PageFrame email={user.email} isGuest={Boolean(user.isGuest)}>
+    <PageFrame>
       <main id="main" className="ambient mx-auto max-w-6xl px-4 py-8">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>

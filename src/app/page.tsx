@@ -3,10 +3,7 @@ import { PageFrame } from "@/components/page-frame";
 import { JsonLd } from "@/components/json-ld";
 import { RouteRibbon } from "@/components/route-ribbon";
 import { Flap } from "@/components/flap";
-import { getSessionUser } from "@/lib/auth/session";
 import { cadencePhrase } from "@/lib/domain/cadence";
-
-export const dynamic = "force-dynamic";
 
 const SAMPLE = [
   ["06:10", "Northeast Regional 95", "4h 08m", "$47", "save $81"],
@@ -67,10 +64,8 @@ const FAQ = [
 ] as const;
 
 export default async function HomePage() {
-  const user = await getSessionUser();
-  const watching = Boolean(user);
   return (
-    <PageFrame email={user?.email} isGuest={Boolean(user?.isGuest)}>
+    <PageFrame>
       <JsonLd
         data={{
           "@context": "https://schema.org",
@@ -101,10 +96,7 @@ export default async function HomePage() {
               tell you when a listed fare drops.
             </p>
             <div className="mt-10 flex flex-wrap gap-3">
-              <Link
-                href={watching ? "/watches/new" : "/api/auth/guest?next=%2Fwatches%2Fnew"}
-                className="btn btn-primary"
-              >
+              <Link href="/api/auth/guest?next=%2Fwatches%2Fnew" className="btn btn-primary">
                 Watch a booked trip
               </Link>
               <Link href="/login" className="btn btn-ghost">
@@ -242,10 +234,7 @@ export default async function HomePage() {
           <p className="mx-auto mt-3 max-w-md text-ink-soft">
             Book the trip. We watch the board. You decide on Amtrak.
           </p>
-          <Link
-            href={watching ? "/watches/new" : "/api/auth/guest?next=%2Fwatches%2Fnew"}
-            className="btn btn-primary mt-6"
-          >
+          <Link href="/api/auth/guest?next=%2Fwatches%2Fnew" className="btn btn-primary mt-6">
             Watch a booked trip
           </Link>
         </section>

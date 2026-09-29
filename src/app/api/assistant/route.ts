@@ -11,7 +11,6 @@ import { summarizeCorridor } from "@/lib/domain/corridor-stats";
 import { localIsoDate } from "@/lib/domain/timezone";
 
 export const maxDuration = 60;
-export const runtime = "nodejs";
 
 /* One question about one trip.
  *

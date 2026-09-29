@@ -14,7 +14,6 @@ import { getFareProvider, getMailer, getRepository } from "@/lib/services";
  * and the cycle deadline inside runWatchCycle keeps it inside the ceiling.
  */
 export const maxDuration = 300;
-export const runtime = "nodejs";
 
 const jobSchema = z.object({
   watchId: z.string().min(1),

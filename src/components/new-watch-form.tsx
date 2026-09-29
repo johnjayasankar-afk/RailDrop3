@@ -2,7 +2,6 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { PageFrame } from "@/components/page-frame";
 import { StationField } from "@/components/station-field";
 import { SearchingOverlay } from "@/components/searching-overlay";
 import { formatDisplayDate } from "@/lib/domain/calendar";
@@ -199,8 +198,14 @@ export function NewWatchForm({
     setElapsed(0);
   }
 
+  /* The frame belongs to the page, not to this form.
+   *
+   * This is a client component, and the frame now reads the session for its
+   * own header and footer — so rendering it from here pulled
+   * lib/auth/session, the Supabase server client, playwright and
+   * puppeteer-core into the browser bundle. The build said so, at length. */
   return (
-    <PageFrame email={email}>
+    <>
       {busy ? (
         <SearchingOverlay
           origin={origin}
@@ -484,6 +489,6 @@ export function NewWatchForm({
           </aside>
         </div>
       </main>
-    </PageFrame>
+    </>
   );
 }

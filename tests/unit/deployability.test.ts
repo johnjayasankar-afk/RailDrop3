@@ -222,3 +222,86 @@ describe("files read at runtime are shipped", () => {
     expect(offenders).toEqual([]);
   });
 });
+
+/* The static shell, and the one line that used to prevent it.
+ *
+ * Every page carried `export const dynamic = "force-dynamic"` — eight of
+ * them — and the build table had no static page in it at all. Several were
+ * dynamic for one reason: the header took `email` and `isGuest` as props, so
+ * the page had to read a cookie before it could render its own chrome.
+ * /how-it-works is a hero and twelve hard-coded FAQ strings and was rendered
+ * on demand for every visitor.
+ *
+ * Cache Components also rejects the `runtime` and `dynamic` segment configs
+ * outright, so a single one reintroduced anywhere fails the build rather than
+ * quietly opting one route out. This asserts the intent as well, because a
+ * build error is a worse place to learn it than a test.
+ */
+describe("every page keeps its static shell", () => {
+  it("has Cache Components and Partial Prefetching on", async () => {
+    const config = (await import("../../next.config")).default;
+    expect(config.cacheComponents).toBe(true);
+    expect(config.partialPrefetching).toBe(true);
+  });
+
+  it("has no route segment config that Cache Components forbids", () => {
+    const offenders: string[] = [];
+    const walk = (dir: string): void => {
+      for (const entry of readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
+        const next = `${dir}/${entry.name}`;
+        if (entry.isDirectory()) walk(next);
+        else if (/\.tsx?$/.test(entry.name)) {
+          const source = readFileSync(path.join(ROOT, next), "utf8");
+          for (const key of ["dynamic", "runtime", "fetchCache", "revalidate"]) {
+            if (new RegExp(`^export const ${key}\\s*=`, "m").test(source)) {
+              offenders.push(`${next}: export const ${key}`);
+            }
+          }
+        }
+      }
+    };
+    walk("src/app");
+    expect(offenders).toEqual([]);
+  });
+
+  it("does not let the page chrome read a session", () => {
+    /* The specific regression: PageFrame taking the session as props is what
+       made eight pages dynamic. The header and footer resolve it themselves,
+       behind their own boundaries, and the frame takes children only. */
+    /* Comments stripped first. The file explains what it used to take, and
+       an assertion that fails on its own documentation is one somebody
+       deletes — this is the fourth time I have written that bug today. */
+    const frame = readFileSync(path.join(ROOT, "src/components/page-frame.tsx"), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/\/\/[^\n]*/g, "");
+    expect(frame).not.toMatch(/email|isGuest|getSessionUser/);
+    for (const file of ["src/components/header-account.tsx", "src/components/app-footer.tsx"]) {
+      expect(readFileSync(path.join(ROOT, file), "utf8")).toContain("use cache: private");
+    }
+  });
+
+  it("keeps the frame out of client components", () => {
+    /* page-frame reaches the session through its header and footer, so a
+       "use client" file importing it pulls lib/auth/session, the Supabase
+       server client, playwright and puppeteer-core toward the browser
+       bundle. Three components did, and the build said so at length. */
+    const offenders: string[] = [];
+    const walk = (dir: string): void => {
+      for (const entry of readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
+        const next = `${dir}/${entry.name}`;
+        if (entry.isDirectory()) walk(next);
+        else if (/\.tsx$/.test(entry.name)) {
+          const source = readFileSync(path.join(ROOT, next), "utf8");
+          if (
+            /^["']use client["']/m.test(source) &&
+            /from "@\/components\/page-frame"/.test(source)
+          ) {
+            offenders.push(next);
+          }
+        }
+      }
+    };
+    walk("src/components");
+    expect(offenders).toEqual([]);
+  });
+});
