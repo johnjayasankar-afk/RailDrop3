@@ -123,7 +123,14 @@ function BoardRowImpl({
             />
           </div>
         ) : null}
-        <div className="mt-2 flex flex-wrap gap-2">
+      </div>
+      {/* The chips, the legs and the row's own actions were nested inside
+          .board-cell-train and stacked under it in three tiers, which is why
+          a row was 156px tall for one train — while the region to the right
+          of the train name on the row's second and third lines was empty.
+          They are a sibling cell now and span that void. */}
+      <div className="board-cell-meta">
+        <div className="flex flex-wrap items-center gap-2">
           <ConnectionChip candidate={candidate} />
           {isAcela(candidate) ? <span className="chip">Acela</span> : null}
           {isOvernight(candidate.journey.departureAt, candidate.journey.arrivalAt) ? (
@@ -144,7 +151,7 @@ function BoardRowImpl({
           {beats ? <span className="chip chip-beats">Beats yours</span> : null}
         </div>
         <Legs candidate={candidate} />
-        <div className="mt-2 flex flex-wrap gap-3 no-print">
+        <div className="flex flex-wrap gap-3 no-print">
           <button
             type="button"
             className={`text-xs underline ${pinned ? "text-ink" : "text-ink-soft"}`}
