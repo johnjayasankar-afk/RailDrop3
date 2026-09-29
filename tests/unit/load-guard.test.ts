@@ -105,3 +105,52 @@ describe("what it refuses to swallow", () => {
     );
   });
 });
+
+/* Whether a retry is worth offering.
+ *
+ * The unreachable screen tells a reader "nothing is cancelled and nothing is
+ * lost" and "any alert that was due will go out once we can", and offers a
+ * "Try the records again" button. All three are right for a reset connection.
+ * Against a Supabase project that no longer resolves they are a promise about
+ * records that may not exist and a button that shows the same page again —
+ * which is the shape of the complaint that started this: a message that says
+ * wait, to somebody for whom waiting will never work.
+ */
+describe("the guard says whether waiting will help", () => {
+  const permanent = {
+    message: "TypeError: fetch failed",
+    details: "TypeError: fetch failed\n\nCaused by: Error: getaddrinfo ENOTFOUND gone.supabase.co",
+    code: "",
+  };
+  const transient = {
+    message: "TypeError: fetch failed",
+    details: "TypeError: fetch failed\n\nCaused by: Error: read ECONNRESET (ECONNRESET)",
+    code: "",
+  };
+
+  it("marks a project that no longer resolves as permanent", async () => {
+    const result = await loadPageData({ page: "/dashboard" }, async () => {
+      throw permanent;
+    });
+    expect(result.reachable).toBe(false);
+    expect(result.reachable === false && result.permanent).toBe(true);
+  });
+
+  it("leaves a reset connection retryable", async () => {
+    const result = await loadPageData({ page: "/dashboard" }, async () => {
+      throw transient;
+    });
+    expect(result.reachable).toBe(false);
+    expect(result.reachable === false && result.permanent).toBe(false);
+  });
+
+  it("still rethrows a bug in our own code", async () => {
+    // Relabelling a real defect as an outage is the failure this guard was
+    // written to avoid, and adding a verdict must not introduce it.
+    await expect(
+      loadPageData({ page: "/dashboard" }, async () => {
+        throw new TypeError("watch.legs is not iterable");
+      }),
+    ).rejects.toThrow(/not iterable/);
+  });
+});

@@ -27,7 +27,7 @@ export default async function DashboardPage() {
       <PageFrame email={user.email} isGuest={Boolean(user.isGuest)}>
         <main id="main" className="ambient mx-auto max-w-6xl px-4 py-8">
           <h1 className="lookup-title">Your watches</h1>
-          <RecordsUnreachable what="watches" retryHref="/dashboard" />
+          <RecordsUnreachable what="watches" retryHref="/dashboard" permanent={loaded.permanent} />
         </main>
       </PageFrame>
     );

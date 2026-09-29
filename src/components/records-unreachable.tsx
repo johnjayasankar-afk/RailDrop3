@@ -20,9 +20,20 @@ import { Flap } from "@/components/flap";
 export function RecordsUnreachable({
   what,
   retryHref,
+  permanent = false,
 }: {
   what: "watches" | "board";
   retryHref: Route;
+  /**
+   * True when the fault is one that will not clear on its own.
+   *
+   * "Nothing is lost" and "any alert that was due will go out once we can"
+   * are true of a reset connection. Against a project that no longer resolves
+   * they are a promise about records that may not exist, and "Try the records
+   * again" is a button that shows this page a second time. The copy and the
+   * buttons both change rather than the page pretending it cannot tell.
+   */
+  permanent?: boolean;
 }) {
   return (
     <div className="ticket mt-12 p-8">
@@ -38,8 +49,9 @@ export function RecordsUnreachable({
           : "We cannot read this watch right now."}
       </h2>
       <p className="mt-3 max-w-lg text-ink-soft">
-        This is our storage, not the railroad. Nothing is cancelled and nothing is lost — we simply
-        cannot reach the records to show them. Any alert that was due will go out once we can.
+        {permanent
+          ? "This is our storage, not the railroad — and it is a setting on our side that needs fixing rather than a passing outage, so trying again will not clear it. Nothing about your trip has changed; we cannot reach the records to show you."
+          : "This is our storage, not the railroad. Nothing is cancelled and nothing is lost — we simply cannot reach the records to show them. Any alert that was due will go out once we can."}
       </p>
       <p className="mt-4 max-w-lg text-ink-soft">
         Live fares do not come through storage, so a search still works normally.
@@ -48,9 +60,11 @@ export function RecordsUnreachable({
         <Link href="/watches/new" className="btn btn-primary">
           Search live fares
         </Link>
-        <Link href={retryHref} className="btn btn-ghost" prefetch={false}>
-          Try the records again
-        </Link>
+        {permanent ? null : (
+          <Link href={retryHref} className="btn btn-ghost" prefetch={false}>
+            Try the records again
+          </Link>
+        )}
       </div>
     </div>
   );

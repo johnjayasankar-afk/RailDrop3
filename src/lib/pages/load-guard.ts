@@ -1,5 +1,5 @@
 import { unstable_rethrow } from "next/navigation";
-import { errorDetail, isTransportFailure } from "@/lib/errors";
+import { databaseDiagnosis, errorDetail, isTransportFailure } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 
 /* The page half of what src/lib/api/respond.ts does for routes.
@@ -24,7 +24,17 @@ import { logger } from "@/lib/logger";
  * as "the database is unreachable" is the same class of lie as inventing a
  * price: a confident sentence about something we did not observe.
  */
-export type PageData<T> = { reachable: true; data: T } | { reachable: false };
+/**
+ * `permanent` is why this is not just a boolean.
+ *
+ * The unreachable screen tells a reader "nothing is cancelled and nothing is
+ * lost" and "any alert that was due will go out once we can". Both are true
+ * of a reset connection and neither is true of a project that no longer
+ * resolves, where there is nothing left to go out from. So the page needs to
+ * know which it is, and the diagnosis it needs is the one src/lib/db has
+ * already made.
+ */
+export type PageData<T> = { reachable: true; data: T } | { reachable: false; permanent: boolean };
 
 export async function loadPageData<T>(
   context: { page: string } & Record<string, unknown>,
@@ -41,7 +51,13 @@ export async function loadPageData<T>(
     unstable_rethrow(error);
     if (!isTransportFailure(error)) throw error;
     // The hostname and the errno go here and nowhere else.
-    logger.error("page.records_unreachable", { ...context, detail: errorDetail(error) });
-    return { reachable: false };
+    const verdict = databaseDiagnosis(error);
+    logger.error("page.records_unreachable", {
+      ...context,
+      fault: verdict.fault,
+      remedy: verdict.operatorHint,
+      detail: errorDetail(error),
+    });
+    return { reachable: false, permanent: !verdict.retryWorks };
   }
 }

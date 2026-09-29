@@ -124,7 +124,11 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
               docs/A11Y.md, broken in the one state nobody can see in a test
               run. It cannot name the route: reading the watch is what failed. */}
           <h1 className="serif text-4xl">Your watch</h1>
-          <RecordsUnreachable what="board" retryHref={`/watches/${id}` as Route} />
+          <RecordsUnreachable
+            what="board"
+            retryHref={`/watches/${id}` as Route}
+            permanent={loaded.permanent}
+          />
         </main>
       </PageFrame>
     );

@@ -7,3 +7,6 @@ playwright-report/
 coverage/
 .playwright/
 *.min.js
+
+# Throwaway Playwright probes; see eslint.config.mjs.
+.probe-*.ts

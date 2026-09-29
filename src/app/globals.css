@@ -1510,11 +1510,28 @@ kbd {
   background: var(--line);
 }
 
+/* Time remaining is not an alarm.
+ *
+ * This ran on --rail, the signal red used for the terminus dot on a route
+ * track, so the bar under "watching for 2 more days" was magenta on a page
+ * that is otherwise forest, mint and amber — the one element with no
+ * relationship to the palette, sitting above the verdict. It is a gauge, so
+ * it is drawn as one: mint while there is plenty of window left, warming
+ * through amber as it runs down, which is information the old colour did not
+ * carry at all. */
 .fuse > span {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--rail);
+  background: linear-gradient(90deg, var(--forest-2), var(--mint-3));
+}
+
+.fuse.is-soon > span {
+  background: linear-gradient(90deg, var(--amber), color-mix(in srgb, var(--amber) 70%, #fff));
+}
+
+.fuse.is-now > span {
+  background: var(--drop);
 }
 
 .urgency-now {
@@ -5466,4 +5483,394 @@ body::after {
 .ticket-hero .price {
   line-height: 0.95;
   margin-top: 0.5rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MATERIAL — a light source, and surfaces that answer to it
+   ───────────────────────────────────────────────────────────────────────────
+   Measured before writing this, on the board at 1440 in dark mode:
+
+     · 17 of 17 panels over 200px wide had border-radius 18px
+     · 46 elements shared the same 1px border, rgb(46, 63, 54)
+     · sampling down the 625px verdict panel at 200px intervals returned
+       rgb(18, 26, 21) at every stop — one flat paint, top to bottom
+     · the departure board measured 1.00:1 against the panel behind it
+     · the whole composition lived inside a 3.3% luminance band
+
+   So the "$74, switch now" card and a one-sentence footnote were the same
+   object, drawn the same way, and nothing on the page was nearer than
+   anything else. That is what reads as cheap, and it is not a shortage of
+   effects — the app already has grain, ambient pools, a spotlight and a
+   split-flap. It is the absence of a light model underneath them.
+
+   The ELEVATION layer above claims one ("A light source above the page"), but
+   what it ships is `inset 0 1px 0` at 7% white with no bottom edge and no
+   falloff, and at an 18px radius most of that 1px is eaten by the corner. A
+   top hairline alone is a border.
+
+   A surface reads as material when three things are true. Its top returns
+   more light than its bottom, so it has an orientation. It has two edges, lit
+   above and shadowed below, so it has a thickness. And it sits at a stated
+   distance from what is behind it, with a tight contact shadow and a wider
+   ambient one, so it has a height.
+
+   Four roles, because the page has four kinds of thing: the ground it is all
+   printed on, a WELL that is cut into it, a PLATE that lies on it, and a KEY
+   that stands off it and can be pressed. A well is not a plate with a
+   different border; it is lit from the opposite direction.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Radii by role, not by taste. Eight values collapse to four: a large
+     radius on a large panel is the single most template-like thing a dark UI
+     can do, because nothing machined has an 18px corner at that size. */
+  --r-well: 5px;
+  --r-plate: 9px;
+  --r-key: 7px;
+  --r-pill: 999px;
+
+  /* The two edges of a surface under a light above. */
+  --lit-top: rgba(255, 255, 255, 0.8);
+  --lit-bottom: rgba(28, 51, 38, 0.1);
+
+  /* The fill gradient. Subtle on purpose: it is read as orientation, not as
+     a gradient, and anything stronger reads as a button from 2010. */
+  --plate-face: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 62%);
+  --key-face: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(28, 51, 38, 0.035));
+  --well-face: linear-gradient(180deg, rgba(28, 51, 38, 0.055), rgba(28, 51, 38, 0) 40%);
+
+  /* Contact plus ambient. One blurred shadow is a smudge; the tight one is
+     what tells you the object is actually touching something. */
+  --lift-plate: 0 1px 1px rgba(28, 51, 38, 0.05), 0 6px 16px -10px rgba(28, 51, 38, 0.18);
+  --lift-key: 0 1px 0 rgba(28, 51, 38, 0.1), 0 2px 5px -2px rgba(28, 51, 38, 0.16);
+  --lift-key-hover: 0 1px 0 rgba(28, 51, 38, 0.1), 0 6px 14px -4px rgba(28, 51, 38, 0.22);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --lit-top: rgba(214, 245, 228, 0.1);
+    --lit-bottom: rgba(0, 0, 0, 0.62);
+    --plate-face: linear-gradient(180deg, rgba(190, 238, 214, 0.045), rgba(0, 0, 0, 0.07) 70%);
+    --key-face: linear-gradient(180deg, rgba(190, 238, 214, 0.075), rgba(0, 0, 0, 0.13));
+    --well-face: linear-gradient(180deg, rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0) 45%);
+    --lift-plate: 0 1px 0 rgba(0, 0, 0, 0.55), 0 10px 26px -14px rgba(0, 0, 0, 0.85);
+    --lift-key: 0 1px 0 rgba(0, 0, 0, 0.6), 0 3px 7px -2px rgba(0, 0, 0, 0.55);
+    --lift-key-hover: 0 1px 0 rgba(0, 0, 0, 0.6), 0 8px 18px -5px rgba(0, 0, 0, 0.7);
+  }
+}
+
+:root[data-theme="dark"] {
+  --lit-top: rgba(214, 245, 228, 0.1);
+  --lit-bottom: rgba(0, 0, 0, 0.62);
+  --plate-face: linear-gradient(180deg, rgba(190, 238, 214, 0.045), rgba(0, 0, 0, 0.07) 70%);
+  --key-face: linear-gradient(180deg, rgba(190, 238, 214, 0.075), rgba(0, 0, 0, 0.13));
+  --well-face: linear-gradient(180deg, rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0) 45%);
+  --lift-plate: 0 1px 0 rgba(0, 0, 0, 0.55), 0 10px 26px -14px rgba(0, 0, 0, 0.85);
+  --lift-key: 0 1px 0 rgba(0, 0, 0, 0.6), 0 3px 7px -2px rgba(0, 0, 0, 0.55);
+  --lift-key-hover: 0 1px 0 rgba(0, 0, 0, 0.6), 0 8px 18px -5px rgba(0, 0, 0, 0.7);
+}
+
+/* ── A plate: lies on the ground, catches the light along its top ────────── */
+
+.panel,
+.ticket,
+.station-list,
+.datefield-pop,
+.assistant,
+.unsaved,
+.verdict,
+.census,
+.help-card,
+.share-sheet {
+  background-image: var(--plate-face);
+  border-radius: var(--r-plate);
+  box-shadow:
+    inset 0 1px 0 var(--lit-top),
+    inset 0 -1px 0 var(--lit-bottom),
+    var(--lift-plate);
+}
+
+/* ── A key: stands off the plate, and goes down when pressed ─────────────── */
+
+.date-card,
+.ticket-hover,
+.assistant-chip,
+.btn,
+.chip {
+  background-image: var(--key-face);
+  border-radius: var(--r-key);
+  box-shadow:
+    inset 0 1px 0 var(--lit-top),
+    inset 0 -1px 0 var(--lit-bottom),
+    var(--lift-key);
+}
+
+.chip {
+  border-radius: var(--r-pill);
+}
+
+.date-card:hover,
+.ticket-hover:hover,
+.assistant-chip:hover,
+.btn:hover:not(:disabled) {
+  box-shadow:
+    inset 0 1px 0 var(--lit-top),
+    inset 0 -1px 0 var(--lit-bottom),
+    var(--lift-key-hover);
+}
+
+/* Pressed is down, and down is a real inversion — the lit edge moves to the
+   bottom, because that is what happens when a key sinks below its surround. */
+.date-card:active,
+.ticket-hover:active,
+.btn:active:not(:disabled),
+.chip:active {
+  transform: translateY(1px);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.28),
+    inset 0 -1px 0 var(--lit-top);
+}
+
+/* ── A well: cut into the plate, so it is lit from below ─────────────────── */
+
+/* The real container classes, checked against the markup rather than
+   invented: tests/unit/css-dead-selectors.test.ts caught `.readout-well` and
+   `.provenance-body`, neither of which any component renders. */
+.timetable,
+.fh-plot,
+.prov {
+  background-image: var(--well-face);
+  border-radius: var(--r-well);
+  box-shadow:
+    inset 0 2px 5px -2px var(--lit-bottom),
+    inset 0 1px 0 rgba(0, 0, 0, 0.3),
+    inset 0 -1px 0 var(--lit-top);
+}
+
+/* ── The board is a different substance from the page it sits on ──────────
+   Measured at 1.00:1 against its own panel, which is the reason the one
+   element that is unmistakably this product read as a grey rectangle. The
+   board is now plainly darker and plainly cooler than any plate. */
+
+.timetable,
+.trip-rail,
+.depart-strip {
+  --board-step: color-mix(in srgb, var(--board-deep) 92%, #000);
+}
+
+.ticket .timetable {
+  border: 1px solid color-mix(in srgb, var(--board-ink) 12%, transparent);
+  background-color: var(--board-step);
+}
+
+/* ── The date strip ──────────────────────────────────────────────────────
+   A row of dates is a scale, so it gets one track per date rather than a
+   fixed three with a gap at the end. Below 640px it wraps to two, because
+   five tracks on a phone is five columns of nothing. */
+
+.date-strip {
+  display: grid;
+  grid-template-columns: repeat(var(--tracks, 3), minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+@media (max-width: 860px) {
+  .date-strip {
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  }
+}
+
+/* Shorter. Each card carried a label, a relative day, a fare and a delta in
+   180px of height for one number, so five of them were a screen and a half
+   of the page before the timetable started. */
+.date-card .price {
+  margin-top: 0.15rem;
+  line-height: 1.05;
+}
+
+.date-strip .date-card {
+  padding: 0.6rem 0.7rem 0.65rem;
+}
+
+/* ── The verdict, across its width ───────────────────────────────────────
+   The panel is the widest thing on the page and it used a third of itself:
+   the figure, the caveats, the fare-family note and the fee control all
+   stacked down a 350px gutter with 700px of empty fill beside them, which is
+   what makes a panel read as unfinished rather than airy.
+
+   Two columns from 900px: the decision on the left, the qualifications and
+   the control that changes it on the right. The figure keeps its own column
+   width so the number never reflows when the copy under it changes. */
+
+@media (min-width: 900px) {
+  /* Placed by column, not by named area.
+     Several paragraphs sharing one grid-area do not stack — they land on top
+     of each other, which is a collision the overlap audit catches and a
+     reader would have seen as a smear. Giving the right-hand items a column
+     and letting auto-placement find their rows is the same layout without
+     that failure mode. */
+  .verdict {
+    display: grid;
+    grid-template-columns: minmax(15rem, 20rem) minmax(0, 1fr);
+    align-content: start;
+    column-gap: 2.75rem;
+    row-gap: 0.3rem;
+  }
+
+  .verdict > .verdict-label {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .verdict > .verdict-figure {
+    grid-column: 1;
+    grid-row: 2;
+    /* Centred in the column rather than pinned to its top: the right-hand
+       column is three or four times taller, so aligning the figure to the
+       top left 200px of nothing under the one number the panel exists to
+       show. */
+    align-self: center;
+    margin-top: 0;
+  }
+
+  /* The decision column is a column, so it gets the rule that says so. */
+  .verdict > .verdict-figure::before {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    right: -1.375rem;
+    width: 1px;
+    background: linear-gradient(
+      180deg,
+      transparent,
+      color-mix(in srgb, var(--board-ink) 16%, transparent) 20%,
+      color-mix(in srgb, var(--board-ink) 16%, transparent) 80%,
+      transparent
+    );
+  }
+
+  .verdict > .verdict-figure {
+    position: relative;
+  }
+
+  /* Everything else — the caveats, the fare-family note, the fee control —
+     flows down the second column in source order, which is the order a
+     reader needs them in. */
+  .verdict > *:not(.verdict-label):not(.verdict-figure) {
+    grid-column: 2;
+  }
+
+  .verdict > .no-print {
+    margin-top: 0.6rem;
+  }
+}
+
+/* ── The price ladder, as one line ───────────────────────────────────────
+   Was a 200px panel around a 2px rule, about 85% empty, with the two figures
+   it had just drawn repeated in a caption underneath. The ends are labelled
+   on the scale now and the caption is gone. */
+
+.ladder-panel {
+  padding: 0.85rem 1.1rem 1rem;
+}
+
+.ladder-line {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.85rem;
+  margin-top: 0.7rem;
+}
+
+.ladder-end {
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-size: var(--step--1);
+  letter-spacing: -0.02em;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.ladder {
+  position: relative;
+  display: block;
+  height: 1.6rem;
+}
+
+.ladder-rail {
+  position: absolute;
+  inset-inline: 0;
+  top: 50%;
+  height: 2px;
+  border-radius: 2px;
+  /* A scale, not a bar: brighter where the cheap end is. */
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--save) 45%, transparent),
+    var(--line) 55%
+  );
+}
+
+.ladder-dot {
+  position: absolute;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--ink-soft);
+  transform: translate(-50%, -50%);
+}
+
+.ladder-dot.is-save {
+  width: 8px;
+  height: 8px;
+  background: var(--save);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--save) 18%, transparent);
+}
+
+/* The traveler's own mark: a full-height tick with its label beneath, so it
+   reads as a position on the scale rather than a floating word. */
+.ladder-you {
+  position: absolute;
+  top: 0;
+  bottom: -0.15rem;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  pointer-events: none;
+}
+
+.ladder-you i {
+  display: block;
+  width: 2px;
+  height: 1.05rem;
+  border-radius: 1px;
+  background: var(--ink);
+}
+
+.ladder-you em {
+  transform: translateX(var(--label-shift, 0));
+  font-family: var(--font-code);
+  font-size: 0.56rem;
+  font-style: normal;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+/* ── Single-figure panels are strips, not cards ──────────────────────────
+   Morning / Afternoon / Evening were three full-width boxes holding one
+   number each, one of them an em dash. Same disease as the date grid: a big
+   rounded rectangle is what this app reaches for whatever it is holding. */
+
+.daypart-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.daypart-strip .date-card {
+  padding: 0.55rem 0.7rem 0.6rem;
 }

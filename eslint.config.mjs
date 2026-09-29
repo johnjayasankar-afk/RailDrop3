@@ -18,6 +18,11 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     "coverage/**",
     "visual-qa/**",
+    // Throwaway Playwright probes written at the repo root while measuring a
+    // page, and gitignored for the same reason. They are one-shot scripts, not
+    // code anyone maintains, and linting them stops `npm run verify` on files
+    // that will not exist in ten minutes.
+    ".probe-*.ts",
   ]),
 ]);
 

@@ -1853,7 +1853,12 @@ export function WatchDetail({
           {remaining ? (
             <>
               <p className="eyebrow mt-1">{remaining.label}</p>
-              <div className="fuse mt-2" aria-hidden>
+              {/* The gauge takes the colour of how much window is left, which
+                  is the thing it is measuring. */}
+              <div
+                className={`fuse mt-2${urgency.level === "now" ? " is-now" : urgency.level === "soon" ? " is-soon" : ""}`}
+                aria-hidden
+              >
                 <span style={{ width: `${remaining.percent}%` }} />
               </div>
               {watch.status === "ACTIVE" ? (
@@ -1996,7 +2001,15 @@ export function WatchDetail({
         </section>
       ) : null}
 
-      <section className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-3">
+      {/* One track per date, not a fixed three.
+          sm:grid-cols-3 with a ±2 window is five cards in a three-column grid:
+          a row of three, a row of two, and a hole where the reader's eye goes
+          looking for a sixth date that does not exist. The window is at most
+          five wide, so it fits on one line at every width above a phone. */}
+      <section
+        className="date-strip mt-6"
+        style={{ "--tracks": dates.length } as React.CSSProperties}
+      >
         {dates.map((date) => {
           const candidate = dateMap.get(date);
           const desired = date === watch.desiredTravelDate;
@@ -2100,7 +2113,7 @@ export function WatchDetail({
       ) : null}
 
       {ranked.length > 0 ? (
-        <section className="mt-4 grid grid-cols-3 gap-2">
+        <section className="daypart-strip mt-4">
           {(
             [
               ["Morning", "morning", buckets.morning],
@@ -2111,7 +2124,7 @@ export function WatchDetail({
             <button
               key={label}
               type="button"
-              className={`date-card px-3 py-2 text-left ${bucket === key ? "is-on" : ""}`}
+              className={`date-card text-left ${bucket === key ? "is-on" : ""}`}
               onClick={() => dispatch({ type: "TOGGLE_BUCKET", bucket: key })}
             >
               <p className="eyebrow opacity-70">{label}</p>
