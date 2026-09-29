@@ -7220,3 +7220,57 @@ time,
   box-shadow: none;
   min-height: 9rem;
 }
+
+/* ── Settings was four boxes in a 672px column on a 1440px page ─────────────
+   53% of the viewport empty, and the four panels — provider usage, the
+   local-fares connector, the keyboard map, the honest-limits note — stacked
+   in one column at identical weight, so reaching the keyboard map meant
+   scrolling past two things that are not it.
+
+   None of them is sequential. They are four reference cards and reference
+   cards want to be seen at once. The heading block spans; the cards find
+   their own rows two at a time. */
+.settings-main {
+  display: grid;
+  gap: var(--sp-6);
+  align-content: start;
+  /* Cards size to their content. Without this a two-line note stretches to
+     the height of the four-step connector beside it, and the empty half of
+     it reads as something that failed to render. */
+  align-items: start;
+}
+
+@media (min-width: 60rem) {
+  .settings-main {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--sp-6);
+  }
+
+  /* The strip, the title and the two lines under it are the page's address,
+     not one of its cards. */
+  .settings-main > .depart-strip,
+  .settings-main > h1,
+  .settings-main > p {
+    grid-column: 1 / -1;
+  }
+}
+
+/* The grid owns the rhythm now, so the margin utilities each section carried
+   for the stacked layout would double it. */
+.settings-main > * {
+  margin-top: 0;
+}
+
+/* ── One field does not need a page it hangs from the top of ────────────────
+   Sign in is an email input and a button: 416px of content above 300px of
+   nothing, pinned to the top of the viewport. An auth screen is the one
+   place where centring in the viewport is not a decoration — there is
+   nothing else to align to. */
+@media (min-height: 40rem) {
+  .auth-main {
+    min-height: calc(100svh - 14rem);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+}

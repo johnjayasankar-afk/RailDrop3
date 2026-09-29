@@ -97,7 +97,7 @@ export function LoginForm({
 
   return (
     <>
-      <main id="main" className="mx-auto max-w-md px-4 py-8 md:py-16">
+      <main id="main" className="auth-main mx-auto max-w-md px-4 py-8 md:py-16">
         <div className="depart-strip">
           <Flap>SIGN</Flap>
           <span className="text-[10px] uppercase tracking-[0.18em] opacity-70">in</span>
