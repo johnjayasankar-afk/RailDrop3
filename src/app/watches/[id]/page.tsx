@@ -270,8 +270,10 @@ async function Board({ params }: { params: Promise<{ id: string }> }) {
           .map((cycle) => ({ id: cycle.id, status: cycle.status, at: cycle.startedAt }))}
       />
       {/* Below the board on purpose. The answers are derived from it, so the
-          evidence should already be on screen when the reader gets here. */}
-      <div className="mx-auto max-w-6xl px-4 pb-10">
+          evidence should already be on screen when the reader gets here.
+          `board-gutter` keeps it on the same left edge as <main>, which now
+          runs wider than max-w-6xl on this route only. */}
+      <div className="board-gutter mx-auto max-w-6xl px-4 pb-10">
         <AssistantPanel watchId={watch.id} />
       </div>
     </>

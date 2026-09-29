@@ -2260,95 +2260,107 @@ export function WatchDetail({
           className={`ticket mt-8 p-5 md:p-8 ticket-hero ${focusKey === candidateKey(best) ? "board-row-focus" : ""}`}
           data-hero-opt={candidateKey(best)}
         >
-          <p className="eyebrow">Cheapest in your window</p>
-          <p className="price serif mt-2 text-6xl md:text-7xl">
-            <Flap className="flap-hero">{formatUsdCompact(best.totalPartyPriceCents)}</Flap>
-          </p>
-          {eachBest ? (
-            <p className="mt-1 text-sm text-ink-soft">{formatUsdCompact(eachBest)} / person</p>
-          ) : null}
-          {best.savingsCents > 0 ? (
-            <p className="mt-1 text-lg text-save">
-              SAVE {formatUsdCompact(best.savingsCents)}
-              {pct != null ? ` · ${pct}%` : ""}
-              {feeCents > 0 && netBest > 0 ? ` · ${formatUsdCompact(netBest)} after fee` : ""}
+          {/* Two groups, because there are two questions.
+              The hero was fourteen children stacked in one 1054px column, and
+              measured at 1440 every one of them was 1054px wide while several
+              held 130 to 150px of content — a 130px fare in a 1054px row, a
+              151px clock in a 1054px row, three chips in a 1054px row. About
+              750px of void beside almost every line, and 646px of height to
+              say two things. The answer is a figure; the itinerary is a
+              record. They belong side by side, not stacked. */}
+          <div className="hero-answer">
+            <p className="eyebrow">Cheapest in your window</p>
+            <p className="price serif mt-2 text-6xl md:text-7xl">
+              <Flap className="flap-hero">{formatUsdCompact(best.totalPartyPriceCents)}</Flap>
             </p>
-          ) : null}
-          <SavingsMeter
-            bookedCents={watch.currentBookedPriceCents}
-            foundCents={best.totalPartyPriceCents}
-          />
-          <p className="mt-4 text-lg">{trainLabel(best)}</p>
-          <div className="clock-pair mt-3">
-            <div>
-              <p className="eyebrow">Depart</p>
-              <p className="price serif text-4xl">
-                <Flap>{formatClock(best.journey.departureAt)}</Flap>
+            {eachBest ? (
+              <p className="mt-1 text-sm text-ink-soft">{formatUsdCompact(eachBest)} / person</p>
+            ) : null}
+            {best.savingsCents > 0 ? (
+              <p className="mt-1 text-lg text-save">
+                SAVE {formatUsdCompact(best.savingsCents)}
+                {pct != null ? ` · ${pct}%` : ""}
+                {feeCents > 0 && netBest > 0 ? ` · ${formatUsdCompact(netBest)} after fee` : ""}
               </p>
+            ) : null}
+            <SavingsMeter
+              bookedCents={watch.currentBookedPriceCents}
+              foundCents={best.totalPartyPriceCents}
+            />
+            <div className="hero-act">
+              <Handoff candidate={best} resolver={resolver} />
             </div>
-            <p className="text-ink-soft">→</p>
-            <div>
-              <p className="eyebrow">Arrive</p>
-              <p className="price serif text-4xl">
-                <Flap>{formatClock(best.journey.arrivalAt)}</Flap>
-              </p>
+          </div>
+          <div className="hero-trip">
+            <p className="text-lg">{trainLabel(best)}</p>
+            <div className="clock-pair mt-3">
+              <div>
+                <p className="eyebrow">Depart</p>
+                <p className="price serif text-4xl">
+                  <Flap>{formatClock(best.journey.departureAt)}</Flap>
+                </p>
+              </div>
+              <p className="text-ink-soft">→</p>
+              <div>
+                <p className="eyebrow">Arrive</p>
+                <p className="price serif text-4xl">
+                  <Flap>{formatClock(best.journey.arrivalAt)}</Flap>
+                </p>
+              </div>
+              {formatDurationMinutes(best.journey.durationMinutes) ? (
+                <p className="text-sm text-ink-soft">
+                  {formatDisplayDate(best.journey.searchedTravelDate)} ·{" "}
+                  {formatDurationMinutes(best.journey.durationMinutes)}
+                </p>
+              ) : (
+                <p className="text-sm text-ink-soft">
+                  {formatDisplayDate(best.journey.searchedTravelDate)}
+                </p>
+              )}
             </div>
-            {formatDurationMinutes(best.journey.durationMinutes) ? (
-              <p className="text-sm text-ink-soft">
-                {formatDisplayDate(best.journey.searchedTravelDate)} ·{" "}
-                {formatDurationMinutes(best.journey.durationMinutes)}
-              </p>
-            ) : (
-              <p className="text-sm text-ink-soft">
-                {formatDisplayDate(best.journey.searchedTravelDate)}
-              </p>
-            )}
-          </div>
-          <p className="station-code mt-2 text-sm">
-            {best.journey.originCode} → {best.journey.destinationCode}
-          </p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <span className="chip">{serviceTypeLabel(best.journey.serviceType)}</span>
-            {best.journey.transferCount > 0 ? (
-              <ConnectionChip candidate={best} />
-            ) : (
-              <span className="chip">Nonstop</span>
-            )}
-            {centsPerHour(best.totalPartyPriceCents, best.journey.durationMinutes) != null ? (
-              <span className="chip">
-                {formatUsdCompact(
-                  centsPerHour(best.totalPartyPriceCents, best.journey.durationMinutes)!,
-                )}
-                /hr
-              </span>
-            ) : null}
-            {isOvernight(best.journey.departureAt, best.journey.arrivalAt) ? (
-              <span className="chip">Overnight</span>
-            ) : null}
-            {isAcela(best) ? <span className="chip">Acela</span> : null}
-            {best.fare.availability === "LIMITED" ? (
-              <span className="chip">Limited seats</span>
-            ) : null}
-            {yours && beatsBooked(best, yours) ? (
-              <span className="chip chip-beats">Beats your train</span>
-            ) : null}
-            {yours && candidateIsSame(yours, best) ? (
-              <span className="chip">Your train</span>
-            ) : null}
-            {preferred && candidateIsSame(preferred, best) ? (
-              <span className="chip">Closest to preferred time</span>
-            ) : null}
-          </div>
-          <Legs candidate={best} />
-          <p className="mt-3">
-            Listed {travelClassLabel(best.fare.travelClass)} fare
-            {best.fare.fareFamilyRaw === "WANDERU_LISTED"
-              ? " · confirm on Amtrak"
-              : ` · ${fareFamilyLabel(best.fare.fareFamily)}`}
-          </p>
-          <p className="text-sm text-ink-soft">{dateBadge(best.dateOffsetDays)}</p>
-          <div className="mt-5">
-            <Handoff candidate={best} resolver={resolver} />
+            <p className="station-code mt-2 text-sm">
+              {best.journey.originCode} → {best.journey.destinationCode}
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <span className="chip">{serviceTypeLabel(best.journey.serviceType)}</span>
+              {best.journey.transferCount > 0 ? (
+                <ConnectionChip candidate={best} />
+              ) : (
+                <span className="chip">Nonstop</span>
+              )}
+              {centsPerHour(best.totalPartyPriceCents, best.journey.durationMinutes) != null ? (
+                <span className="chip">
+                  {formatUsdCompact(
+                    centsPerHour(best.totalPartyPriceCents, best.journey.durationMinutes)!,
+                  )}
+                  /hr
+                </span>
+              ) : null}
+              {isOvernight(best.journey.departureAt, best.journey.arrivalAt) ? (
+                <span className="chip">Overnight</span>
+              ) : null}
+              {isAcela(best) ? <span className="chip">Acela</span> : null}
+              {best.fare.availability === "LIMITED" ? (
+                <span className="chip">Limited seats</span>
+              ) : null}
+              {yours && beatsBooked(best, yours) ? (
+                <span className="chip chip-beats">Beats your train</span>
+              ) : null}
+              {yours && candidateIsSame(yours, best) ? (
+                <span className="chip">Your train</span>
+              ) : null}
+              {preferred && candidateIsSame(preferred, best) ? (
+                <span className="chip">Closest to preferred time</span>
+              ) : null}
+            </div>
+            <Legs candidate={best} />
+            <p className="mt-3">
+              Listed {travelClassLabel(best.fare.travelClass)} fare
+              {best.fare.fareFamilyRaw === "WANDERU_LISTED"
+                ? " · confirm on Amtrak"
+                : ` · ${fareFamilyLabel(best.fare.fareFamily)}`}
+            </p>
+            <p className="text-sm text-ink-soft">{dateBadge(best.dateOffsetDays)}</p>
           </div>
           <div className="quiet-row no-print">
             <button

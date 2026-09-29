@@ -7038,3 +7038,133 @@ time,
   color: var(--ink-soft);
   max-width: 30ch;
 }
+
+/* ── The hero answers two questions, so it has two columns ──────────────────
+   Measured at 1440 before this: 646px tall, fourteen children, every one of
+   them 1054px wide, and several holding 130 to 150px of content — a 130px
+   fare in a 1054px row, a 151px clock in a 1054px row, three chips totalling
+   290px in a 1054px row. Roughly 750px of empty page beside almost every
+   line, and the reader scrolling past all of it.
+
+   The two things it says are different in kind. "$91, save $37, here is the
+   button" is a CONCLUSION. "Northeast Regional 93, 9:20 to 1:47, direct,
+   nonstop, Coach, one day earlier" is the RECORD that supports it. Stacking
+   them makes the record look like more conclusion. Beside each other, the
+   left column is what you act on and the right is what you check. */
+@media (min-width: 60rem) {
+  .ticket-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 19rem) minmax(0, 1fr);
+    column-gap: var(--sp-10);
+    align-items: start;
+  }
+
+  /* The action row spans both, because it acts on the whole thing. */
+  .ticket-hero > .quiet-row {
+    grid-column: 1 / -1;
+  }
+}
+
+.hero-answer {
+  min-width: 0;
+}
+
+.hero-trip {
+  min-width: 0;
+}
+
+/* Below the split the two groups are simply stacked, and the record needs a
+   rule to say it is a different kind of statement from the figure above it. */
+@media (max-width: 59.999rem) {
+  .hero-trip {
+    margin-top: var(--sp-5);
+    padding-top: var(--sp-5);
+    border-top: 1px solid var(--line);
+  }
+}
+
+.hero-act {
+  margin-top: var(--sp-5);
+}
+
+/* ── The board finally uses its second axis ─────────────────────────────────
+   Measured at 1440: <main> is 1152px wide and every one of its eighteen
+   children rendered at 1120px, in one column, 3968px deep. About 290px of
+   page either side of a product whose whole job is comparison, and nothing
+   ever placed beside anything else.
+
+   The markup had already decided what belongs in a margin. `.board-aside` is
+   named an aside, holds the daypart strip, the price ladder, the two
+   orphaned observation notes and the decision picks — and rendered at full
+   width, 507px tall, with a 550px `.aside-cell` inside it leaving 570px
+   empty and a `.pick-grid` drawing 128px cards in that 550px cell. Every
+   piece of it is drawn for a narrow column; it just never got one.
+
+   Done in CSS, with :has(), so no JSX moves. The aside is placed in column
+   two spanning every row, and everything else auto-places down column one —
+   which works precisely because auto-placement fills the track it is given
+   and steps over the explicitly-placed item rather than flowing around it.
+
+   The day cards are NOT in here, deliberately. `.date-strip` is the only
+   place on the surface that shows your booked day is the expensive one and
+   the cheap fare is on a different date. That is the decisive caveat of the
+   whole product and it stays in the main track at full width. */
+@media (min-width: 72rem) {
+  main:has(> .board-aside) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 21rem;
+    column-gap: var(--sp-10);
+    align-items: start;
+    /* Wider than the 72rem every other page uses, and only here.
+       
+       The first attempt kept max-w-6xl and the board got TALLER, not
+       shorter: 1152px minus a 21rem rail minus the gap leaves 776px, and the
+       timetable row declares more fixed width than that, so every train name
+       wrapped to four lines. A margin column has to come from somewhere, and
+       taking it out of the one element on the page that is genuinely a table
+       is the wrong place to take it from.
+       
+       This is also the surface that had ~290px of unused page either side
+       while being 3968px deep, so the width was already there to spend. */
+    max-width: 84rem;
+  }
+
+  main:has(> .board-aside) > * {
+    grid-column: 1;
+    min-width: 0;
+  }
+
+  main:has(> .board-aside) > .board-aside {
+    grid-column: 2;
+    /* From the first row to past the last child; there are eighteen. */
+    grid-row: 1 / span 30;
+    position: sticky;
+    top: var(--sp-16);
+    margin-top: 0;
+  }
+
+  /* Inside a 21rem column the daypart cards stack; they were three-up
+     because they had 1120px, not because three-up is what they want. */
+  main:has(> .board-aside) .daypart-strip {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* The picks were drawn for a 550px cell and clipped at 336px. In a real
+     margin they are a list, not a row. */
+  main:has(> .board-aside) .aside-cell {
+    width: 100%;
+  }
+
+  main:has(> .board-aside) .pick-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Anything that sits outside <main> on the board has to follow it out to the
+   wider measure, or it hangs off a different left edge than everything above
+   it. */
+@media (min-width: 72rem) {
+  .board-gutter {
+    max-width: 84rem;
+  }
+}
