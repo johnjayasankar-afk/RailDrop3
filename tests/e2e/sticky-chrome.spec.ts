@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { createWatch, openDock, signIn } from "./helpers";
+import { createWatch, hideDevOverlay, openDock, signIn } from "./helpers";
 
 /* How much of a phone screen is underneath something pinned.
  *
@@ -91,6 +91,13 @@ test.describe("sticky chrome budget", () => {
        scroll-padding-bottom is what makes this true. */
     await signIn(page);
     await createWatch(page);
+    /* The dev overlay's own bubble is pinned bottom-left and hit-tests above
+       everything, so elementFromPoint on a dock control returns
+       <nextjs-portal> rather than the button. It is a dev-server artifact —
+       dark-mode.spec and accessibility.spec already remove it for the same
+       reason — and this test is the one that asks what is on top, so it is
+       the one that most needed to. */
+    await hideDevOverlay(page);
     // On a phone the dock's controls are one tap behind "Actions"; above 768px
     // this is a no-op. Being behind a toggle is not being hidden.
     await openDock(page);
