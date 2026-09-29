@@ -5023,9 +5023,23 @@ body::after {
   line-height: 0.95;
 }
 
+/* The currency mark is stepped down in size, not in contrast.
+ *
+ * It carried `opacity: 0.55` as well, and measured on the board that puts the
+ * dollar sign on the "Difference" readout at 4.16:1 against a 4.5 requirement
+ * — a real AA failure, in mint, at 9.2px, on a figure the product exists to
+ * show. The saving in the verdict panel scraped through only because 26.4px
+ * counts as large text and large text is allowed 3:1.
+ *
+ * Opacity was the wrong instrument for it. A single value has to work at 9px
+ * and at 72px, and contrast is not linear in either size or alpha, so any
+ * number chosen for the display figure is wrong for the small one. Size is
+ * linear and it is the property that was doing the work anyway: at 55% the
+ * mark is plainly subordinate to its digits, and now its contrast is exactly
+ * the contrast of the number it belongs to — which is already verified
+ * wherever that number is. It cannot fail on its own again. */
 .readout-mark {
   font-size: 0.55em;
-  opacity: 0.55;
   letter-spacing: 0;
   transform: translateY(-0.12em);
 }

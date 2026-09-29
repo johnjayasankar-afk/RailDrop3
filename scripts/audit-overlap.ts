@@ -9,13 +9,20 @@
  * cards by 50px — "from $96" clipped mid-digit — passed every check in this
  * repo for as long as it existed.
  *
- * Contrast is not checked here, deliberately. A generic checker has to read a
- * computed backdrop, and this app paints with gradients, translucent layers and
- * color(srgb ...) values — the first version reported 114 failures and every
- * one of them was the checker misreading a colour space, not a page anybody
- * could not read. A gate that cries wolf is a gate people learn to skip, so
- * contrast on new components is verified by hand against WCAG AA instead, and
- * this file only asserts what it can actually measure.
+ * Contrast is checked, but only where it can be. A generic checker has to read
+ * a computed backdrop, and this app paints with gradients, translucent layers
+ * and color(srgb ...) values — the first version of that reported 114
+ * failures and every one was the checker misreading a colour space, not a page
+ * anybody could not read. A gate that cries wolf is a gate people learn to
+ * skip, so it was deleted and contrast was verified by hand instead.
+ *
+ * Verifying by hand is what let `.readout-mark` ship at 4.16:1 against a 4.5
+ * requirement, in mint, on the figure labelled "Difference". So the check is
+ * back, scoped to a declared list of type primitives that sit on solid fills,
+ * and an element whose backdrop it cannot resolve to an opaque colour is
+ * reported as UNMEASURED rather than passed. Three buckets — measured, failing
+ * and unmeasurable — because the failure mode of the first attempt was a
+ * checker that could not tell the third from the first.
  *
  * What it reports and what it deliberately ignores. A pair counts only when
  * both elements own visible text, neither contains the other, and they are not
@@ -36,7 +43,7 @@ const MIN_AREA = 12;
 interface Finding {
   page: string;
   width: number;
-  kind: "overlap" | "offscreen" | "unnamed";
+  kind: "overlap" | "offscreen" | "unnamed" | "contrast" | "unmeasured";
   area?: number;
   a: string;
   b?: string;
@@ -106,7 +113,7 @@ async function collect(page: Page): Promise<Omit<Finding, "page" | "width">[]> {
     }
 
     const out: {
-      kind: "overlap" | "offscreen" | "unnamed";
+      kind: "overlap" | "offscreen" | "unnamed" | "contrast" | "unmeasured";
       area?: number;
       a: string;
       b?: string;
@@ -157,6 +164,97 @@ async function collect(page: Page): Promise<Omit<Finding, "page" | "width">[]> {
         const oy = Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top);
         if (ox > 1 && oy > 1 && ox * oy >= minArea) {
           out.push({ kind: "overlap", area: Math.round(ox * oy), a: a.text, b: b.text });
+        }
+      }
+    }
+
+    /* Contrast, for the type primitives only.
+     *
+     * Every selector here renders on a solid panel or board fill, so walking
+     * up for the first opaque background is a correct reading rather than a
+     * guess. `.readout-mark` is first on the list because it is the one that
+     * shipped failing: stepped to 55% opacity so the digits would carry the
+     * line, which at 9.2px in mint is 4.16:1 against a 4.5 requirement. */
+    const TYPE_PRIMITIVES = [
+      ".readout-mark",
+      ".readout",
+      ".micro",
+      ".hud-label",
+      ".hud-delta",
+      ".hud-callname",
+      ".verdict-qual",
+    ];
+
+    const channels = (value: string): number[] | null => {
+      const parts = (value.match(/[\d.]+/g) ?? []).map(Number);
+      if (parts.length < 3) return null;
+      // color(srgb 0.039 ...) is 0-1; rgb() is 0-255. The first attempt at
+      // this treated them the same and reported the header as unreadable.
+      const scale = /^color\(/.test(value) ? 255 : 1;
+      return [parts[0]! * scale, parts[1]! * scale, parts[2]! * scale, parts[3] ?? 1];
+    };
+
+    const relLum = (r: number, g: number, b: number): number => {
+      const f = (v: number) => {
+        const n = v / 255;
+        return n <= 0.03928 ? n / 12.92 : ((n + 0.055) / 1.055) ** 2.4;
+      };
+      return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+    };
+
+    for (const selector of TYPE_PRIMITIVES) {
+      for (const node of Array.from(document.querySelectorAll(selector))) {
+        const el = node as HTMLElement & { checkVisibility?: (o?: unknown) => boolean };
+        if (!el.checkVisibility?.({ visibilityProperty: true, opacityProperty: true })) continue;
+        if (!(el.textContent ?? "").trim()) continue;
+
+        const own = getComputedStyle(el);
+        // The mark inherits its colour; read it from wherever it is painted.
+        const painted =
+          own.color === "rgba(0, 0, 0, 0)" && el.parentElement
+            ? getComputedStyle(el.parentElement).color
+            : own.color;
+        const fg = channels(painted);
+
+        let backdrop: number[] | null = null;
+        let walker: HTMLElement | null = el;
+        while (walker) {
+          const candidate = channels(getComputedStyle(walker).backgroundColor);
+          if (candidate && candidate[3]! > 0.95) {
+            backdrop = candidate;
+            break;
+          }
+          walker = walker.parentElement;
+        }
+
+        const label = `${selector} "${(el.textContent ?? "").trim().slice(0, 18)}"`;
+        if (!fg || !backdrop) {
+          out.push({ kind: "unmeasured", a: label });
+          continue;
+        }
+
+        const alpha = Number(own.opacity) * (fg[3] ?? 1);
+        const mix = (i: number) => fg[i]! * alpha + backdrop![i]! * (1 - alpha);
+        const ratio =
+          (Math.max(
+            relLum(mix(0), mix(1), mix(2)),
+            relLum(backdrop[0]!, backdrop[1]!, backdrop[2]!),
+          ) +
+            0.05) /
+          (Math.min(
+            relLum(mix(0), mix(1), mix(2)),
+            relLum(backdrop[0]!, backdrop[1]!, backdrop[2]!),
+          ) +
+            0.05);
+
+        const size = parseFloat(own.fontSize);
+        const bold = Number(own.fontWeight) >= 700;
+        const floor = size >= 24 || (size >= 18.66 && bold) ? 3 : 4.5;
+        if (ratio < floor) {
+          out.push({
+            kind: "contrast",
+            a: `${label} — ${ratio.toFixed(2)}:1, needs ${floor} at ${size.toFixed(1)}px`,
+          });
         }
       }
     }
@@ -263,6 +361,8 @@ async function main(): Promise<void> {
     .sort((a, b) => (b.area ?? 0) - (a.area ?? 0));
   const offscreen = findings.filter((f) => f.kind === "offscreen");
   const unnamed = findings.filter((f) => f.kind === "unnamed");
+  const lowContrast = [...new Set(findings.filter((f) => f.kind === "contrast").map((f) => f.a))];
+  const unmeasured = [...new Set(findings.filter((f) => f.kind === "unmeasured").map((f) => f.a))];
 
   console.log(`\nChecked ${paths.length} pages at ${WIDTHS.join(", ")}px.\n`);
   if (missing.length > 0) {
@@ -298,8 +398,20 @@ async function main(): Promise<void> {
       console.log(`  ${hit}`);
     }
   }
+  if (lowContrast.length > 0) {
+    console.log(`\n  Below WCAG AA (${lowContrast.length}):`);
+    for (const hit of lowContrast.slice(0, 12)) console.log(`  ${hit}`);
+  }
+  /* Printed, never silent. The first contrast gate in this repo could not
+     tell "I read this and it is fine" from "I could not read this", which is
+     how it produced 114 findings and got deleted. */
+  if (unmeasured.length > 0) {
+    console.log(`\n  Contrast not measurable — no opaque backdrop found (${unmeasured.length}):`);
+    for (const hit of unmeasured.slice(0, 8)) console.log(`  ${hit}`);
+  }
   console.log("");
-  process.exitCode = overlaps.length + unnamed.length + missing.length > 0 ? 1 : 0;
+  process.exitCode =
+    overlaps.length + unnamed.length + missing.length + lowContrast.length > 0 ? 1 : 0;
 }
 
 void main();
