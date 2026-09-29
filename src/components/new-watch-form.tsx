@@ -466,10 +466,28 @@ export function NewWatchForm({
             <p className="mt-1">
               {passengers} passenger{passengers === 1 ? "" : "s"} · {fareFamily.toLowerCase()}
             </p>
+            {/* An em dash, not $0.
+                The summary rendered "$0" for the booking price before the
+                traveller had typed one — a number nobody supplied, set in
+                the same face and size as the fares this product scrapes, on
+                a card captioned "Your booking". Zero is a claim that the
+                trip cost nothing. The whole rule here is that we do not
+                state amounts nobody gave us, and the very first screen of
+                the product was breaking it about the user's own money. */}
             <p className="price serif mt-4 text-3xl">
-              <Flap>{price ? `$${price}` : "$0"}</Flap>
+              {price ? (
+                <Flap>{`$${price}`}</Flap>
+              ) : (
+                <span className="readout is-unknown" aria-hidden>
+                  —
+                </span>
+              )}
             </p>
-            <p className="text-xs text-ink-soft">Your booking · confirm on Amtrak later</p>
+            <p className="text-xs text-ink-soft">
+              {price
+                ? "Your booking · confirm on Amtrak later"
+                : "Enter what you paid · we never assume it"}
+            </p>
             {initial?.origin && initial?.destination ? (
               <p className="mt-3 text-xs text-ink-soft">Return trip prefilled.</p>
             ) : null}

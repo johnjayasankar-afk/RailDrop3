@@ -237,13 +237,27 @@ export default async function HomePage() {
 
         <section className="mt-16">
           <h2 className="serif text-3xl">Questions, answered</h2>
+          {/* Two columns, as two columns — not as CSS multi-column.
+              `columns: 2` reflows: opening one question makes the flow
+              taller, so items migrate across the column boundary and up to
+              six OTHER questions jump to different positions under the
+              reader's cursor. A disclosure list is the worst possible
+              content for a reflowing container, because every interaction
+              with it changes its own height. Two real containers, each
+              holding a fixed half in reading order, cannot migrate anything. */}
           <div className="faq mt-6">
-            {FAQ.map(([question, answer]) => (
-              <details key={question}>
-                <summary>{question}</summary>
-                <p>{answer}</p>
-              </details>
-            ))}
+            {[FAQ.slice(0, Math.ceil(FAQ.length / 2)), FAQ.slice(Math.ceil(FAQ.length / 2))].map(
+              (column, index) => (
+                <div key={index} className="faq-col">
+                  {column.map(([question, answer]) => (
+                    <details key={question}>
+                      <summary>{question}</summary>
+                      <p>{answer}</p>
+                    </details>
+                  ))}
+                </div>
+              ),
+            )}
           </div>
         </section>
 
