@@ -221,37 +221,44 @@ export function NewWatchForm({
           <form onSubmit={onSubmit} className="space-y-8">
             <section className="panel space-y-4 p-5">
               <h2 className="text-xs uppercase tracking-[0.16em] text-ink-soft">Journey</h2>
-              <StationField label="Origin station" value={origin} onChange={setOrigin} />
-              <div className="flex flex-wrap items-center gap-3">
+              {/* One decision, one row.
+                  Origin, a 300px ghost pill on its own line, then destination
+                  was three stacked rows of vertical travel to say BOS to NYP.
+                  The swap sits on the shared baseline of the pair now, so it
+                  reads as the hinge between them. Below 720px it stacks, which
+                  is the right answer on a phone. */}
+              <div className="route-fields">
+                <StationField label="Origin station" value={origin} onChange={setOrigin} />
                 <button
                   type="button"
-                  className="btn btn-ghost text-xs uppercase tracking-[0.14em]"
+                  className="btn btn-ghost route-swap text-xs uppercase tracking-[0.14em]"
                   onClick={() => {
                     setOrigin(destination);
                     setDestination(origin);
                   }}
+                  aria-label="Swap origin and destination"
                 >
-                  Swap stations
+                  Swap
                 </button>
-                {lastRoute &&
-                (lastRoute.origin !== origin || lastRoute.destination !== destination) ? (
-                  <button
-                    type="button"
-                    className="chip"
-                    onClick={() => {
-                      setOrigin(lastRoute.origin);
-                      setDestination(lastRoute.destination);
-                    }}
-                  >
-                    Last {lastRoute.origin} → {lastRoute.destination}
-                  </button>
-                ) : null}
+                <StationField
+                  label="Destination station"
+                  value={destination}
+                  onChange={setDestination}
+                />
               </div>
-              <StationField
-                label="Destination station"
-                value={destination}
-                onChange={setDestination}
-              />
+              {lastRoute &&
+              (lastRoute.origin !== origin || lastRoute.destination !== destination) ? (
+                <button
+                  type="button"
+                  className="chip"
+                  onClick={() => {
+                    setOrigin(lastRoute.origin);
+                    setDestination(lastRoute.destination);
+                  }}
+                >
+                  Last {lastRoute.origin} → {lastRoute.destination}
+                </button>
+              ) : null}
               {/* The flexibility is passed in so the calendar can shade the days
                   the watch will also search — the reason this is not the
                   browser's date picker. */}
@@ -298,16 +305,20 @@ export function NewWatchForm({
               </h2>
               <label className="block text-sm">
                 Actual total paid
-                <div className="relative">
-                  <span className="pointer-events-none absolute top-[0.95rem] left-3 text-ink-soft">
-                    $
-                  </span>
+                {/* The $ is drawn by .money-wrap, and the padding that clears
+                    it is .field-money rather than Tailwind's pl-7.
+                    `.field` is unlayered CSS and Tailwind utilities live in
+                    @layer utilities, so unlayered wins: pl-7 computed 13.6px
+                    instead of 28px and the glyph overlapped its own
+                    placeholder by 6.2px. top-[0.95rem] was a magic number
+                    compensating for the same thing. */}
+                <div className="money-wrap">
                   <input
                     required
                     inputMode="decimal"
                     value={price}
                     onChange={(event) => setPrice(event.target.value.replace(/[^0-9.]/g, ""))}
-                    className="field pl-7"
+                    className="field field-money"
                     placeholder="What you actually paid"
                   />
                 </div>
@@ -362,20 +373,25 @@ export function NewWatchForm({
               <h2 className="text-xs uppercase tracking-[0.16em] text-ink-soft">
                 Compare & monitor
               </h2>
-              <label className="block text-sm">
+              {/* .choice, which already styles a checkbox into the palette.
+                  These two were bare inputs in a plain label, so they rendered
+                  as 13px grey-blue macOS boxes — the only operating-system
+                  widgets left on the page, on a near-black panel. The styling
+                  did not need writing; they needed to be inside it. */}
+              <label className="choice">
                 <input
                   type="checkbox"
                   checked={restricted}
                   onChange={(event) => setRestricted(event.target.checked)}
-                />{" "}
+                />
                 Also include cheaper restricted fares
               </label>
-              <label className="block text-sm">
+              <label className="choice">
                 <input
                   type="checkbox"
                   checked={includeThruway}
                   onChange={(event) => setIncludeThruway(event.target.checked)}
-                />{" "}
+                />
                 Include Amtrak Thruway / bus connections
               </label>
               <label className="block text-sm">

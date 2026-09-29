@@ -99,20 +99,23 @@ export function WatchSettingsForm({
           className="field"
         />
       </label>
-      <label className="block">
+      {/* .choice, for the same reason as new-watch-form: bare inputs in a
+          plain label render as macOS checkboxes, and this panel sits on the
+          dark board where they are most obviously foreign. */}
+      <label className="choice">
         <input
           type="checkbox"
           checked={restricted}
           onChange={(event) => setRestricted(event.target.checked)}
-        />{" "}
+        />
         Also include cheaper restricted fares
       </label>
-      <label className="block">
+      <label className="choice">
         <input
           type="checkbox"
           checked={thruway}
           onChange={(event) => setThruway(event.target.checked)}
-        />{" "}
+        />
         Include Amtrak Thruway / bus connections
       </label>
       <button type="submit" className="btn btn-primary" disabled={busy}>

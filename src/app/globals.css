@@ -366,7 +366,6 @@ h2.serif {
     border-color 160ms ease,
     box-shadow 160ms ease;
   accent-color: var(--forest-2);
-  color-scheme: light;
 }
 
 .field:focus {
@@ -772,7 +771,14 @@ input[type="radio"] {
 
 .skeleton {
   border-radius: 8px;
-  background: linear-gradient(90deg, var(--line), #fbfaf7, var(--line));
+  /* Was the literal #fbfaf7, so both loading.tsx skeletons strobed near-white
+     slabs across a near-black page on every navigation to a watch. */
+  background: linear-gradient(
+    90deg,
+    var(--line),
+    color-mix(in srgb, var(--line) 55%, var(--ink)),
+    var(--line)
+  );
   background-size: 200% 100%;
   animation: scan 1.4s linear infinite;
   min-height: 1rem;
@@ -6039,4 +6045,245 @@ body::after {
 :where(button, [role="button"]):disabled,
 :where(button, [role="button"])[aria-disabled="true"] {
   cursor: not-allowed;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CONTROLS — one height, one well, and no operating-system chrome
+   ───────────────────────────────────────────────────────────────────────────
+   Measured on /watches/new at 1440 in dark before this:
+
+     · .field computed `color-scheme: light` on a #121a15 surface, which is
+       what drew the grey select chevron, the grey calendar glyph and the
+       light "--:-- --" time spinner on near-black. One declaration, three of
+       the loudest unfinished tells in the product.
+     · .field's background was rgb(18, 26, 21) — the same value as the panel
+       behind it. An input is the canonical recess and this one was flush,
+       which is why ten identical bars read as blanks rather than as places to
+       put something.
+     · its radius was 12px, which belongs to no scale; the roles are 5/7/9/999.
+     · five distinct control heights above 32px coexisted: 36.4, 41.8, 42.8,
+       43.5, 43.8. Differences of 1-7px are too small to be composition and too
+       large to be alignment, so the rack read as assembled rather than built.
+     · `className="field pl-7"` computed padding-left 13.6px, not 28px.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Native widgets we do not draw ourselves still take the palette. */
+  accent-color: var(--forest-2);
+  caret-color: var(--forest-2);
+
+  --control-h: 2.5rem;
+  --control-h-sm: 1.875rem;
+  /* A recess, not a lighter slab. Stated per theme rather than mixed from
+     --paper-elevated, because 82% of #ffffff is a grey a light field should
+     never be. */
+  --sur-well: #f4f2ec;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --sur-well: #0c120e;
+  }
+}
+
+:root[data-theme="dark"] {
+  --sur-well: #0c120e;
+}
+
+/* :where() keeps this at specificity 0, so every existing per-component
+   override still wins. It sets a floor, not a law. */
+/* A shared line-height as well as a shared floor.
+ *
+ * Padding was already identical — 10.4px top and bottom on every field and
+ * button — and the heights still came out 41.8, 42.8, 43.5 and 43.8, because
+ * line-height was inherited from whatever wrapper each control happened to
+ * sit in. A floor alone cannot fix that: it only lifts the short ones. */
+/* An input cannot wrap, so it gets a height rather than a floor.
+ *
+ * Padding was already identical — 10.4px top and bottom on every field and
+ * button — and heights still came out 41.8, 42.8, 43.5 and 43.8, because the
+ * content box varied with an inherited line-height that a 0-specificity
+ * declaration did not displace. A floor only lifts the short ones, so the
+ * spread survived it. Stating the height ends the argument for the controls
+ * that are guaranteed one line, and .btn keeps a floor because a button on a
+ * phone is allowed to wrap. */
+:where(input.field, select.field) {
+  height: var(--control-h);
+  padding-block: 0;
+}
+
+:where(textarea.field) {
+  min-height: calc(var(--control-h) * 2);
+}
+
+:where(.btn, label.choice) {
+  /* A floor, not a height: a button on a phone is allowed to wrap onto two
+     lines and must grow when it does. The padding is stated so that a button
+     which does NOT wrap lands on exactly the same 40px as the field beside
+     it, which is the case everywhere except the narrowest widths. */
+  min-height: var(--control-h);
+  padding-block: 0.5rem;
+  line-height: 1.25;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+:where(button.chip, a.chip, span.chip, label.chip) {
+  min-height: var(--control-h-sm);
+}
+
+/* ── The field is a well ─────────────────────────────────────────────────── */
+
+.field {
+  /* Block, because it is no longer full-width.
+     With `width: 100%` an inline-block input filled its line and the label
+     above it wrapped naturally. Capping the short fields let them sit beside
+     their own label text — "Passengers [1]" on one line, which reads as an
+     accident rather than a choice. */
+  display: block;
+  border-radius: var(--r-well);
+  background-color: var(--sur-well);
+  background-image: none;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.22),
+    inset 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+}
+
+.field:focus,
+.field:focus-visible {
+  border-color: var(--forest-2);
+  outline: none;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.22),
+    inset 0 2px 4px -1px rgba(0, 0, 0, 0.3),
+    0 0 0 3px color-mix(in srgb, var(--mint-3) 30%, transparent);
+}
+
+/* ── The one browser-drawn widget left, drawn by us ──────────────────────── */
+
+select.field {
+  appearance: none;
+  padding-right: 2.1rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none' stroke='%235f6862' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.8rem center;
+  background-size: 11px 7px;
+}
+
+/* A data: URI cannot read a custom property, so the dark stroke is declared
+   in both dark blocks rather than derived. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) select.field {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none' stroke='%239aa9a0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5'/%3E%3C/svg%3E");
+  }
+
+  :root:not([data-theme="light"]) input[type="time"].field::-webkit-calendar-picker-indicator,
+  :root:not([data-theme="light"]) input[type="date"].field::-webkit-calendar-picker-indicator {
+    filter: invert(1) opacity(0.6);
+  }
+}
+
+:root[data-theme="dark"] select.field {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none' stroke='%239aa9a0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5'/%3E%3C/svg%3E");
+}
+
+:root[data-theme="dark"] input[type="time"].field::-webkit-calendar-picker-indicator,
+:root[data-theme="dark"] input[type="date"].field::-webkit-calendar-picker-indicator {
+  filter: invert(1) opacity(0.6);
+}
+
+/* ── The currency prefix, and the trap under it ──────────────────────────────
+   `.field` is unlayered CSS and Tailwind utilities live in @layer utilities,
+   so unlayered always wins the cascade: `className="field pl-7"` computed
+   padding-left 13.6px rather than 28px, and the $ glyph overlapped its own
+   placeholder by 6.2px. Every Tailwind spacing utility ever applied to a
+   .field is inert the same way — this class is unlayered so it actually
+   applies. */
+
+.money-wrap {
+  position: relative;
+  display: block;
+  margin-top: 0.35rem;
+}
+
+.money-wrap::before {
+  content: "$";
+  position: absolute;
+  left: 0.8rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ink-soft);
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.field-money {
+  margin-top: 0;
+  padding-left: 1.85rem;
+}
+
+/* ── Four plates that never got repointed to the role scale ──────────────── */
+
+.action-dock,
+.trip-rail,
+.depart-strip,
+.board-toast {
+  border-radius: var(--r-plate);
+}
+
+/* ── A field is as wide as what it holds ─────────────────────────────────
+   Ten controls on /watches/new computed 662x43 at one radius on one fill: a
+   three-letter station code, a single-digit passenger count, "$1", a time and
+   an email address, all in the identical bar. Width, height, radius and
+   weight are the only tools a form has to say what a field is for, and all
+   four were constant — so the layout carried no information and the eye read
+   a stack of empty bars, which is what a template looks like.
+
+   Capped by content rather than laid out by hand: a max-width keyed to what
+   the control actually accepts leaves the responsive behaviour alone and
+   cannot orphan a label. The station and date fields keep their width because
+   their dropdowns hang off them. */
+
+input[type="number"].field {
+  max-width: 6rem;
+}
+
+input[type="time"].field {
+  max-width: 11rem;
+}
+
+.field-money {
+  max-width: 14rem;
+}
+
+input[type="email"].field {
+  max-width: 24rem;
+}
+
+/* The two selects hold "48 hours" and "$1" — both short, both currently the
+   full measure of the panel. */
+select.field {
+  max-width: 16rem;
+}
+
+/* ── Origin, swap, destination: one decision, one row ────────────────────
+   Three stacked rows for one route choice, with a 300px ghost pill on its own
+   line between the two codes. On a wide panel that is three lines of vertical
+   travel to say BOS to NYP. */
+
+@media (min-width: 720px) {
+  .route-fields {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: end;
+    gap: 0.75rem;
+  }
+
+  /* The swap control sits on the shared baseline of the two fields rather
+     than above them, so it reads as the hinge between the pair. */
+  .route-fields > .route-swap {
+    margin: 0 0 0.15rem;
+    min-width: 0;
+  }
 }
