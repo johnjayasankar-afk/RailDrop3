@@ -928,10 +928,6 @@ kbd {
   line-height: 1;
 }
 
-.faq details[open] summary::after {
-  content: "−";
-}
-
 .faq details p {
   margin-top: 0.5rem;
   max-width: 46rem;
@@ -6883,4 +6879,162 @@ time,
 .sample-head,
 .board-head {
   font-weight: var(--w-label);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   COMPOSITION
+   ───────────────────────────────────────────────────────────────────────────
+   The structural half. Three problems, all of them the same problem seen from
+   different distances: the page has no way to say "this is a different kind
+   of thing" except by drawing a box, so it draws a lot of boxes and they all
+   weigh the same.
+
+   A rule is a section break. A seam is a join. A box is an object. The
+   stylesheet only had the box.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── The FAQ was twelve identical hairline rows ──────────────────────────────
+   A wall. Every question at the same weight, the same colour, the same 1px
+   rule above it, in one 870px column twelve deep — so finding the one you
+   care about means reading all twelve, and the shape of the block tells you
+   nothing about what is in it.
+
+   Two columns above 900px halves the scan, and it costs nothing: a <details>
+   is a self-contained block, so the only thing standing between this and two
+   columns was that nobody asked for it. The rule moves to the block rather
+   than each row, so the group reads as one object with parts. */
+@media (min-width: 900px) {
+  .faq {
+    columns: 2;
+    column-gap: var(--sp-12);
+    border-top: 1px solid var(--line-2);
+    padding-top: var(--sp-2);
+  }
+
+  .faq details {
+    /* A <details> that breaks across a column boundary is unreadable. */
+    break-inside: avoid;
+  }
+
+  /* With a rule on the block, the first row in EACH column needs one too —
+     otherwise column two starts with a hairline and column one does not. */
+  .faq details:first-child {
+    border-top: 1px solid var(--line);
+  }
+}
+
+/* The marker turns instead of being swapped.
+   
+   It was `content: "+"` becoming `content: "−"`, which cannot animate — a
+   content swap is instant by definition — and my first attempt at fixing
+   that rotated the plus by 180 degrees, which is a plus. Rotating it 45
+   degrees makes it an x, so the same glyph states both "open this" and
+   "close this" and can travel between them. The content swap goes, because
+   with the rotation in place it would fight it. */
+.faq summary::after {
+  transition: transform var(--t-base) var(--ease-out);
+}
+
+.faq details[open] summary::after {
+  content: "+";
+  transform: rotate(45deg);
+}
+
+/* ── A sequence and a refusal are not the same list ──────────────────────────
+   "How it works" and "What we will not do" were both three unmarked <li>s in
+   --ink-soft, which made the page's two most load-bearing statements its
+   least designed elements. They say opposite kinds of thing: one is ordered
+   and cumulative, the other is a set of lines the product will not cross.
+
+   Counters, not list-style, because the marker needs to be mono, tracked and
+   in the accent — and because a real <ol> keeps the semantics for anyone not
+   looking at it. */
+.step-list {
+  counter-reset: step;
+  display: grid;
+  gap: var(--sp-4);
+}
+
+.step-list li,
+.deny-list li {
+  position: relative;
+  padding-left: var(--sp-8);
+  font-size: var(--step--1);
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+
+.step-list li::before {
+  counter-increment: step;
+  content: counter(step, decimal-leading-zero);
+  position: absolute;
+  left: 0;
+  top: 0.05em;
+  font-family: var(--font-code);
+  font-size: var(--step--3);
+  font-weight: var(--w-label);
+  letter-spacing: var(--track-label);
+  color: var(--gold);
+}
+
+.deny-list {
+  display: grid;
+  gap: var(--sp-4);
+}
+
+/* A struck rule: the mark for a line the product will not cross. Drawn
+   rather than typed, so it sits on the cap-height of the first word instead
+   of wherever a glyph's baseline happens to fall. */
+.deny-list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.62em;
+  width: 1.1rem;
+  height: 1px;
+  background: var(--rail);
+}
+
+.step-lede {
+  color: var(--ink);
+  font-weight: var(--w-medium);
+}
+
+/* ── The closing band ────────────────────────────────────────────────────────
+   Was a centred `.ticket` with a wordmark, a sentence and a button stacked
+   in it: a fifteenth box on a page that already had too many, restating a
+   name that appears twice in the header and footer. A page can end on the
+   rule it was organised by. */
+.closer {
+  border-top: 1px solid var(--line-2);
+  padding-top: var(--sp-6);
+}
+
+.closer-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-5);
+}
+
+.closer-say {
+  font-size: var(--step-2);
+  line-height: 1.12;
+  max-width: 22ch;
+}
+
+.closer-foot {
+  margin-top: var(--sp-4);
+  color: var(--ink-soft);
+}
+
+/* The sentence the three cards used to carry, now inside the cell that was
+   already saying their headline. */
+.spec-copy {
+  margin-top: var(--sp-1);
+  font-size: var(--step--1);
+  line-height: 1.5;
+  color: var(--ink-soft);
+  max-width: 30ch;
 }

@@ -79,19 +79,23 @@ export default async function HomePage() {
         }}
       />
       <main id="main" className="mx-auto max-w-6xl px-4 py-16 md:py-24">
-        <div className="grid items-end gap-12 lg:grid-cols-[1.15fr_0.85fr]">
+        {/* The proposition is the headline.
+            It used to be a <p> at text-4xl underneath an <h1> that said
+            "RailDrop" at text-7xl — the wordmark, set as the largest object
+            on the page, forty pixels below the same wordmark in the header,
+            and above the sentence that actually says what the product does.
+            The biggest type on a page is its one chance to be understood by
+            somebody who will not read the second line. */}
+        <div className="grid items-center gap-12 lg:grid-cols-[1.08fr_0.92fr]">
           <div className="reveal">
             <p className="lookup-eyebrow">
               <span className="pulse" aria-hidden />
               <span className="micro">Amtrak fare watch · live inventory</span>
             </p>
-            <h1 className="serif mt-4 max-w-3xl text-[2.85rem] leading-[1.02] sm:text-5xl md:text-7xl">
-              RailDrop
-            </h1>
-            <p className="serif mt-3 max-w-2xl text-2xl leading-snug text-ink sm:text-3xl md:text-4xl">
+            <h1 className="serif mt-5 max-w-3xl text-[2.6rem] leading-[1.02] sm:text-6xl md:text-7xl">
               Know when your train gets cheaper.
-            </p>
-            <p className="mt-5 max-w-xl text-lg text-ink-soft">
+            </h1>
+            <p className="mt-6 max-w-xl text-lg text-ink-soft">
               Book the trip. We watch every bookable Amtrak rail option across your window — and
               tell you when a listed fare drops.
             </p>
@@ -155,64 +159,78 @@ export default async function HomePage() {
             numbered how-it-works cards below them, which say considerably
             more. A specification reads as one row under one rule, the way it
             does on the back of an instrument. */}
+        {/* One object, not two saying the same thing.
+            A spec strip and three numbered cards ran back to back and
+            overlapped about seventy percent — "±1 day" was the headline of a
+            cell AND of a card — and the cards used 01/02/03, which is the
+            same mark the ordered steps further down use for a genuinely
+            ordered list. Two devices, one meaning, and one of them borrowed.
+            The strip keeps the three-word answer and takes the cards'
+            sentences, which were the only thing the cards had that it did
+            not. */}
         <section className="spec-strip mt-14" aria-label="What this is">
           {[
-            ["Live board", "On-demand listed fares"],
-            ["±1 day", "Default search window"],
-            ["Honest", "Never invent a price"],
-          ].map(([value, label]) => (
+            [
+              "Live board",
+              "On-demand listed fares",
+              "Regional, Acela and connections — not just the train you already bought.",
+            ],
+            [
+              "±1 day",
+              "Default search window",
+              "The day before, your travel day, and the day after.",
+            ],
+            [
+              "Honest",
+              "Never invent a price",
+              "If the live board is down you see that, not a guess.",
+            ],
+          ].map(([value, label, copy]) => (
             <div key={label} className="spec-cell">
               <span className="micro">{label}</span>
               <span className="spec-value">{value}</span>
+              <span className="spec-copy">{copy}</span>
             </div>
           ))}
         </section>
 
-        <section className="mt-16 grid gap-4 md:grid-cols-3">
-          {[
-            [
-              "01",
-              "Same stations, every train",
-              "Regional, Acela, connections — not just the train you already bought.",
-            ],
-            ["02", "±1 day by default", "If tomorrow is cheaper than today, you should know."],
-            ["03", "One precise alert", "Email only when the opportunity actually improves."],
-          ].map(([num, title, copy], index) => (
-            <article
-              key={title}
-              className="panel reveal p-5"
-              style={{ animationDelay: `${120 + index * 70}ms` }}
-            >
-              <p className="font-mono text-xs text-gold">{num}</p>
-              <h2 className="serif mt-3 text-2xl">{title}</h2>
-              <p className="mt-2 text-sm text-ink-soft">{copy}</p>
-            </article>
-          ))}
-        </section>
-
-        <section className="mt-16 grid gap-8 md:grid-cols-2">
+        {/* Two lists that were doing the page's most important work with no
+            design at all: three unmarked <li>s in ink-soft, twice. The
+            sequence and the refusal are different kinds of statement, so
+            they get different marks — a counted step, and a struck-through
+            rule that means "not this". */}
+        <section className="mt-16 grid gap-12 md:grid-cols-2">
           <div>
             <h2 className="serif text-3xl">How it works</h2>
-            <ol className="mt-6 space-y-3 text-sm text-ink-soft">
+            <ol className="step-list mt-7">
               <li>
-                <span className="text-ink">Book on Amtrak.</span> Whatever you actually paid.
+                <span className="step-lede">Book on Amtrak.</span> Whatever you actually paid.
               </li>
               <li>
-                <span className="text-ink">Tell us stations, date, and price.</span> We search the
+                <span className="step-lede">Tell us stations, date, and price.</span> We search the
                 window immediately.
               </li>
               <li>
-                <span className="text-ink">One email when it drops.</span> Confirm on Amtrak before
+                <span className="step-lede">One email when it drops.</span> Confirm on Amtrak before
                 you change anything.
               </li>
             </ol>
           </div>
           <div>
             <h2 className="serif text-3xl">What we will not do</h2>
-            <ul className="mt-6 space-y-4 text-sm text-ink-soft">
-              <li>Invent Amtrak prices. If the live board is down, you see that — not a guess.</li>
-              <li>Deep-link into a fake Amtrak itinerary. You copy trip details and book there.</li>
-              <li>Spam you. Alerts fire only when the opportunity actually improves.</li>
+            <ul className="deny-list mt-7">
+              <li>
+                <span className="step-lede">Invent Amtrak prices.</span> If the live board is down,
+                you see that — not a guess.
+              </li>
+              <li>
+                <span className="step-lede">Deep-link a fake itinerary.</span> You copy trip details
+                and book on Amtrak.
+              </li>
+              <li>
+                <span className="step-lede">Spam you.</span> Alerts fire only when the opportunity
+                actually improves.
+              </li>
             </ul>
           </div>
         </section>
@@ -229,14 +247,18 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <section className="ticket mt-16 p-8 text-center">
-          <p className="serif text-3xl md:text-4xl">RailDrop</p>
-          <p className="mx-auto mt-3 max-w-md text-ink-soft">
-            Book the trip. We watch the board. You decide on Amtrak.
-          </p>
-          <Link href="/api/auth/guest?next=%2Fwatches%2Fnew" className="btn btn-primary mt-6">
-            Watch a booked trip
-          </Link>
+        {/* A closing band, not a centred white box. The page ends on the
+            same rule it is organised by, with the sentence and the action on
+            one line at width — a box here is a fifteenth object on a page
+            that already has too many. */}
+        <section className="closer mt-20">
+          <div className="closer-line">
+            <p className="serif closer-say">Book the trip. We watch the board.</p>
+            <Link href="/api/auth/guest?next=%2Fwatches%2Fnew" className="btn btn-primary">
+              Watch a booked trip
+            </Link>
+          </div>
+          <p className="micro closer-foot">You decide on Amtrak · we never invent a price</p>
         </section>
       </main>
     </PageFrame>
