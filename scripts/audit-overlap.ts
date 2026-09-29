@@ -193,6 +193,14 @@ async function collect(page: Page): Promise<Omit<Finding, "page" | "width">[]> {
       ".ladder-end",
       ".unsaved-lead",
       ".unsaved-foot",
+      /* Controls. The material layer left .btn-primary with a transparent
+         background and white text on porcelain — 1.05:1, invisible — and
+         this sweep did not look, because it only watched type. A button is
+         the surface where a contrast failure costs the most. */
+      ".btn",
+      ".btn-primary",
+      ".btn-ghost",
+      ".chip",
     ];
 
     const channels = (value: string): number[] | null => {

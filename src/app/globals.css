@@ -1304,7 +1304,20 @@ kbd {
   align-items: center;
   perspective: 160px;
   border-radius: 6px;
-  background: var(--board);
+  /* The face is a token so the leaves cannot disagree with the cell.
+   *
+   * The leaves paint an opaque fill to hide the half they are turning over.
+   * They took `var(--board)` directly, so a flap that cleared its own
+   * background kept two opaque board-green rectangles clipped to its halves —
+   * which on the hero's depart and arrive clocks rendered as a block across
+   * the top of "7:05 AM" and "11:14 AM" that reads exactly like stray text
+   * selection, on the most-looked-at card in the product. There was an escape
+   * hatch for `.flap-hero`, so the fare was fine and the clocks were not.
+   *
+   * Naming the face means clearing it clears the whole mechanism, and the
+   * next surface that unboxes a flap cannot reintroduce this. */
+  --flap-face: var(--board);
+  background: var(--flap-face);
   color: var(--board-ink);
   padding: 0.25rem 0.5rem;
   line-height: 1.2;
@@ -1393,7 +1406,7 @@ kbd {
   transform-origin: 50% 50%;
   backface-visibility: hidden;
   z-index: 2;
-  background: var(--board);
+  background: var(--flap-face);
 }
 
 .flap-leaf-out {
@@ -1757,16 +1770,35 @@ kbd {
     display: none;
   }
 
+  /* One declaration, two containers, two results.
+   *
+   * `minmax(7.5rem, auto)` resolves against each container's own content: the
+   * header's last cell holds the word "Book" and measures 120px, a row's holds
+   * a "Book on Amtrak" button and measures 232px. The 1.4fr TRAIN track
+   * absorbed the 111.6px difference, so the header resolved TRAIN at 437.2px
+   * and every row at 325.6px.
+   *
+   * Measured at 1440: the Price header sat at x=965 and the row's Save cell at
+   * x=946. The table was labelling the wrong column — Price over the saving,
+   * Save over the booking button — in a product whose promise is that it never
+   * shows a number it cannot defend.
+   *
+   * A fixed last track removes the dependency on content. 42.3rem of fixed
+   * tracks plus seven 0.75rem gaps is 760.8px, so at 1440 TRAIN resolves to
+   * 325.2px — what the rows already were, which is why nothing in a row moves
+   * and the header snaps onto it. */
   .board-head,
   .board-row.board-grid {
     display: grid;
     grid-template-areas: "idx dep arr trn dur price save act";
-    grid-template-columns: 2.8rem 5.6rem 5.6rem minmax(0, 1.4fr) 4.2rem 5rem 4.6rem minmax(
-        7.5rem,
-        auto
-      );
+    grid-template-columns: 2.8rem 5.6rem 5.6rem minmax(0, 1fr) 4.2rem 5rem 4.6rem 14.5rem;
     gap: 0.65rem 0.75rem;
     align-items: start;
+  }
+
+  /* A longer label must not widen the track again. */
+  .board-cell-actions {
+    min-width: 0;
   }
 
   .board-head {
@@ -5489,6 +5521,7 @@ body::after {
 .ticket-hero .price .flap,
 .flap-hero {
   padding: 0;
+  --flap-face: transparent;
   background: transparent;
   box-shadow: none;
   border-radius: 0;
@@ -5940,4 +5973,70 @@ body::after {
 .verdict .chip,
 .trip-rail .chip {
   background-image: none;
+}
+
+/* ── The sheen must stack on a fill, never replace one ───────────────────
+   The KEY block above lists `.btn` in `background-image: var(--key-face)`.
+   That is equal specificity to `.btn-primary { background: var(--primary-grad) }`
+   and comes later, so the key face won the background-image — and the
+   shorthand in .btn-primary had already reset background-color to
+   transparent. Measured on / at 1440: the primary call to action computed
+   `background-color: rgba(0, 0, 0, 0)` with `color: rgb(255, 255, 255)` on
+   `rgb(248, 246, 241)` paper. White on white, about 1.05:1. The most
+   important control in the product was not visible in light mode, and I
+   shipped it an hour ago while adding the material that was supposed to make
+   things look deliberate.
+
+   Two lessons, both encoded. A rule that paints a fill declares
+   background-color explicitly, so a later background-image cannot silently
+   take it away. And the contrast sweep in scripts/audit-overlap.ts now
+   includes buttons — it walked straight past this because .btn was not on
+   its list, which is the second time that list has been the thing that
+   failed rather than the code it watches. */
+
+.btn-primary {
+  background-color: var(--forest-2);
+  background-image: var(--key-face), var(--primary-grad);
+  color: #ffffff;
+}
+
+.btn-ghost {
+  background-color: var(--paper-elevated);
+  background-image: var(--key-face);
+}
+
+/* The hero clocks are the one place the split-flap frame means something —
+   a departure board is exactly what they are quoting — so they get a
+   recessed tile rather than either a stray rectangle or nothing at all. */
+.ticket-hero .clock-pair .flap {
+  --flap-face: var(--board-deep);
+  background: var(--flap-face);
+  padding: 0.28rem 0.55rem;
+  border-radius: 4px;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--board-face) 90%, transparent),
+    inset 0 2px 0 color-mix(in srgb, var(--gold) 40%, transparent),
+    inset 0 -7px 11px -8px #000;
+}
+
+/* ── The mouse gets something back ───────────────────────────────────────
+   Tailwind v4's preflight sets `button { cursor: default }` — a deliberate
+   reset, on the grounds that a native button is not a link. Nothing re-added
+   the pointer, so measured on the board 73 of 97 visible controls showed an
+   arrow: every chip, every date card, every row action, the palette rows, the
+   dock. Two thirds of the interface gave no sign it could be clicked, which
+   is a thing you feel before you can name it.
+
+   Disabled keeps not-allowed, and a control that is genuinely a text field or
+   a drag handle is untouched — this is scoped to the things that act. */
+
+:where(button, summary, [role="button"], label[for], .chip, .date-card):not(:disabled):not(
+    [aria-disabled="true"]
+  ) {
+  cursor: pointer;
+}
+
+:where(button, [role="button"]):disabled,
+:where(button, [role="button"])[aria-disabled="true"] {
+  cursor: not-allowed;
 }
