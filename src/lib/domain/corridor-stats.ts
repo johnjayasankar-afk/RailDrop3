@@ -199,13 +199,38 @@ export function corridorEvidence(
   return "some";
 }
 
+/**
+ * The observation at a rank. Never a value between two of them.
+ *
+ * This used to interpolate, in one line that reads like ordinary statistics:
+ * with twelve observations `(12 - 1) * 0.25` is 2.75, so p25 came back
+ * three-quarters of the way from the third-cheapest fare to the fourth.
+ * Across the sample sizes this module actually runs at — the floor is twelve
+ * — 68% of the quartiles it produced were dollar amounts nobody ever paid and
+ * nobody ever saw listed. On a six-observation sample all three of them are:
+ * $53.75, $60.00, $81.25, from a set containing none of those.
+ *
+ * Those numbers were not buried. They are the copy in `verdictFor` ("typically
+ * sits around $60"), the middle-half band under the price history, and —
+ * worst — `assistant-grounding.ts` pushes all five of them into `observedCents`,
+ * which is the whitelist `assistant-verify.ts` checks a model's answer against.
+ * The mechanism whose entire job is to stop the assistant stating a fare
+ * nobody observed was being seeded with three fares nobody observed.
+ *
+ * Nearest-rank (NIST): the smallest observation at or above the fraction. The
+ * cost is that with an even sample the median is one of the two middle fares
+ * rather than halfway between them, which is the correct trade — "the median
+ * of what we saw" is a claim about our observations, and halfway between two
+ * of them is a claim about a fare that does not exist.
+ *
+ * `shareAtOrBelow` below still interpolates, deliberately: it returns a
+ * percentage, and a percentage between two observations is a real answer to a
+ * real question. The rule is about money, not about arithmetic.
+ */
 function percentile(sorted: readonly number[], fraction: number): number {
   if (sorted.length === 0) return 0;
-  const position = (sorted.length - 1) * fraction;
-  const lower = Math.floor(position);
-  const upper = Math.ceil(position);
-  if (lower === upper) return sorted[lower]!;
-  return Math.round(sorted[lower]! + (sorted[upper]! - sorted[lower]!) * (position - lower));
+  const rank = Math.ceil(fraction * sorted.length);
+  return sorted[Math.min(sorted.length - 1, Math.max(0, rank - 1))]!;
 }
 
 function usd(cents: number): string {

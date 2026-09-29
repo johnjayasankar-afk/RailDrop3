@@ -454,14 +454,18 @@ export class SupabaseRepository implements RailDropRepository {
     }));
   }
 
-  async getCachedJourneys(providerRequestId: string): Promise<JourneyOption[]> {
+  async getCachedJourneys(providerRequestId: string): Promise<JourneyOption[] | null> {
     const { data, error } = await this.db
       .from("search_cache")
       .select("payload")
       .eq("provider_request_id", providerRequestId)
       .maybeSingle();
     if (error) throw error;
-    return (data?.payload as JourneyOption[]) ?? [];
+    /* No row is null; a row holding an empty array is an empty array. The old
+       `data?.payload ?? []` collapsed the first case into the second, and the
+       caller turned that into "no trains on this date". */
+    if (!data) return null;
+    return (data.payload as JourneyOption[] | null) ?? [];
   }
 
   async cacheJourneys(providerRequestId: string, journeys: JourneyOption[]): Promise<void> {

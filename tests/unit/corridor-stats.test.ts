@@ -243,3 +243,78 @@ describe("a realistic fortnight", () => {
     expect(overpaid.basis).toContain("5 travel dates");
   });
 });
+
+/* Every dollar figure a corridor summary reports is a fare we saw.
+ *
+ * `percentile` interpolated. With twelve observations `(12 - 1) * 0.25` is
+ * 2.75, so p25 came back three-quarters of the way from the third-cheapest
+ * fare to the fourth — a dollar amount nobody paid and nobody saw listed.
+ * Across sample sizes 12 to 40, 68% of the quartiles it produced were like
+ * that.
+ *
+ * Those figures were not decorative. They are the copy under the price
+ * history ("the middle half runs $53.75–$81.25"), and `buildAssistantFacts`
+ * pushes all five into `observedCents` — the whitelist `verifyAnswer` checks
+ * a model's answer against. The guard against the assistant stating a fare
+ * nobody observed was itself seeded with fares nobody observed.
+ *
+ * This test is about the property, not the algorithm: whatever the quantile
+ * definition, a summary may only report numbers that are in the sample.
+ */
+describe("a corridor summary only ever reports fares that were observed", () => {
+  function every(prices: number[]) {
+    const stats = summarizeCorridor(series(prices));
+    expect(stats).not.toBeNull();
+    return { stats: stats!, observed: new Set(prices) };
+  }
+
+  it("reports observed fares at every sample size the floor allows", () => {
+    const invented: string[] = [];
+    for (let n = MIN_OBSERVATIONS; n <= 40; n += 1) {
+      // Distinct, irregularly spaced prices, so an interpolation cannot
+      // accidentally land on a real one.
+      const prices = Array.from(
+        { length: n },
+        (_, index) => 4_700 + index * 313 + (index % 3) * 97,
+      );
+      const { stats, observed } = every(prices);
+      for (const [name, value] of [
+        ["low", stats.low],
+        ["p25", stats.p25],
+        ["median", stats.median],
+        ["p75", stats.p75],
+        ["high", stats.high],
+      ] as const) {
+        if (!observed.has(value)) invented.push(`n=${n} ${name}=${value}`);
+      }
+    }
+    expect(invented).toEqual([]);
+  });
+
+  it("reports observed fares on an even sample, where the old code always invented one", () => {
+    // Twelve prices; the midpoint of the two middle ones is 6_050, which is
+    // not among them. The old median was exactly that.
+    const prices = [
+      4_700, 4_900, 5_200, 5_500, 5_900, 6_000, 6_100, 6_400, 8_800, 9_900, 11_000, 13_300,
+    ];
+    const { stats, observed } = every(prices);
+    expect(observed.has(stats.median)).toBe(true);
+    expect(stats.median).not.toBe(6_050);
+  });
+
+  it("keeps the quartiles ordered and inside the range", () => {
+    const prices = Array.from({ length: 19 }, (_, index) => 4_000 + index * 517);
+    const { stats } = every(prices);
+    expect(stats.low).toBeLessThanOrEqual(stats.p25);
+    expect(stats.p25).toBeLessThanOrEqual(stats.median);
+    expect(stats.median).toBeLessThanOrEqual(stats.p75);
+    expect(stats.p75).toBeLessThanOrEqual(stats.high);
+  });
+
+  it("survives a sample that is entirely one price", () => {
+    const { stats, observed } = every(Array.from({ length: 14 }, () => 7_000));
+    for (const value of [stats.low, stats.p25, stats.median, stats.p75, stats.high]) {
+      expect(observed.has(value)).toBe(true);
+    }
+  });
+});

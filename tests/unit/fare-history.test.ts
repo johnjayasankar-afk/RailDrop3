@@ -247,13 +247,63 @@ describe("chartGeometry", () => {
     expect(geometry.benchmarkY!).toBeLessThan(box.height);
   });
 
-  it("widens the scale to include the benchmark rather than clipping it", () => {
+  /* This test used to assert `geometry.high === 12_800` — "widens the scale to
+     include the benchmark rather than clipping it" — and it was wrong in a way
+     that took the chart's honesty with it.
+
+     `low` and `high` are the chart's visible value axis and they are
+     interpolated into its aria-label: "Cheapest fare observed at each of 14
+     checks, between $47 and $128." Widening the scale to the benchmark makes
+     that sentence name a fare nobody observed, to a screen reader, on the one
+     panel whose subject is what we observed — while the "Highest seen" figure
+     in the list directly beneath it says $50, because that one reads from
+     history.highest and has always been right.
+
+     The booked price is an annotation on a chart of observations. When it is
+     off the top it is pinned to the top and the caller is told which edge, so
+     it can say so rather than letting a rule at the top of a chart mean "the
+     dearest fare we saw". */
+  it("keeps the scale to what was observed and pins a benchmark above it", () => {
     const geometry = chartGeometry(buildHistory(series(4_000, 5_000)), {
       ...box,
       benchmarkCents: 12_800,
     });
-    expect(geometry.high).toBe(12_800);
+    expect(geometry.high).toBe(5_000);
+    expect(geometry.low).toBe(4_000);
+    expect(geometry.benchmarkOutside).toBe("above");
     expect(geometry.benchmarkY).not.toBeNull();
+    // Pinned to the top edge of the plot, not off it.
+    expect(geometry.benchmarkY!).toBeGreaterThanOrEqual(0);
+    expect(geometry.benchmarkY!).toBeLessThan(box.height / 2);
+  });
+
+  it("pins a benchmark below everything observed, and says so", () => {
+    const geometry = chartGeometry(buildHistory(series(9_000, 11_000)), {
+      ...box,
+      benchmarkCents: 2_000,
+    });
+    expect(geometry.low).toBe(9_000);
+    expect(geometry.benchmarkOutside).toBe("below");
+    expect(geometry.benchmarkY!).toBeGreaterThan(box.height / 2);
+  });
+
+  it("reports no edge when the benchmark is inside the observed range", () => {
+    const geometry = chartGeometry(buildHistory(series(4_000, 6_000)), {
+      ...box,
+      benchmarkCents: 5_000,
+    });
+    expect(geometry.benchmarkOutside).toBeNull();
+  });
+
+  it("never reports a bound that is not an observation", () => {
+    // The property, stated once: whatever the benchmark, the axis is the data.
+    for (const benchmark of [1, 3_999, 4_000, 4_500, 5_000, 5_001, 99_999]) {
+      const geometry = chartGeometry(buildHistory(series(4_000, 4_500, 5_000)), {
+        ...box,
+        benchmarkCents: benchmark,
+      });
+      expect([geometry.low, geometry.high]).toEqual([4_000, 5_000]);
+    }
   });
 
   it("does not divide by zero on a flat series", () => {

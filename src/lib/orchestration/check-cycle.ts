@@ -197,27 +197,71 @@ export async function runWatchCycle(input: {
     let waitedMs = 0;
     /** Set only when this worker owns the claim and must therefore do the search. */
     let ownedRequestId: string | null = null;
+    /**
+     * Completed rows whose cached payload turned out to be missing.
+     *
+     * Without this the loop would re-plan, see the same completed row, decide
+     * to reuse it again and find the same hole — forever.
+     */
+    const payloadMissing = new Set<string>();
+    /* Every path through the body either resolves, sleeps, or claims, so this
+       is a backstop rather than a control: a loop that talks to a database and
+       a clock should not be able to spin without something eventually saying
+       so. Each turn is at most one poll interval, so the ceiling is generous. */
+    const MAX_TURNS = 64;
+    let turns = 0;
 
     while (!result) {
+      if ((turns += 1) > MAX_TURNS) {
+        logger.error("search.plan_did_not_settle", { searchKey, travelDate, turns });
+        break;
+      }
       const newest = await input.repo.findNewestSearch(searchKey);
       const plan = planSearch({ newest, now, waitedMs });
 
-      if (plan.action === "reuse" && newest && newest.status !== "IN_FLIGHT") {
+      if (
+        plan.action === "reuse" &&
+        newest &&
+        newest.status !== "IN_FLIGHT" &&
+        !payloadMissing.has(newest.id)
+      ) {
         const cached = await input.repo.getCachedJourneys(newest.id);
-        result = {
-          request,
-          status: newest.status,
-          journeys: cached,
-          metadata: {
-            provider: DEFAULT_PROVIDER_ID,
+        if (cached === null) {
+          /* The row says a search completed; its journeys are not there.
+           *
+           * This used to arrive as `[]`, because both repositories returned an
+           * empty array for a miss, and it was handed straight on as a result
+           * with the row's own SUCCESS status — a successful observation of an
+           * empty market. Everything downstream is careful about exactly this:
+           * a deadline skip is recorded as PROVIDER_ERROR precisely so that a
+           * paused check cannot read as a quiet one. A cache miss walked past
+           * all of it and said "nothing is listed" about a date nobody had
+           * looked at.
+           *
+           * So it is not a result. Fall through, claim the key, and look. */
+          payloadMissing.add(newest.id);
+          logger.warn("search.cache_payload_missing", {
+            searchKey,
+            travelDate,
             requestId: newest.id,
-            retrievedAt: newest.createdAt,
-            latencyMs: newest.latencyMs,
-            creditsCharged: 0,
-          },
-        };
-        reused = true;
-        break;
+            status: newest.status,
+          });
+        } else {
+          result = {
+            request,
+            status: newest.status,
+            journeys: cached,
+            metadata: {
+              provider: DEFAULT_PROVIDER_ID,
+              requestId: newest.id,
+              retrievedAt: newest.createdAt,
+              latencyMs: newest.latencyMs,
+              creditsCharged: 0,
+            },
+          };
+          reused = true;
+          break;
+        }
       }
 
       if (plan.action === "wait") {

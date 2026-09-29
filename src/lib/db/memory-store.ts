@@ -331,8 +331,9 @@ export class MemoryRepository implements RailDropRepository {
     return this.journeys.filter((journey) => journey.cycleId === cycleId);
   }
 
-  async getCachedJourneys(providerRequestId: string): Promise<JourneyOption[]> {
-    return this.cachedJourneys.get(providerRequestId) ?? [];
+  async getCachedJourneys(providerRequestId: string): Promise<JourneyOption[] | null> {
+    // `?? []` here made a miss indistinguishable from an empty search.
+    return this.cachedJourneys.get(providerRequestId) ?? null;
   }
 
   async cacheJourneys(providerRequestId: string, journeys: JourneyOption[]): Promise<void> {

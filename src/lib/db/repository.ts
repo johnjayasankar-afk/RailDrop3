@@ -141,7 +141,16 @@ export interface RailDropRepository {
   listDateSnapshots(cycleId: string): Promise<DateSnapshotRecord[]>;
   insertJourneys(journeys: StoredJourney[]): Promise<void>;
   listJourneysForCycle(cycleId: string): Promise<StoredJourney[]>;
-  getCachedJourneys(providerRequestId: string): Promise<JourneyOption[]>;
+  /**
+   * The journeys stored for a completed search, or null when there is no entry.
+   *
+   * The distinction is the whole point. This returned `[]` for both "we cached
+   * a search that found nothing" and "the payload is gone", and the caller
+   * cannot tell those apart — so a cache miss was served to a traveler as a
+   * successful observation of an empty market. "Nothing is listed" is the one
+   * claim this product must never make without having looked.
+   */
+  getCachedJourneys(providerRequestId: string): Promise<JourneyOption[] | null>;
   cacheJourneys(providerRequestId: string, journeys: JourneyOption[]): Promise<void>;
   insertAlert(alert: AlertRecord): Promise<AlertRecord>;
   listAlertsForWatch(watchId: string): Promise<AlertRecord[]>;

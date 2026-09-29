@@ -142,7 +142,17 @@ export function FareHistory({
                       textAnchor="end"
                       className="fh-benchmark-tag"
                     >
+                      {/* The scale is the observations, so this rule is pinned
+                          to an edge when the booked price is outside them. Left
+                          unsaid, a rule along the top of the chart reads as
+                          "the dearest fare we saw", which is the opposite of
+                          what it means. */}
                       you paid {formatUsdCompact(bookedCents)}
+                      {geometry.benchmarkOutside === "above"
+                        ? " — above everything seen"
+                        : geometry.benchmarkOutside === "below"
+                          ? " — below everything seen"
+                          : ""}
                     </text>
                   </g>
                 ) : null}
@@ -267,6 +277,11 @@ export function FareHistory({
   );
 }
 
+/* `low` and `high` are the observed bounds, which is the only reason this
+   sentence is true. They used to include the traveler's booked price, so a
+   screen reader was told the fares we observed ran up to a number we never
+   observed — on the panel whose subject is what we observed, and contradicted
+   by the "Highest seen" figure read out immediately afterwards. */
 function chartLabel(count: number, low: number, high: number): string {
   return `Cheapest fare observed at each of ${count} checks, between ${formatUsdCompact(low)} and ${formatUsdCompact(high)}. The figures are listed below the chart.`;
 }

@@ -193,9 +193,17 @@ export interface ChartGeometry {
   points: ChartPoint[];
   /** Polyline segments. Separate arrays so a gap in the data is a gap. */
   segments: ChartPoint[][];
-  /** Where the traveler's booking sits, or null when it is off the scale. */
+  /** Where the traveler's booking sits. Pinned to the edge when it is outside. */
   benchmarkY: number | null;
+  /**
+   * Which edge the benchmark had to be pinned to, or null when it falls inside
+   * the observed range. The caller needs this: a rule drawn at the top of the
+   * chart means "at the highest fare we saw" unless something says otherwise.
+   */
+  benchmarkOutside: "above" | "below" | null;
+  /** Cheapest fare OBSERVED. Not the axis floor — see the note on the scale. */
   low: number;
+  /** Dearest fare OBSERVED. */
   high: number;
 }
 
@@ -221,8 +229,23 @@ export function chartGeometry(
   const gapMs = options.gapMs ?? 26 * 3_600_000;
   const points = history.points;
 
+  /* The scale is built from observations and nothing else.
+   *
+   * The traveler's booked price used to be pushed into this array before the
+   * min and max were taken, so `low` and `high` were the bounds of "the fares
+   * we saw, plus one number the traveler typed in". Those two values are the
+   * chart's visible value axis and they are interpolated into its aria-label —
+   * "Cheapest fare observed at each of 14 checks, between $47 and $128" — when
+   * $128 is what they paid and the dearest fare anyone observed was $88. The
+   * statement is false, it is the version a screen reader gets, and the list
+   * immediately below the chart contradicts it, because "Highest seen" reads
+   * from history.highest and has always been right.
+   *
+   * The benchmark is an annotation on a chart of observations, not one of the
+   * observations. When it falls outside the range it is pinned to the edge and
+   * the caller is told, which is both honest and more useful than silently
+   * rescaling everything the traveler actually wanted to compare. */
   const values = points.map((point) => point.cents);
-  if (options.benchmarkCents && options.benchmarkCents > 0) values.push(options.benchmarkCents);
   let low = values.length ? Math.min(...values) : 0;
   let high = values.length ? Math.max(...values) : 0;
   if (high === low) {
@@ -260,10 +283,17 @@ export function chartGeometry(
   if (run.length) segments.push(run);
 
   const benchmark = options.benchmarkCents ?? null;
-  const benchmarkY =
-    benchmark && benchmark > 0 && benchmark >= low && benchmark <= high ? toY(benchmark) : null;
+  const hasBenchmark = benchmark !== null && benchmark > 0 && points.length > 0;
+  const benchmarkY = hasBenchmark ? toY(Math.min(high, Math.max(low, benchmark))) : null;
+  const benchmarkOutside: "above" | "below" | null = !hasBenchmark
+    ? null
+    : benchmark > high
+      ? "above"
+      : benchmark < low
+        ? "below"
+        : null;
 
-  return { width, height, points: laid, segments, benchmarkY, low, high };
+  return { width, height, points: laid, segments, benchmarkY, benchmarkOutside, low, high };
 }
 
 function usd(cents: number): string {
