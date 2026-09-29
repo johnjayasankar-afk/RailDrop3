@@ -7339,3 +7339,27 @@ time,
     flex: 1 1 100%;
   }
 }
+
+/* ── Observed, entered, unobserved ──────────────────────────────────────────
+   The product's rule made visible instead of asserted. See money.tsx for the
+   argument; this is only the treatment.
+
+   An entered figure is underlined with a dotted rule in the soft ink — the
+   printer's mark for "supplied", quiet enough that a page of eighteen
+   figures does not turn into a page of eighteen badges, and visible the
+   moment anyone compares two numbers side by side. text-underline-offset
+   keeps it off the descenders of the digits.
+
+   An unobserved figure is an em dash at the ink we use for absent things. It
+   is deliberately NOT a zero: zero claims the amount is nothing, and the
+   whole point is that we do not know. */
+.readout.is-entered {
+  text-decoration: underline dotted color-mix(in srgb, currentcolor 45%, transparent);
+  text-underline-offset: 0.28em;
+  text-decoration-thickness: from-font;
+}
+
+.readout.is-unknown {
+  color: var(--ink-soft);
+  letter-spacing: 0;
+}

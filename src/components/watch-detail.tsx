@@ -1750,7 +1750,15 @@ export function WatchDetail({
         ) : null}
         <div className="hud-cell trip-rail-meta">
           <span className="hud-label">You paid</span>
-          <Money cents={watch.currentBookedPriceCents} className="hud-money is-benchmark" />
+          {/* The one figure on this rail the traveller supplied. Beside
+              "Best now", which a provider was observed listing, it had been
+              set identically — so the number we scraped and the number
+              somebody typed carried the same authority. */}
+          <Money
+            cents={watch.currentBookedPriceCents}
+            className="hud-money is-benchmark"
+            source="entered"
+          />
         </div>
         <div className="hud-cell">
           <span className="hud-label">Best now</span>
