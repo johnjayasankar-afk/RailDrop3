@@ -231,7 +231,7 @@ function Results({ state, passengers }: { state: State; passengers: number }) {
 
   if (state.status === "idle") {
     return (
-      <div className="lookup-empty panel" role="status">
+      <div className="lookup-empty is-idle panel" role="status">
         <p className="kicker">No search yet</p>
         <p className="mt-2 text-ink-soft">
           Pick a route and a date. RailDrop reads the live board and shows what is actually listed —

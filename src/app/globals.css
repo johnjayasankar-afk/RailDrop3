@@ -7168,3 +7168,55 @@ time,
     max-width: 84rem;
   }
 }
+
+/* ── /fares: three choices that would not fit on one line ───────────────────
+   The flexibility group is three radios — This day, ±1 day, ±2 days — in a
+   flex row inside a 20rem form column. At 1440 that is 288px of usable width
+   for about 300px of pills, so "±2 days" dropped to a line of its own and
+   the control read as two choices and an afterthought. A three-way choice
+   where one option is visually demoted is a three-way choice nobody makes
+   evenly.
+
+   A grid instead of a flow: three equal tracks, so they are the same size
+   because they are the same KIND of thing, which is what the row is for.
+   .choice has a 0.35/0.4rem margin for the flow layout it was written for,
+   and that margin is what breaks a grid, so it is cleared here rather than
+   globally — chips elsewhere still flow. */
+.lookup-flex {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-1-5);
+}
+
+.lookup-flex legend {
+  grid-column: 1 / -1;
+}
+
+.lookup-flex .choice {
+  margin: 0;
+  justify-content: center;
+  /* Equal tracks are (288 - 2 gaps) / 3 = 92px each, and a pill is a radio
+     dot plus a label plus two paddings. At the inherited size "This day"
+     needed 96 and wrapped INSIDE its own pill, which trades one ragged row
+     for one taller pill and is not an improvement. One step down, a tighter
+     dot gap and nowrap put the longest label at 85. */
+  padding-inline: var(--sp-1-5);
+  gap: var(--sp-1);
+  font-size: var(--step--2);
+  white-space: nowrap;
+  text-align: center;
+}
+
+/* ── The results column before there are results ────────────────────────────
+   A solid 12rem panel containing one sentence is a card that has failed to
+   load, which is not what "you have not searched yet" means. Dashed, unfilled
+   and quieter: the shape of where an answer will go, stated as a frame rather
+   than as an object. The searching, error and empty-result states keep the
+   solid panel, because those ARE answers. */
+.lookup-empty.is-idle {
+  background: none;
+  border-style: dashed;
+  border-color: var(--line-2);
+  box-shadow: none;
+  min-height: 9rem;
+}
