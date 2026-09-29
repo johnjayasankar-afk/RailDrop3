@@ -187,6 +187,16 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
         cycleStatus={cycle?.status ?? null}
         datesFailed={cycle?.datesFailed ?? []}
         today={localIsoDate(renderedAt, watch.timezone)}
+        /* Computed here, from the same server clock as `today`, because a
+           Date read during render is the hydration bug RelativeTime exists to
+           avoid. Exact when the traveler told us which train they are on;
+           null when they did not, so the board falls back to whole days
+           rather than to a figure nobody measured. */
+        hoursToDeparture={
+          watch.bookedDepartureAt
+            ? Math.max(0, (Date.parse(watch.bookedDepartureAt) - renderedAt.getTime()) / 3_600_000)
+            : null
+        }
         moves={boardMoves(previousRanked, ranked).slice(0, 5)}
         alerts={alerts}
         scanCount={cycles.length}

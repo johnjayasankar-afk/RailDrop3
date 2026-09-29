@@ -37,20 +37,102 @@ export interface Verdict {
  * Requires the symbol: a bare "50" is a train number as often as a fare. */
 const MONEY = /\$\s?(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{1,2}))?/g;
 
+/* 50 dollars · 1,234.50 dollars · 12 bucks.
+ *
+ * The symbol was the only thing this looked for, so every amount written as a
+ * word walked past the whitelist untouched — and "it is 74 dollars" is at
+ * least as natural a sentence for a model to produce as "it is $74". The
+ * guard that exists to stop the assistant stating a fare nobody observed had
+ * a hole exactly the width of the most ordinary phrasing in English. */
+const MONEY_WORDS = /(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{1,2}))?\s?(?:dollars?|bucks)\b/gi;
+
+/* seventy-four dollars.
+ *
+ * Rarer, and the same hole. Bounded at "ninety-nine hundred" on purpose: a
+ * spelled-out fare above that is not a sentence anyone writes, and parsing
+ * arbitrary English numerals would be a parser to maintain rather than a
+ * guard. Anything it cannot read stays unmatched, which fails open — so the
+ * digit forms above are the ones doing the work. */
+const UNITS: Record<string, number> = {
+  zero: 0,
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+  eleven: 11,
+  twelve: 12,
+  thirteen: 13,
+  fourteen: 14,
+  fifteen: 15,
+  sixteen: 16,
+  seventeen: 17,
+  eighteen: 18,
+  nineteen: 19,
+};
+const TENS: Record<string, number> = {
+  twenty: 20,
+  thirty: 30,
+  forty: 40,
+  fifty: 50,
+  sixty: 60,
+  seventy: 70,
+  eighty: 80,
+  ninety: 90,
+};
+const SPELLED =
+  /\b((?:one|two|three|four|five|six|seven|eight|nine)\s+hundred(?:\s+and)?\s+)?((?:twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?:[-\s](?:one|two|three|four|five|six|seven|eight|nine))?|zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen)\s+(?:dollars?|bucks)\b/gi;
+
+function spelledToNumber(hundreds: string | undefined, rest: string): number | null {
+  let total = 0;
+  if (hundreds) {
+    const word = hundreds.trim().split(/\s+/)[0]!.toLowerCase();
+    if (UNITS[word] === undefined) return null;
+    total += UNITS[word] * 100;
+  }
+  const parts = rest.toLowerCase().split(/[-\s]+/);
+  for (const part of parts) {
+    if (TENS[part] !== undefined) total += TENS[part];
+    else if (UNITS[part] !== undefined) total += UNITS[part];
+    else return null;
+  }
+  return total;
+}
+
 export function findPriceMentions(answer: string): PriceMention[] {
   const out: PriceMention[] = [];
+  const push = (text: string, cents: number, index: number) => {
+    if (!Number.isFinite(cents)) return;
+    // The same amount written twice in one answer is one claim to check.
+    if (out.some((m) => m.index === index)) return;
+    out.push({ text, cents, index });
+  };
+
   for (const match of answer.matchAll(MONEY)) {
     const whole = Number.parseInt((match[1] ?? "0").replace(/,/g, ""), 10);
     // "$5.5" is five dollars fifty, not five dollars five cents.
     const fraction = match[2] ? Number.parseInt(match[2].padEnd(2, "0"), 10) : 0;
-    if (!Number.isFinite(whole)) continue;
-    out.push({
-      text: match[0],
-      cents: whole * 100 + fraction,
-      index: match.index ?? 0,
-    });
+    push(match[0], whole * 100 + fraction, match.index ?? 0);
   }
-  return out;
+
+  for (const match of answer.matchAll(MONEY_WORDS)) {
+    const whole = Number.parseInt((match[1] ?? "0").replace(/,/g, ""), 10);
+    const fraction = match[2] ? Number.parseInt(match[2].padEnd(2, "0"), 10) : 0;
+    push(match[0], whole * 100 + fraction, match.index ?? 0);
+  }
+
+  for (const match of answer.matchAll(SPELLED)) {
+    const value = spelledToNumber(match[1], match[2] ?? "");
+    if (value === null) continue;
+    push(match[0], value * 100, match.index ?? 0);
+  }
+
+  return out.sort((a, b) => a.index - b.index);
 }
 
 /**

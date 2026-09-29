@@ -104,3 +104,58 @@ describe("what the reader is shown instead", () => {
     expect(notice).not.toContain("Acela is $89");
   });
 });
+
+/* The hole the whitelist had, exactly the width of ordinary English.
+ *
+ * The money pattern required a "$", so every amount a model wrote as a word
+ * went through unchecked — and "it is 74 dollars" is at least as natural a
+ * sentence to generate as "it is $74". The guard whose entire job is to stop
+ * the assistant stating a fare nobody observed could be stepped around by
+ * spelling one out.
+ */
+describe("an amount written as a word is still an amount", () => {
+  // One observation: $74. Nothing else is supported.
+  const observed = [7_400];
+
+  it("catches digits followed by the word", () => {
+    const v = verifyAnswer("The cheapest is 51 dollars.", observed);
+    expect(v.ok).toBe(false);
+    expect(v.unsupported[0]?.cents).toBe(5_100);
+  });
+
+  it("catches bucks", () => {
+    expect(verifyAnswer("About 51 bucks.", observed).ok).toBe(false);
+  });
+
+  it("catches a spelled-out amount", () => {
+    const v = verifyAnswer("It is fifty-one dollars.", observed);
+    expect(v.ok).toBe(false);
+    expect(v.unsupported[0]?.cents).toBe(5_100);
+  });
+
+  it("catches a spelled-out amount in the hundreds", () => {
+    const v = verifyAnswer("Two hundred and twelve dollars.", observed);
+    expect(v.ok).toBe(false);
+    expect(v.unsupported[0]?.cents).toBe(21_200);
+  });
+
+  it("still passes an observed amount however it is written", () => {
+    for (const phrasing of ["$74", "74 dollars", "seventy-four dollars", "74 bucks"]) {
+      expect(verifyAnswer(`It is ${phrasing}.`, observed).ok).toBe(true);
+    }
+  });
+
+  it("does not read a train number as a fare", () => {
+    // The reason the symbol was required in the first place, and it still is
+    // for a bare number — only "dollars" or "bucks" promotes one.
+    expect(verifyAnswer("Take Northeast Regional 171.", observed).ok).toBe(true);
+    expect(verifyAnswer("It departs at 7:05 and arrives 11:14.", observed).ok).toBe(true);
+  });
+
+  it("counts one amount once, however the patterns overlap", () => {
+    // "$74 dollars" matches both the symbol form and the word form at
+    // different offsets; the claim is still one claim.
+    const v = verifyAnswer("It is 74 dollars.", observed);
+    expect(v.mentions).toHaveLength(1);
+  });
+});

@@ -30,7 +30,6 @@
     "@supabase/ssr": "^0.12.5",
     "@supabase/supabase-js": "^2.114.0",
     "date-fns": "^4.4.0",
-    "lucide-react": "^1.39.0",
     "next": "16.3.4",
     "playwright": "^1.62.1",
     "playwright-core": "^1.62.1",

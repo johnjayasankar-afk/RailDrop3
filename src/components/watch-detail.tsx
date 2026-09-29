@@ -157,6 +157,7 @@ export function WatchDetail({
   cycleStatus,
   datesFailed,
   today,
+  hoursToDeparture: exactHoursToDeparture,
   moves,
   alerts,
   scanCount,
@@ -174,6 +175,8 @@ export function WatchDetail({
   cycleStatus: string | null;
   datesFailed: string[];
   today: string;
+  /** Hours until the booked departure, from the server clock. Null when unknown. */
+  hoursToDeparture: number | null;
   moves: BoardMove[];
   alerts: Array<{ id: string; subject: string; createdAt: string }>;
   scanCount: number;
@@ -328,11 +331,24 @@ export function WatchDetail({
   const drops = cheaperCount(ranked);
   const daysLeft = dateOffsetDays(today, watch.desiredTravelDate);
   const urgency = travelUrgency(daysLeft);
-  /* Day granularity, from the date the server resolved, not from a clock read
-     during render — that is the hydration bug fixed in RelativeTime, and it
-     would be the same bug here. Good enough for the wait-or-book call, whose
-     only threshold is "inside a day". */
-  const hoursToDeparture = Number.isFinite(daysLeft) ? Math.max(0, daysLeft) * 24 : null;
+  /* The real number of hours when the traveler named their train.
+   *
+   * This was `Math.max(0, daysLeft) * 24`, and the comment defending it said
+   * the wait-or-book call has one threshold, "inside a day". It has two —
+   * IMMINENT_HOURS 24 and DISTANT_HOURS 72 — and day granularity moves both
+   * by up to 23 hours. A watch one day out reports 24h and trips "your train
+   * is within a day" even when the departure is 47 hours away, and a watch
+   * three days out reports exactly 72h and fails `> DISTANT_HOURS` when the
+   * real figure is 95.
+   *
+   * bookedDepartureAt is the instant they gave us. When it is absent this
+   * still falls back to whole days, because an invented precision is worse
+   * than an honest coarseness — but it no longer pretends the coarse one is
+   * exact. The value is computed on the server for the same reason `today`
+   * is: a clock read during render is the hydration bug RelativeTime exists
+   * to avoid. */
+  const hoursToDeparture =
+    exactHoursToDeparture ?? (Number.isFinite(daysLeft) ? Math.max(0, daysLeft) * 24 : null);
   const remaining = monitorRemaining(watch.monitorEndAt);
   const maxDuration = Math.max(
     1,
