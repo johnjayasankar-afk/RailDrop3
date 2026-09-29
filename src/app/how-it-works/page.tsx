@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PageFrame } from "@/components/page-frame";
 import { getSessionUser } from "@/lib/auth/session";
+import { cadenceSentence } from "@/lib/domain/cadence";
 import { STATION_BY_CODE } from "@/lib/stations/catalog";
 import { unmappedStationCodes } from "@/lib/stations/coverage";
 import { WANDERU_STATION_IDS } from "@/lib/providers/wanderu-station-map";
@@ -61,9 +62,11 @@ export default async function HowItWorksPage() {
 
         <Section title="How often we look">
           <p>
-            Three times a day — morning, afternoon and evening in the timezone of your trip — for as
-            long as your monitoring window runs, plus once immediately when you create the watch.
-            The window is your travel date give or take a day by default.
+            {/* Derived, not typed. This paragraph said "three times a day" while
+                vercel.json shipped a single cron, on the page that exists to
+                state our method in words someone could hold us to. */}
+            {cadenceSentence()} For as long as your monitoring window runs, plus once immediately
+            when you create the watch. The window is your travel date give or take a day by default.
           </p>
           <p>
             When two people watch the same route on the same date, we look once and share the

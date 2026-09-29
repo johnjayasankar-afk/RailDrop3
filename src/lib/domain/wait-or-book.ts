@@ -26,6 +26,7 @@
 import type { FareHistory } from "./fare-history";
 import { recentDirection, volatility } from "./fare-history";
 import { corridorEvidence, fareStanding, type CorridorStats } from "./corridor-stats";
+import { holdPromise } from "./cadence";
 
 export type Call = "BOOK_NOW" | "HOLD" | "WATCH_CLOSELY";
 export type Confidence = "low" | "moderate" | "high";
@@ -186,7 +187,13 @@ export function waitOrBook(input: WaitOrBookInput): WaitOrBook {
     return {
       call: "WATCH_CLOSELY",
       label: "Unsettled — watch it",
-      reason: `This corridor has been moving a lot: we have seen it between ${usd(history.lowest!.cents)} and ${usd(history.highest!.cents)}. ${usd(net)} is available now. If you can hold, we check three times a day and will write the moment it drops.`,
+      /* This branch tells someone it is safe to leave money on the table,
+         and it used to justify that with "we check three times a day and
+         will write the moment it drops". The deployment runs one scheduled
+         check a day, so both halves were false: a drop that comes and goes
+         between wakes is one we never see, and "the moment" is up to
+         twenty-four hours. holdPromise says whichever of those is true. */
+      reason: `This corridor has been moving a lot: we have seen it between ${usd(history.lowest!.cents)} and ${usd(history.highest!.cents)}. ${usd(net)} is available now. ${holdPromise()}`,
       confidence: evidence.confidence,
       basis: evidence.basis,
     };

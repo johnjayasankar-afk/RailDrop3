@@ -197,3 +197,131 @@ describe("dispatch at scale", () => {
     expect(lightChecked).toBeGreaterThanOrEqual(9);
   });
 });
+
+/* The travelers the only cron of the day never reached.
+ *
+ * vercel.json ships one cron, at 12:05 UTC, because one run a day is the Hobby
+ * limit. `dueSlotsAt` answers "which of the 8am/2pm/8pm slots are in the past
+ * where this traveler is" — the right question for a deployment that wakes
+ * several times a day, and the wrong one for a deployment that wakes once.
+ *
+ * 12:05 UTC is 08:05 in New York, so an Eastern watch just clears its morning
+ * slot. It is 07:05 in Chicago, 06:05 in Denver, 05:05 in Los Angeles, 04:05
+ * in Anchorage — before every slot. So for every traveler outside Eastern time
+ * the enqueue loop pushed nothing, on the only occasion all day that anything
+ * asks, and the watch was never checked again after the scan that created it.
+ *
+ * Not "checked less often than promised". Never checked. Meanwhile
+ * how-it-works says "Three times a day — morning, afternoon and evening in the
+ * timezone of your trip", and wait-or-book tells them "if you can hold, we
+ * check three times a day and will write the moment it drops."
+ *
+ * The file's own dispatcher already states the principle: "a traveler who is
+ * never checked at all is failed in a way that a traveler who gets two of
+ * their three slots is not."
+ */
+describe("the one wake of the day reaches every timezone", () => {
+  const ZONES = [
+    "America/New_York",
+    "America/Chicago",
+    "America/Denver",
+    "America/Los_Angeles",
+    "America/Anchorage",
+    "Pacific/Honolulu",
+  ];
+
+  async function seedAcrossZones(repo: MemoryRepository) {
+    const provider = new FixtureFareProvider();
+    for (const timezone of ZONES) {
+      await createWatchAndScan({
+        userId: `traveler-${timezone}`,
+        email: `${timezone.replace(/\W/g, "-")}@example.com`,
+        body: {
+          originCode: "BOS",
+          destinationCode: "NYP",
+          desiredTravelDate: "2026-09-20",
+          dateFlexibilityDays: 1,
+          currentBookedPriceCents: 12800,
+          timezone,
+        },
+        repo,
+        provider,
+        mailer: new RecordingMailer(),
+        now: CREATED_AT,
+      });
+    }
+  }
+
+  it("checks a watch in every timezone, not only Eastern", async () => {
+    const repo = new MemoryRepository();
+    await seedAcrossZones(repo);
+    const provider = new FixtureFareProvider();
+
+    // The actual deployed cron time, on a day inside the monitor window. The
+    // first version of this test used 2026-09-08, three days after creation,
+    // by which point the default 72h preset had completed every watch — so
+    // listActiveWatches returned nothing and "nobody was missed" was true of
+    // an empty set. A vacuous pass is the failure mode this whole file exists
+    // to prevent, so the count is asserted before the absence is.
+    const wake = new Date("2026-09-06T12:05:00.000Z");
+    await dispatchScheduledChecks({
+      repo,
+      now: wake,
+      invokeWorker: async (job) => {
+        await runLeasedWatch({
+          repo,
+          provider,
+          mailer: new RecordingMailer(),
+          watchId: job.watchId,
+          runId: job.runId,
+          now: wake,
+        });
+      },
+    });
+
+    const watches = await repo.listActiveWatches();
+    expect(watches).toHaveLength(ZONES.length);
+
+    const checked = await checkedWatchIds(repo);
+    const missed = watches
+      .filter((watch) => !checked.has(watch.id))
+      .map((watch) => watch.timezone)
+      .sort();
+    // Before the fix this was every zone except America/New_York.
+    expect(missed).toEqual([]);
+  });
+
+  it("does not check the same watch twice in one local day", async () => {
+    const repo = new MemoryRepository();
+    await seedAcrossZones(repo);
+    const provider = new FixtureFareProvider();
+
+    // Two wakes an hour apart. The second must find everything settled: an
+    // early booking is a substitute for the slot, not an extra check.
+    let ran = 0;
+    for (const wake of [
+      new Date("2026-09-06T12:05:00.000Z"),
+      new Date("2026-09-06T13:05:00.000Z"),
+    ]) {
+      await dispatchScheduledChecks({
+        repo,
+        now: wake,
+        invokeWorker: async (job) => {
+          ran += 1;
+          await runLeasedWatch({
+            repo,
+            provider,
+            mailer: new RecordingMailer(),
+            watchId: job.watchId,
+            runId: job.runId,
+            now: wake,
+          });
+        },
+      });
+    }
+
+    // Six watches, six runs — not twelve. Honolulu is still before its morning
+    // slot on the second wake, and must not be booked a second time.
+    expect(ran).toBe(ZONES.length);
+  });
+});

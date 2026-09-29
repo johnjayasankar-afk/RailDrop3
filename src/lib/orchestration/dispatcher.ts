@@ -119,14 +119,49 @@ export async function dispatchScheduledChecks(input: {
       completed += 1;
       continue;
     }
-    for (const slot of dueSlotsAt(now, watch.timezone)) {
-      due.push({
-        watchId: watch.id,
-        userId: watch.userId,
-        slot: slot.slot,
-        localDate: slot.localDate,
-      });
+    const past = dueSlotsAt(now, watch.timezone);
+    if (past.length > 0) {
+      for (const slot of past) {
+        due.push({
+          watchId: watch.id,
+          userId: watch.userId,
+          slot: slot.slot,
+          localDate: slot.localDate,
+        });
+      }
+      continue;
     }
+
+    /* Nothing has come due in this traveler's day yet — so look anyway.
+     *
+     * `dueSlotsAt` answers "which of the 8am/2pm/8pm slots are in the past
+     * where this traveler is", which is the right question for a deployment
+     * that wakes several times a day. This one wakes once: vercel.json ships a
+     * single cron at 12:05 UTC, because that is the Hobby limit.
+     *
+     * 12:05 UTC is 08:05 in New York, so an Eastern watch just clears its
+     * morning slot. It is 07:05 in Chicago, 06:05 in Denver, 05:05 in Los
+     * Angeles — before every slot. So for every traveler outside Eastern time
+     * this loop pushed nothing, on the only occasion all day that anything
+     * asks, and the watch was never checked again after the scan that created
+     * it. Not "checked less often". Never.
+     *
+     * The comment forty lines below already states the principle this
+     * violated: "a traveler who is never checked at all is failed in a way
+     * that a traveler who gets two of their three slots is not."
+     *
+     * So a wake that finds nothing due still books the traveler's next slot.
+     * Checking someone three hours early is a smaller error than the one it
+     * replaces by an infinite margin, and once the run is recorded the
+     * `settled` filter below stops a later wake from repeating it — so a
+     * deployment that does wake three times still spends one slot per slot. */
+    const next = nextSlotAfter(now, watch.timezone);
+    due.push({
+      watchId: watch.id,
+      userId: watch.userId,
+      slot: next.slot,
+      localDate: next.localDate,
+    });
   }
 
   // Drop slots that are already settled, or genuinely being worked on right

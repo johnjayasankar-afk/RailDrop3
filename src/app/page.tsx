@@ -4,6 +4,7 @@ import { JsonLd } from "@/components/json-ld";
 import { RouteRibbon } from "@/components/route-ribbon";
 import { Flap } from "@/components/flap";
 import { getSessionUser } from "@/lib/auth/session";
+import { cadencePhrase } from "@/lib/domain/cadence";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,7 @@ const FAQ = [
   ],
   [
     "How often do you check?",
-    "Immediately when you create a watch, then morning / afternoon / evening. Press C to recheck now.",
+    `Immediately when you create a watch, then ${cadencePhrase()} for as long as you are watching. Press C to recheck now.`,
   ],
   [
     "If I already booked a specific train?",
