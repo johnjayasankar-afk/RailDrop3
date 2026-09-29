@@ -78,6 +78,24 @@ async function collect(page: Page): Promise<Omit<Finding, "page" | "width">[]> {
       ) {
         continue;
       }
+      /* Text removed from the accessibility tree is not text a reader is
+         asked to read.
+         
+         The split-flap stacks four clipped copies of the same glyph — the new
+         top half, the old bottom half, and the two leaves that rotate between
+         them — so a departure board legitimately reports three overlaps per
+         character cell, which is 60 findings on one page and an audit nobody
+         looks at again. The mechanism sits inside aria-hidden with the real
+         text beside it in an sr-only span, so nothing here is hidden from
+         anyone; it is the same string, painted four times, to make an object
+         look like it turns.
+         
+         This is a genuine loosening and it is worth naming: content wrongly
+         marked aria-hidden now escapes the overlap check. That is a different
+         bug — invisible-to-screen-readers content — and it wants a different
+         check, not this one reporting it as a collision. The unnamed-control
+         sweep below is untouched. */
+      if (el.closest('[aria-hidden="true"]')) continue;
       const owns = Array.from(el.childNodes).some(
         (node) => node.nodeType === 3 && (node.textContent ?? "").trim().length > 1,
       );

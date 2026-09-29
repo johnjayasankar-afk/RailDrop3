@@ -291,6 +291,52 @@ describe("the one wake of the day reaches every timezone", () => {
     expect(missed).toEqual([]);
   });
 
+  it("checks an Eastern watch in January, when the cron lands before its morning slot", async () => {
+    /* Daylight saving makes this worse than it first looks. 12:05 UTC is 08:05
+       in New York in July and 07:05 in January, and the morning slot is 08:00
+       — so from November to March dueSlotsAt returned nothing for EVERY US
+       timezone, and the scheduled check did nothing at all for anybody, for
+       five months of the year. */
+    const repo = new MemoryRepository();
+    const provider = new FixtureFareProvider();
+    await createWatchAndScan({
+      userId: "winter",
+      email: "winter@example.com",
+      body: {
+        originCode: "BOS",
+        destinationCode: "NYP",
+        desiredTravelDate: "2026-02-01",
+        dateFlexibilityDays: 1,
+        currentBookedPriceCents: 12800,
+        timezone: "America/New_York",
+      },
+      repo,
+      provider,
+      mailer: new RecordingMailer(),
+      now: new Date("2026-01-14T02:00:00.000Z"),
+    });
+
+    const wake = new Date("2026-01-15T12:05:00.000Z");
+    await dispatchScheduledChecks({
+      repo,
+      now: wake,
+      invokeWorker: async (job) => {
+        await runLeasedWatch({
+          repo,
+          provider,
+          mailer: new RecordingMailer(),
+          watchId: job.watchId,
+          runId: job.runId,
+          now: wake,
+        });
+      },
+    });
+
+    const watches = await repo.listActiveWatches();
+    expect(watches).toHaveLength(1);
+    expect(await checkedWatchIds(repo)).toHaveProperty("size", 1);
+  });
+
   it("does not check the same watch twice in one local day", async () => {
     const repo = new MemoryRepository();
     await seedAcrossZones(repo);
