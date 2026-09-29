@@ -46,12 +46,29 @@ export function StationField({
   /** Coverage of the station currently chosen, kept after the list closes. */
   const [chosen, setChosen] = useState<Coverage | null>(null);
   const lastValue = useRef(value);
+  /** The last code this field itself sent up, so its echo is not typed back. */
+  const pushedRef = useRef<string | null>(null);
   const root = useRef<HTMLLabelElement>(null);
   const listId = useId();
 
+  /* Only when the value changed from OUTSIDE the field.
+   *
+   * This echoed every value back into the visible text, including the one
+   * this field had just pushed up — so typing "phi" made the input snap to
+   * "PHI" mid-word, and typing the fourth letter dropped it back to "phil".
+   * The field rewrote what you were typing at exactly three characters and
+   * then undid it at four.
+   *
+   * Two different things were being conflated: a station CODE, which is
+   * always three uppercase letters, and a search QUERY, which is "Boston" or
+   * "philadelphia" or half of either. The code is what the parent gets and
+   * the code is uppercased; what a person typed is left exactly as they
+   * typed it. The swap button and a shared link still refill the field,
+   * because those genuinely are outside changes. */
   useEffect(() => {
     if (lastValue.current === value) return;
     lastValue.current = value;
+    if (pushedRef.current === value) return;
     setQuery(value);
     setResults([]);
   }, [value]);
@@ -94,6 +111,7 @@ export function StationField({
 
   function pick(station: Station) {
     lastValue.current = station.code;
+    pushedRef.current = station.code;
     onChange(station.code);
     setQuery(`${station.name} (${station.code})`);
     setResults([]);
@@ -134,7 +152,9 @@ export function StationField({
           setResults([]);
           setChosen(null);
           if (/^[A-Za-z]{3}$/.test(event.target.value)) {
-            onChange(event.target.value.toUpperCase());
+            const code = event.target.value.toUpperCase();
+            pushedRef.current = code;
+            onChange(code);
           }
         }}
         className="field"

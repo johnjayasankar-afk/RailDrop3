@@ -363,8 +363,8 @@ h2.serif {
   color: var(--ink);
   padding: 0.65rem 0.85rem;
   transition:
-    border-color 160ms ease,
-    box-shadow 160ms ease;
+    border-color var(--t-base) var(--ease-out),
+    box-shadow var(--t-base) var(--ease-out);
   accent-color: var(--forest-2);
 }
 
@@ -387,12 +387,10 @@ h2.serif {
   font-size: 0.875rem;
   font-weight: 500;
   letter-spacing: -0.012em;
-  transition:
-    transform 240ms var(--ease),
-    box-shadow 240ms var(--ease),
-    background-color 160ms ease,
-    border-color 160ms ease,
-    color 160ms ease;
+  /* No transition here. The Buttons layer further down declares one at equal
+     specificity and later, so this one never applied — it named --ease where
+     that one names --ease-out, which is how two vocabularies stayed alive
+     without either being chosen. */
 }
 
 .btn:hover:not(:disabled) {
@@ -450,9 +448,9 @@ h2.serif {
   cursor: pointer;
   color: var(--ink);
   transition:
-    border-color 160ms ease,
-    background-color 160ms ease,
-    color 160ms ease;
+    border-color var(--t-base) var(--ease-out),
+    background-color var(--t-base) var(--ease-out),
+    color var(--t-base) var(--ease-out);
 }
 
 .choice input[type="radio"],
@@ -661,9 +659,9 @@ input[type="radio"] {
   color: var(--ink);
   background: var(--paper-elevated);
   transition:
-    border-color 120ms ease,
-    background-color 120ms ease,
-    color 120ms ease;
+    border-color var(--t-fast) var(--ease-out),
+    background-color var(--t-fast) var(--ease-out),
+    color var(--t-fast) var(--ease-out);
 }
 
 /* Authored against a white chip. Over the chip's own #121a15 it composites to
@@ -784,8 +782,8 @@ div.chip {
 
 .ticket-hover {
   transition:
-    transform 240ms var(--ease),
-    box-shadow 240ms var(--ease);
+    transform var(--t-base) var(--ease),
+    box-shadow var(--t-base) var(--ease);
 }
 
 .ticket-hover:hover {
@@ -1186,7 +1184,7 @@ kbd {
   color: var(--board-ink);
   cursor: pointer;
   overflow: visible;
-  transition: box-shadow 160ms ease;
+  transition: box-shadow var(--t-base) var(--ease-out);
 }
 
 .date-card .eyebrow {
@@ -1667,8 +1665,8 @@ kbd {
   cursor: pointer;
   text-align: left;
   transition:
-    transform 240ms var(--ease),
-    border-color 160ms ease;
+    transform var(--t-base) var(--ease),
+    border-color var(--t-base) var(--ease-out);
 }
 
 .pick-card:hover {
@@ -2657,8 +2655,8 @@ a.depart-strip:hover {
 .date-card,
 .beats {
   transition:
-    transform 240ms var(--ease),
-    box-shadow 240ms var(--ease);
+    transform var(--t-base) var(--ease),
+    box-shadow var(--t-base) var(--ease);
 }
 
 @media (hover: hover) {
@@ -2858,8 +2856,8 @@ a.depart-strip:hover {
     inset 0 1px 0 rgba(255, 255, 255, 0.16),
     0 6px 16px -8px rgba(19, 36, 27, 0.6);
   transition:
-    transform 240ms var(--ease),
-    box-shadow 240ms var(--ease);
+    transform var(--t-base) var(--ease),
+    box-shadow var(--t-base) var(--ease);
 }
 
 .nav-watch:hover {
@@ -3553,8 +3551,8 @@ a.depart-strip:hover {
   color: var(--ink-soft);
   cursor: pointer;
   transition:
-    color 120ms var(--ease),
-    background 120ms var(--ease);
+    color var(--t-fast) var(--ease),
+    background var(--t-fast) var(--ease);
 }
 
 .theme-toggle button:hover {
@@ -3934,9 +3932,9 @@ a.depart-strip:hover {
   text-align: left;
   cursor: pointer;
   transition:
-    border-color 160ms var(--ease),
-    background 160ms var(--ease),
-    transform 160ms var(--ease);
+    border-color var(--t-base) var(--ease),
+    background var(--t-base) var(--ease),
+    transform var(--t-base) var(--ease);
 }
 
 .assistant-chip:hover {
@@ -4024,7 +4022,7 @@ a.depart-strip:hover {
   color: var(--ink);
   padding: 0.6rem 0.8rem;
   font-size: 0.9rem;
-  transition: border-color 160ms var(--ease);
+  transition: border-color var(--t-base) var(--ease);
 }
 
 .assistant-input:focus {
@@ -4043,7 +4041,7 @@ a.depart-strip:hover {
   font-size: 0.88rem;
   font-weight: 600;
   cursor: pointer;
-  transition: opacity 160ms var(--ease);
+  transition: opacity var(--t-base) var(--ease);
 }
 
 .assistant-send:disabled {
@@ -4222,8 +4220,8 @@ a.depart-strip:hover {
   font-variant-numeric: tabular-nums;
   cursor: pointer;
   transition:
-    background 120ms var(--ease),
-    border-color 120ms var(--ease);
+    background var(--t-fast) var(--ease),
+    border-color var(--t-fast) var(--ease);
 }
 
 .datefield-day:hover:not(:disabled) {
@@ -4297,7 +4295,6 @@ a.depart-strip:hover {
 
   /* Springy enough to feel responsive, short enough never to be in the way. */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
   --t-fast: 120ms;
   --t-base: 190ms;
   --t-slow: 320ms;
@@ -6462,4 +6459,158 @@ select.field {
 
 .board-cell-meta .legs {
   margin: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOTION — one vocabulary, and things that leave
+   ───────────────────────────────────────────────────────────────────────────
+   Measured before this: 18 distinct transition durations, including 165, 168,
+   170, 190 and 192ms. Nobody can tell those apart; what they communicate is
+   that each was chosen at the moment its rule was written. Two easing
+   vocabularies coexisted — `--ease` and `--ease-out`, plus 37 bare `ease` and
+   23 bare `ease-out` keywords — and `--ease-spring` was declared once and
+   used nowhere. `.btn` declared `transition` twice, so the first block's
+   240ms transform had never once run.
+
+   Three durations now, and they mean things rather than being taste:
+
+     --t-fast   a state change on something under the cursor
+     --t-base   something arriving or leaving
+     --t-slow   something large moving across the page
+
+   And one easing. Everything decelerates into place on --ease-out; --ease
+   is kept as an alias of it rather than as a second opinion, because twenty
+   rules still name it and aliasing proves the point at a fifth of the diff.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* No --ease-in. I declared one for exits, then found the five overlays it
+     was for are unmounted rather than hidden and removed the exits — which
+     left the token in exactly the state --ease-spring had been in since the
+     ELEVATION layer was written: declared, never applied, a decision nobody
+     made. The test below now fails on either. It comes back with the first
+     real exit. */
+  /* Retired as an independent value. It survives as a name because twenty
+     rules still say it, and aliasing is a smaller change than touching all
+     twenty to prove the same point. */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── Things arrive from somewhere ───────────────────────────────────────────
+   Every overlay in this app appeared on a frame — the share sheet, a toast,
+   the station list, the calendar, the shortcut card. A panel that is simply
+   present reads as a repaint rather than as an object, which is the same
+   absence of a light model the MATERIAL layer was about, in time instead of
+   space.
+
+   @starting-style gives an element a state to come FROM, which is the one
+   thing CSS could never express before: there was no way to say "this was
+   transparent and four pixels high the instant before it existed".
+
+   Not exits, and it is worth being exact about why. All five of these are
+   conditionally rendered — `{shareOpen ? <ShareSheet /> : null}` — so React
+   removes the node rather than hiding it, and there is nothing left to
+   transition. `transition-behavior: allow-discrete` would animate a
+   `display` change and is inert against an unmount, so it is not here
+   pretending otherwise. Giving these real exits means keeping them mounted
+   through their own leave state, which is a change to five components rather
+   than to this stylesheet, and it is not done. */
+
+.share-sheet,
+.board-toast,
+.station-list,
+.datefield-pop,
+.help-card {
+  transition:
+    opacity var(--t-base) var(--ease-out),
+    transform var(--t-base) var(--ease-out);
+}
+
+@starting-style {
+  .share-sheet,
+  .board-toast,
+  .station-list,
+  .datefield-pop,
+  .help-card {
+    opacity: 0;
+    transform: translateY(-0.4rem);
+  }
+}
+
+/* ── Reduced motion, in one place ───────────────────────────────────────────
+   There were ten separate `prefers-reduced-motion: reduce` blocks, each with
+   a hand-written selector list, so every new animation had to remember to add
+   itself to one of them — and the split-flap, the scan line and the rail
+   condense each had to be told separately. The ones below still exist where
+   they set a different RESTING state rather than merely stopping; this is
+   the backstop that cannot be forgotten, and it is last so it wins.
+
+   1ms rather than 0: an animation with no duration never fires animationend,
+   and anything waiting on that would hang. `both` fill means each one lands
+   on its final frame, which is the state the design already treats as "at
+   rest". */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAST MILE — the parts a reader never names and always notices
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Selection, on the board as well as the page.
+   One ::selection rule existed, written in page ink — so dragging across the
+   timetable, which is near-black with pale text, painted a mint wash under
+   text that then had nothing to contrast with. A dark surface needs its own. */
+.timetable ::selection,
+.trip-rail ::selection,
+.verdict ::selection,
+.ticket-hero ::selection,
+.date-card ::selection {
+  background: color-mix(in srgb, var(--mint-3) 55%, transparent);
+  color: var(--board-ink);
+}
+
+/* The scrollbar is part of the page.
+   Only the dock hid one; everywhere else the browser drew its own, which on
+   a near-black page is a pale grey bar down the side of an instrument. */
+@supports (scrollbar-color: auto) {
+  html {
+    scrollbar-color: color-mix(in srgb, var(--ink) 28%, transparent) transparent;
+    scrollbar-width: thin;
+  }
+}
+
+/* A focus ring that is legible on both surfaces.
+   The one ring was --forest-2, which is a mid green: on the near-black board
+   it is barely a ring at all. The outer white keeps it visible on any fill,
+   which is the trick a single colour cannot do. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--mint-3);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--mint-3) 22%, transparent);
+}
+
+/* Underlines that clear their descenders. A link with the line through the
+   tail of a "g" is the oldest tell that nobody looked. */
+:where(main, footer) a:not(.btn):not(.chip):not(.nav-watch) {
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: from-font;
+}
+
+/* Tabular figures never reflow mid-update.
+   The board clock and the elapsed counter re-render every second; without
+   this the row jitters as glyph widths change under it. */
+.readout,
+.hud-value,
+.ladder-end,
+.board-cell-price,
+.board-cell-save {
+  font-variant-numeric: tabular-nums slashed-zero;
 }

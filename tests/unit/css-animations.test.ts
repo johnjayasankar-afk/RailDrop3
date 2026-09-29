@@ -159,3 +159,62 @@ describe("every rotateX has perspective above it", () => {
     expect(ruleFor(".definitely-not-a-selector")).toBeNull();
   });
 });
+
+/* One motion vocabulary.
+ *
+ * Measured before this: 18 distinct transition durations, including 165, 168,
+ * 170, 190 and 192ms. Nobody can tell those apart — what they communicate is
+ * that each was picked at the moment its rule was written. Two easing
+ * vocabularies coexisted, `--ease` and `--ease-out`, plus 37 bare `ease` and
+ * 23 bare `ease-out` keywords, and `--ease-spring` was declared once and used
+ * nowhere. `.btn` declared `transition` twice, so the first block's 240ms
+ * transform had never run.
+ *
+ * Rendered, the page now reports two distinct transition durations where it
+ * reported eighteen. This asserts the source, so the next hand-picked 170ms
+ * fails here rather than being noticed by nobody.
+ */
+describe("transitions use the scale", () => {
+  const TRANSITIONS = [...CODE.matchAll(/\btransition(?:-duration)?:([^;{}]*);/g)].map(
+    (m) => m[1]!,
+  );
+
+  it("finds the transitions it is checking", () => {
+    expect(TRANSITIONS.length).toBeGreaterThan(20);
+  });
+
+  it("has no hand-picked duration left", () => {
+    const literal = TRANSITIONS.flatMap((body) => {
+      const found = [...body.matchAll(/\b\d{2,4}ms\b/g)].map((m) => m[0]);
+      return found.map((d) => `${d} in "transition:${body.trim().slice(0, 52)}"`);
+    });
+    expect(
+      literal.length === 0 ? [] : literal.concat("Use --t-fast, --t-base or --t-slow."),
+    ).toEqual([]);
+  });
+
+  it("has no bare easing keyword left", () => {
+    const bare = TRANSITIONS.filter((body) =>
+      /(?<![-\w(])(ease|ease-in|ease-out|ease-in-out)(?![-\w(])/.test(body),
+    ).map((body) => `transition:${body.trim().slice(0, 56)}`);
+    expect(bare.length === 0 ? [] : bare.concat("Use --ease-out or --ease-in.")).toEqual([]);
+  });
+
+  it("declares no easing token it never uses", () => {
+    // --ease-spring was declared once and used nowhere for as long as the
+    // ELEVATION layer existed. A token nobody applies is a decision nobody made.
+    const declared = [...CODE.matchAll(/--(ease[\w-]*):/g)].map((m) => m[1]!);
+    const unused = [...new Set(declared)].filter((name) => !CODE.includes(`var(--${name})`));
+    expect(unused).toEqual([]);
+  });
+
+  it("has one reduced-motion backstop that cannot be forgotten", () => {
+    /* There were ten hand-maintained `prefers-reduced-motion` selector lists,
+       so every new animation had to remember to add itself to one. The
+       blanket rule is what makes that unnecessary; the specific blocks that
+       remain set a different resting state rather than merely stopping. */
+    expect(CODE).toMatch(
+      /@media \(prefers-reduced-motion: reduce\) \{\s*\*,\s*\*::before,\s*\*::after \{/,
+    );
+  });
+});
