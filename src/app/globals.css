@@ -295,7 +295,7 @@ h2.serif {
 }
 
 .brand-lockup .serif {
-  font-size: 1.1rem;
+  font-size: var(--step-1);
   font-weight: 600;
   letter-spacing: var(--track-display);
 }
@@ -386,7 +386,7 @@ h2.serif {
   gap: var(--sp-2);
   padding: var(--sp-2-5) var(--sp-5);
   border-radius: var(--r-pill);
-  font-size: 0.875rem;
+  font-size: var(--step--1);
   font-weight: 500;
   letter-spacing: var(--track-tight);
   /* No transition here. The Buttons layer further down declares one at equal
@@ -600,7 +600,7 @@ input[type="radio"] {
 
 .kicker {
   font-family: var(--font-code);
-  font-size: 0.72rem;
+  font-size: var(--step--2);
   font-weight: 500;
   letter-spacing: var(--track-label);
   text-transform: uppercase;
@@ -609,7 +609,7 @@ input[type="radio"] {
 
 .eyebrow {
   font-family: var(--font-code);
-  font-size: 0.66rem;
+  font-size: var(--step--3);
   letter-spacing: var(--track-label);
   text-transform: uppercase;
   color: var(--ink-soft);
@@ -620,7 +620,7 @@ input[type="radio"] {
   flex-wrap: wrap;
   gap: var(--sp-1-5) var(--sp-4);
   margin-top: 0.85rem;
-  font-size: 0.75rem;
+  font-size: var(--step--2);
 }
 
 .quiet-row button,
@@ -654,7 +654,7 @@ input[type="radio"] {
   border-radius: var(--r-pill);
   padding: var(--sp-1) var(--sp-2-5);
   font-family: var(--font-code);
-  font-size: 0.68rem;
+  font-size: var(--step--2);
   font-weight: 500;
   letter-spacing: var(--track-code);
   text-transform: uppercase;
@@ -844,13 +844,13 @@ kbd {
   background: var(--paper-elevated);
   padding: var(--sp-0-5) var(--sp-1-5);
   font-family: var(--font-code);
-  font-size: 0.72rem;
+  font-size: var(--step--2);
 }
 
 .legs {
   margin-top: 0.5rem;
   padding-left: var(--sp-4);
-  font-size: 0.75rem;
+  font-size: var(--step--2);
   color: var(--ink-soft);
 }
 
@@ -909,7 +909,7 @@ kbd {
   content: "+";
   flex-shrink: 0;
   font-family: var(--font-code);
-  font-size: 1rem;
+  font-size: var(--step-0);
   color: var(--forest-2);
   line-height: 1;
 }
@@ -922,7 +922,7 @@ kbd {
   margin-top: 0.5rem;
   max-width: 46rem;
   color: var(--ink-soft);
-  font-size: 0.92rem;
+  font-size: var(--step-0);
   line-height: 1.6;
 }
 
@@ -1074,14 +1074,14 @@ kbd {
 
 .dock-compare-toggle .dock-compare-summary {
   min-width: 0;
-  font-size: 0.8rem;
+  font-size: var(--step--1);
   opacity: 0.92;
 }
 
 .dock-compare-toggle .dock-compare-action {
   flex-shrink: 0;
   font-family: var(--font-code);
-  font-size: 0.7rem;
+  font-size: var(--step--2);
   letter-spacing: var(--track-label);
   text-transform: uppercase;
   color: var(--mint-2);
@@ -1121,7 +1121,7 @@ kbd {
   }
 
   .live-compare .price.serif.text-2xl {
-    font-size: 1.35rem;
+    font-size: var(--step-1);
   }
 }
 
@@ -1175,7 +1175,7 @@ kbd {
 
 .live-hint {
   padding: var(--sp-3) var(--sp-4) 0;
-  font-size: 0.75rem;
+  font-size: var(--step--2);
   color: var(--ink-soft);
 }
 
@@ -1266,7 +1266,7 @@ kbd {
 }
 
 .route-ribbon-compact .station-code {
-  font-size: 0.8rem;
+  font-size: var(--step--1);
 }
 
 .route-track {
@@ -1313,7 +1313,7 @@ kbd {
 
 .board-index {
   font-family: var(--font-code);
-  font-size: 0.65rem;
+  font-size: var(--step--3);
   letter-spacing: var(--track-label);
   color: var(--ink-soft);
 }
@@ -1695,7 +1695,7 @@ kbd {
   gap: var(--sp-4);
   padding: var(--sp-2) var(--sp-5) var(--sp-1-5);
   font-family: var(--font-code);
-  font-size: 0.62rem;
+  font-size: var(--step--3);
   letter-spacing: var(--track-label);
   text-transform: uppercase;
   color: var(--board-mute);
@@ -1735,7 +1735,7 @@ kbd {
 
 .board-mobile-label {
   font-family: var(--font-code);
-  font-size: 0.62rem;
+  font-size: var(--step--3);
   letter-spacing: var(--track-label);
   text-transform: uppercase;
   color: var(--ink-soft);
@@ -1861,7 +1861,7 @@ kbd {
   .board-head {
     padding: var(--sp-2-5) var(--sp-4);
     font-family: var(--font-code);
-    font-size: 0.62rem;
+    font-size: var(--step--3);
     letter-spacing: var(--track-label);
     text-transform: uppercase;
     color: var(--ink-soft);
@@ -1946,7 +1946,7 @@ kbd {
   top: 0;
   transform: translateX(-50%);
   font-family: var(--font-code);
-  font-size: 0.62rem;
+  font-size: var(--step--3);
   letter-spacing: var(--track-label);
   text-transform: uppercase;
   color: var(--rail);
@@ -2070,7 +2070,7 @@ kbd {
   background: var(--board-face);
   color: var(--board-ink);
   box-shadow: inset 0 -0.55em 0 rgba(0, 0, 0, 0.22);
-  font-size: 1.05rem;
+  font-size: var(--step-0);
 }
 
 .depart-strip.is-zen {
@@ -2167,7 +2167,7 @@ a.depart-strip:hover {
 .filter-label {
   min-width: 2.8rem;
   font-family: var(--font-code);
-  font-size: 0.62rem;
+  font-size: var(--step--3);
   letter-spacing: var(--track-label);
   text-transform: uppercase;
   color: var(--ink-soft);
@@ -2251,7 +2251,7 @@ a.depart-strip:hover {
 
 .hud-label {
   font-family: var(--font-code);
-  font-size: 0.6rem;
+  font-size: var(--step--3);
   font-weight: 500;
   letter-spacing: var(--track-caps);
   text-transform: uppercase;
@@ -2263,7 +2263,7 @@ a.depart-strip:hover {
   display: inline-flex;
   align-items: baseline;
   gap: var(--sp-1-5);
-  font-size: 0.92rem;
+  font-size: var(--step-0);
   line-height: 1;
   white-space: nowrap;
 }
@@ -2272,7 +2272,7 @@ a.depart-strip:hover {
    scan as a pair of labels rather than two short syllables. */
 .hud-code {
   font-family: var(--font-code);
-  font-size: 0.95rem;
+  font-size: var(--step-0);
   font-weight: 500;
   letter-spacing: var(--track-code);
 }
@@ -2304,7 +2304,7 @@ a.depart-strip:hover {
 
 .hud-flex {
   font-family: var(--font-code);
-  font-size: 0.68rem;
+  font-size: var(--step--2);
   font-style: normal;
   letter-spacing: var(--track-code);
   opacity: 0.62;
@@ -2312,7 +2312,7 @@ a.depart-strip:hover {
 
 .hud-money {
   gap: 0.04em;
-  font-size: 1.3rem;
+  font-size: var(--step-1);
   font-weight: 600;
   letter-spacing: var(--track-display);
 }
@@ -2321,14 +2321,14 @@ a.depart-strip:hover {
    alignment, lighter — so the eye can compare the two figures without being
    told which one to read first. */
 .hud-money.is-benchmark {
-  font-size: 1.05rem;
+  font-size: var(--step-0);
   font-weight: 500;
   opacity: 0.6;
 }
 
 .hud-delta {
   font-family: var(--font-sans);
-  font-size: 1.05rem;
+  font-size: var(--step-0);
   font-weight: 600;
   letter-spacing: var(--track-display);
   font-variant-numeric: tabular-nums slashed-zero;
@@ -2355,7 +2355,7 @@ a.depart-strip:hover {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-1-5);
-  font-size: 0.95rem;
+  font-size: var(--step-0);
   font-weight: 600;
   letter-spacing: var(--track-tight);
   line-height: 1.15;
@@ -2506,7 +2506,7 @@ a.depart-strip:hover {
   }
 
   .hud-money {
-    font-size: 1.15rem;
+    font-size: var(--step-1);
   }
 
   .trip-rail-tools {
@@ -2551,7 +2551,7 @@ a.depart-strip:hover {
 .trip-rail .flap {
   background: var(--board-face);
   color: var(--board-ink);
-  font-size: 0.78rem;
+  font-size: var(--step--1);
 }
 
 .trip-rail-tools {
@@ -2561,7 +2561,7 @@ a.depart-strip:hover {
   gap: var(--sp-3);
   margin-left: auto;
   font-family: var(--font-code);
-  font-size: 0.64rem;
+  font-size: var(--step--3);
   letter-spacing: var(--track-code);
   text-transform: uppercase;
 }
@@ -2617,7 +2617,7 @@ a.depart-strip:hover {
 
 .share-sheet button {
   font-family: var(--font-code);
-  font-size: 0.68rem;
+  font-size: var(--step--2);
   letter-spacing: var(--track-code);
   text-transform: uppercase;
   text-decoration: underline;
@@ -2816,7 +2816,7 @@ a.depart-strip:hover {
 
 .census > span > span:last-child {
   font-family: var(--font-code);
-  font-size: 0.62rem;
+  font-size: var(--step--3);
   letter-spacing: var(--track-label);
   text-transform: uppercase;
   opacity: 0.7;
@@ -2838,7 +2838,7 @@ a.depart-strip:hover {
 }
 
 .station-list .station-code {
-  font-size: 0.78rem;
+  font-size: var(--step--1);
 }
 
 #board,
@@ -3003,7 +3003,7 @@ a.depart-strip:hover {
    --drop is the palette's "this is not as good as it looks" tone. */
 .coverage-tag {
   font-family: var(--font-code), ui-monospace, monospace;
-  font-size: 0.58rem;
+  font-size: var(--step--3);
   letter-spacing: var(--track-caps);
   text-transform: uppercase;
   padding: var(--sp-0-5) var(--sp-1-5);
@@ -3019,7 +3019,7 @@ a.depart-strip:hover {
 
 .coverage-note {
   margin-top: 0.4rem;
-  font-size: 0.72rem;
+  font-size: var(--step--2);
   line-height: 1.45;
   color: var(--drop);
   padding-left: var(--sp-2);
@@ -3031,7 +3031,7 @@ a.depart-strip:hover {
    alert. Nothing is wrong; part of the link is simply older than the fares. */
 .board-note {
   margin-top: 0.6rem;
-  font-size: 0.78rem;
+  font-size: var(--step--1);
   line-height: 1.5;
   color: var(--ink-soft);
   padding-left: var(--sp-2-5);
@@ -3053,7 +3053,7 @@ a.depart-strip:hover {
   border-radius: var(--radius-sm);
   background: var(--paper-elevated);
   padding: var(--sp-3-5) var(--sp-4);
-  font-size: 0.8rem;
+  font-size: var(--step--1);
   line-height: 1.5;
   box-shadow: var(--sh-2);
 }
@@ -3067,7 +3067,7 @@ a.depart-strip:hover {
   background: var(--paper);
   padding: var(--sp-2) var(--sp-2-5);
   font-family: var(--font-code), ui-monospace, monospace;
-  font-size: 0.75rem;
+  font-size: var(--step--2);
   color: var(--ink);
 }
 
@@ -3078,7 +3078,7 @@ a.depart-strip:hover {
 
 /* The methodology page reads as prose, not as an interface. */
 .method-prose {
-  font-size: 0.95rem;
+  font-size: var(--step-0);
   line-height: 1.65;
 }
 
@@ -3152,7 +3152,7 @@ a.depart-strip:hover {
 
 .palette-prompt {
   font-family: var(--font-code);
-  font-size: 0.85rem;
+  font-size: var(--step--1);
   color: var(--gold);
 }
 
@@ -3163,7 +3163,7 @@ a.depart-strip:hover {
   background: transparent;
   color: var(--board-ink);
   font-family: var(--font-code);
-  font-size: 0.92rem;
+  font-size: var(--step-0);
   letter-spacing: var(--track-tight);
   outline: none;
 }
@@ -3190,7 +3190,7 @@ a.depart-strip:hover {
   border-radius: var(--r-well);
   padding: var(--sp-0-5) var(--sp-1-5);
   font-family: var(--font-code);
-  font-size: 0.68rem;
+  font-size: var(--step--2);
   line-height: 1.5;
   letter-spacing: var(--track-code);
   color: var(--board-ink);
@@ -3211,7 +3211,7 @@ a.depart-strip:hover {
   background: var(--board);
   padding: var(--sp-2) var(--sp-4) var(--sp-1);
   font-family: var(--font-code);
-  font-size: 0.64rem;
+  font-size: var(--step--3);
   letter-spacing: var(--track-caps);
   text-transform: uppercase;
   color: var(--gold);
@@ -3246,7 +3246,7 @@ a.depart-strip:hover {
 
 .palette-label {
   min-width: 0;
-  font-size: 0.88rem;
+  font-size: var(--step--1);
 }
 
 .palette-hit {
@@ -3257,13 +3257,13 @@ a.depart-strip:hover {
 
 .palette-why {
   color: var(--board-mute);
-  font-size: 0.78rem;
+  font-size: var(--step--1);
 }
 
 .palette-empty {
   padding: var(--sp-4) var(--sp-4);
   color: var(--board-mute);
-  font-size: 0.85rem;
+  font-size: var(--step--1);
   line-height: 1.5;
 }
 
@@ -3272,7 +3272,7 @@ a.depart-strip:hover {
   border-top: 1px solid var(--board-face);
   padding: var(--sp-2-5) var(--sp-4);
   color: var(--board-mute);
-  font-size: 0.72rem;
+  font-size: var(--step--2);
   line-height: 1.5;
 }
 
@@ -3280,7 +3280,7 @@ a.depart-strip:hover {
   border-radius: var(--r-well);
   padding: 0 var(--sp-1);
   font-family: var(--font-code);
-  font-size: 0.68rem;
+  font-size: var(--step--2);
   color: var(--board-ink);
 }
 
@@ -3305,7 +3305,7 @@ a.depart-strip:hover {
   border-radius: var(--r-well);
   padding: 0 var(--sp-1);
   font-family: var(--font-code);
-  font-size: 0.66rem;
+  font-size: var(--step--3);
   letter-spacing: var(--track-code);
   opacity: 0.85;
 }
@@ -3328,7 +3328,7 @@ a.depart-strip:hover {
 
 .fh-checks {
   font-family: var(--font-code);
-  font-size: 0.68rem;
+  font-size: var(--step--2);
   letter-spacing: var(--track-label);
   text-transform: uppercase;
   color: var(--ink-soft);
@@ -3354,7 +3354,7 @@ a.depart-strip:hover {
 
 .fh-call-label {
   font-family: var(--font-code);
-  font-size: 0.72rem;
+  font-size: var(--step--2);
   font-weight: 600;
   letter-spacing: var(--track-label);
   text-transform: uppercase;
@@ -3370,13 +3370,13 @@ a.depart-strip:hover {
 
 .fh-call-reason {
   margin-top: 0.35rem;
-  font-size: 0.92rem;
+  font-size: var(--step-0);
   line-height: 1.5;
 }
 
 .fh-call-basis {
   margin-top: 0.45rem;
-  font-size: 0.74rem;
+  font-size: var(--step--2);
   line-height: 1.5;
   color: var(--ink-soft);
 }
@@ -3384,7 +3384,7 @@ a.depart-strip:hover {
 /* How sure it is, said out loud rather than hidden in a tooltip. */
 .fh-confidence {
   font-family: var(--font-code);
-  font-size: 0.64rem;
+  font-size: var(--step--3);
   letter-spacing: var(--track-label);
   text-transform: uppercase;
   border: 1px solid currentColor;
@@ -3449,7 +3449,7 @@ a.depart-strip:hover {
 .fh-benchmark-tag {
   fill: var(--rail);
   font-family: var(--font-code);
-  font-size: 9px;
+  font-size: var(--step--3);
   letter-spacing: var(--track-code);
 }
 
@@ -3467,7 +3467,7 @@ a.depart-strip:hover {
   justify-content: space-between;
   padding: var(--sp-0-5) 0;
   font-family: var(--font-code);
-  font-size: 0.64rem;
+  font-size: var(--step--3);
   font-variant-numeric: tabular-nums;
   color: var(--ink-soft);
   order: -1;
@@ -3488,7 +3488,7 @@ a.depart-strip:hover {
 
 .fh-stats dt {
   font-family: var(--font-code);
-  font-size: 0.62rem;
+  font-size: var(--step--3);
   letter-spacing: var(--track-label);
   text-transform: uppercase;
   color: var(--ink-soft);
@@ -3497,14 +3497,14 @@ a.depart-strip:hover {
 .fh-stats dd {
   margin: 0.15rem 0 0;
   font-family: var(--font-serif, var(--font-body));
-  font-size: 1.25rem;
+  font-size: var(--step-1);
   font-variant-numeric: tabular-nums;
 }
 
 .fh-note,
 .fh-empty {
   margin-top: 0.6rem;
-  font-size: 0.85rem;
+  font-size: var(--step--1);
   line-height: 1.55;
   color: var(--ink-soft);
 }
@@ -3513,7 +3513,7 @@ a.depart-strip:hover {
   margin-top: 0.8rem;
   border-top: 1px solid var(--fh-rule);
   padding-top: var(--sp-2-5);
-  font-size: 0.72rem;
+  font-size: var(--step--2);
   line-height: 1.5;
   color: var(--ink-soft);
 }
@@ -3525,7 +3525,7 @@ a.depart-strip:hover {
   }
 
   .fh-stats dd {
-    font-size: 1.05rem;
+    font-size: var(--step-0);
   }
 }
 
@@ -3547,7 +3547,7 @@ a.depart-strip:hover {
   background: transparent;
   padding: var(--sp-1) var(--sp-2-5);
   font-family: var(--font-code);
-  font-size: 0.66rem;
+  font-size: var(--step--3);
   letter-spacing: var(--track-label);
   text-transform: uppercase;
   color: var(--ink-soft);
@@ -3635,7 +3635,7 @@ a.depart-strip:hover {
 
 .board-empty-stamp {
   font-family: var(--font-code);
-  font-size: 0.74rem;
+  font-size: var(--step--2);
   font-weight: 600;
   letter-spacing: var(--track-caps);
   text-transform: uppercase;
@@ -3657,7 +3657,7 @@ a.depart-strip:hover {
 
 .board-empty-body {
   max-width: 44ch;
-  font-size: 0.88rem;
+  font-size: var(--step--1);
   line-height: 1.6;
   color: var(--board-mute);
 }
@@ -3704,7 +3704,7 @@ a.depart-strip:hover {
 
 .fh-corridor-pct {
   font-family: var(--font-code);
-  font-size: 0.66rem;
+  font-size: var(--step--3);
   letter-spacing: var(--track-code);
   color: var(--ink-soft);
   font-variant-numeric: tabular-nums;
@@ -3764,20 +3764,20 @@ a.depart-strip:hover {
   justify-content: space-between;
   margin-top: 0.25rem;
   font-family: var(--font-code);
-  font-size: 0.64rem;
+  font-size: var(--step--3);
   font-variant-numeric: tabular-nums;
   color: var(--ink-soft);
 }
 
 .fh-corridor-verdict {
   margin-top: 0.6rem;
-  font-size: 0.88rem;
+  font-size: var(--step--1);
   line-height: 1.55;
 }
 
 .fh-corridor-basis {
   margin-top: 0.4rem;
-  font-size: 0.72rem;
+  font-size: var(--step--2);
   line-height: 1.5;
   color: var(--ink-soft);
 }
@@ -3798,7 +3798,7 @@ a.depart-strip:hover {
 
 .unsaved-stamp {
   font-family: var(--font-code);
-  font-size: 0.66rem;
+  font-size: var(--step--3);
   font-weight: 600;
   letter-spacing: var(--track-caps);
   text-transform: uppercase;
@@ -3807,7 +3807,7 @@ a.depart-strip:hover {
 
 .unsaved-lead {
   margin-top: 0.4rem;
-  font-size: 0.85rem;
+  font-size: var(--step--1);
   line-height: 1.55;
 }
 
@@ -3827,18 +3827,18 @@ a.depart-strip:hover {
 
 .unsaved-price {
   font-family: var(--font-serif, var(--font-body));
-  font-size: 1.15rem;
+  font-size: var(--step-1);
   font-variant-numeric: tabular-nums;
 }
 
 .unsaved-when {
   font-family: var(--font-code);
-  font-size: 0.72rem;
+  font-size: var(--step--2);
   color: var(--ink-soft);
 }
 
 .unsaved-train {
-  font-size: 0.78rem;
+  font-size: var(--step--1);
   color: var(--ink-soft);
   text-align: right;
 }
@@ -3847,7 +3847,7 @@ a.depart-strip:hover {
 .unsaved-note,
 .unsaved-foot {
   margin-top: 0.7rem;
-  font-size: 0.74rem;
+  font-size: var(--step--2);
   line-height: 1.5;
   color: var(--ink-soft);
 }
@@ -3902,7 +3902,7 @@ a.depart-strip:hover {
 }
 
 .assistant-title {
-  font-size: 0.95rem;
+  font-size: var(--step-0);
   font-weight: 600;
   letter-spacing: var(--track-tight);
   margin: 0;
@@ -3910,7 +3910,7 @@ a.depart-strip:hover {
 
 .assistant-note {
   margin-left: auto;
-  font-size: 0.72rem;
+  font-size: var(--step--2);
   letter-spacing: var(--track-code);
   color: var(--ink-soft);
 }
@@ -3930,7 +3930,7 @@ a.depart-strip:hover {
   background: var(--paper);
   color: var(--ink);
   padding: var(--sp-1-5) var(--sp-3);
-  font-size: 0.82rem;
+  font-size: var(--step--1);
   text-align: left;
   cursor: pointer;
   transition:
@@ -3961,7 +3961,7 @@ a.depart-strip:hover {
 }
 
 .assistant-turn {
-  font-size: 0.9rem;
+  font-size: var(--step-0);
   line-height: 1.55;
 }
 
@@ -3990,7 +3990,7 @@ a.depart-strip:hover {
 
 .assistant-blocked-tag {
   margin: 0 0 0.3rem;
-  font-size: 0.68rem;
+  font-size: var(--step--2);
   text-transform: uppercase;
   letter-spacing: var(--track-caps);
   color: var(--drop);
@@ -3999,13 +3999,13 @@ a.depart-strip:hover {
 .assistant-status {
   margin: 0.7rem 0 0;
   min-height: 1.1rem;
-  font-size: 0.8rem;
+  font-size: var(--step--1);
   color: var(--ink-soft);
 }
 
 .assistant-error {
   margin: 0.5rem 0 0;
-  font-size: 0.85rem;
+  font-size: var(--step--1);
   color: var(--danger);
 }
 
@@ -4023,7 +4023,7 @@ a.depart-strip:hover {
   background: var(--paper);
   color: var(--ink);
   padding: var(--sp-2-5) var(--sp-3);
-  font-size: 0.9rem;
+  font-size: var(--step-0);
   transition: border-color var(--t-base) var(--ease);
 }
 
@@ -4040,7 +4040,7 @@ a.depart-strip:hover {
   background: var(--primary-grad);
   color: #fff;
   padding: var(--sp-2-5) var(--sp-4);
-  font-size: 0.88rem;
+  font-size: var(--step--1);
   font-weight: 600;
   cursor: pointer;
   transition: opacity var(--t-base) var(--ease);
@@ -4102,7 +4102,7 @@ a.depart-strip:hover {
 .datefield {
   position: relative;
   display: block;
-  font-size: 0.875rem;
+  font-size: var(--step--1);
 }
 
 .datefield-label {
@@ -4145,7 +4145,7 @@ a.depart-strip:hover {
 
 .datefield-read {
   margin: 0.35rem 0 0;
-  font-size: 0.78rem;
+  font-size: var(--step--1);
   color: var(--ink-soft);
 }
 
@@ -4172,7 +4172,7 @@ a.depart-strip:hover {
 
 .datefield-month {
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: var(--step-0);
 }
 
 .datefield-page {
@@ -4182,7 +4182,7 @@ a.depart-strip:hover {
   border-radius: var(--r-plate);
   background: var(--paper);
   color: var(--ink);
-  font-size: 1rem;
+  font-size: var(--step-0);
   line-height: 1;
   cursor: pointer;
 }
@@ -4201,7 +4201,7 @@ a.depart-strip:hover {
 .datefield-dow {
   display: block;
   text-align: center;
-  font-size: 0.68rem;
+  font-size: var(--step--2);
   letter-spacing: var(--track-code);
   text-transform: uppercase;
   color: var(--ink-soft);
@@ -4218,7 +4218,7 @@ a.depart-strip:hover {
   border-radius: var(--r-plate);
   background: transparent;
   color: var(--ink);
-  font-size: 0.83rem;
+  font-size: var(--step--1);
   font-variant-numeric: tabular-nums;
   cursor: pointer;
   transition:
@@ -4265,7 +4265,7 @@ a.depart-strip:hover {
 
 .datefield-hint {
   margin: 0.55rem 0 0;
-  font-size: 0.72rem;
+  font-size: var(--step--2);
   color: var(--ink-soft);
 }
 
@@ -4601,7 +4601,7 @@ a.depart-strip:hover {
   border-radius: var(--radius-sm);
   background: var(--paper);
   color: var(--ink-soft);
-  font-size: 1rem;
+  font-size: var(--step-0);
   cursor: pointer;
 }
 
@@ -4617,18 +4617,18 @@ a.depart-strip:hover {
   border: 0;
   padding: 0;
   margin: 0;
-  font-size: 0.85rem;
+  font-size: var(--step--1);
 }
 
 .lookup-flex legend {
-  font-size: 0.78rem;
+  font-size: var(--step--1);
   color: var(--ink-soft);
   margin-bottom: 0.35rem;
 }
 
 .lookup-pax {
   display: block;
-  font-size: 0.875rem;
+  font-size: var(--step--1);
   max-width: 8rem;
 }
 
@@ -4639,7 +4639,7 @@ a.depart-strip:hover {
 
 .lookup-caveat {
   margin: 0;
-  font-size: 0.74rem;
+  font-size: var(--step--2);
   color: var(--ink-soft);
   line-height: 1.5;
 }
@@ -4702,12 +4702,12 @@ a.depart-strip:hover {
 }
 
 .lookup-best .price {
-  font-size: 2rem;
+  font-size: var(--step-3);
   line-height: 1;
 }
 
 .lookup-best-note {
-  font-size: 0.78rem;
+  font-size: var(--step--1);
   color: var(--ink-soft);
 }
 
@@ -4727,7 +4727,7 @@ a.depart-strip:hover {
   padding: var(--sp-1-5) var(--sp-3);
   border: 1px solid var(--line-2);
   border-radius: var(--r-pill);
-  font-size: 0.82rem;
+  font-size: var(--step--1);
 }
 
 .lookup-day-label {
@@ -4755,7 +4755,7 @@ a.depart-strip:hover {
   align-items: baseline;
   padding: var(--sp-3) var(--sp-3-5);
   background: var(--paper-elevated);
-  font-size: 0.88rem;
+  font-size: var(--step--1);
 }
 
 @media (max-width: 560px) {
@@ -4766,12 +4766,12 @@ a.depart-strip:hover {
   .lookup-row-train {
     grid-column: 2;
     color: var(--ink-soft);
-    font-size: 0.8rem;
+    font-size: var(--step--1);
   }
 }
 
 .lookup-row-price {
-  font-size: 1.05rem;
+  font-size: var(--step-0);
   font-weight: 600;
 }
 
@@ -4781,7 +4781,7 @@ a.depart-strip:hover {
 
 .lookup-note {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: var(--step--1);
   color: var(--ink-soft);
 }
 
@@ -4813,7 +4813,7 @@ a.depart-strip:hover {
   gap: var(--sp-3);
   padding: var(--sp-2) var(--sp-3);
   background: var(--paper-elevated);
-  font-size: 0.84rem;
+  font-size: var(--step--1);
   animation: rise-in var(--t-base) var(--ease-out) both;
 }
 
@@ -4831,13 +4831,13 @@ a.depart-strip:hover {
 .lookup-live-row.is-unreadable .lookup-live-value {
   color: var(--drop);
   font-weight: 400;
-  font-size: 0.78rem;
+  font-size: var(--step--1);
 }
 
 .lookup-live-row.is-empty .lookup-live-value {
   color: var(--ink-soft);
   font-weight: 400;
-  font-size: 0.78rem;
+  font-size: var(--step--1);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -4853,7 +4853,7 @@ a.depart-strip:hover {
   background: var(--paper);
   color: var(--ink-soft);
   padding: var(--sp-1-5) var(--sp-3);
-  font-size: 0.78rem;
+  font-size: var(--step--1);
   cursor: pointer;
   transition:
     color var(--t-base) var(--ease-out),
@@ -4892,6 +4892,11 @@ a.depart-strip:hover {
   --step-1: clamp(1.15rem, 1.05rem + 0.5vw, 1.4rem);
   --step-2: clamp(1.5rem, 1.3rem + 1vw, 2rem);
   --step-3: clamp(2rem, 1.6rem + 2vw, 3rem);
+  /* One step below what existed. Thirty-one declarations were sized between
+     0.56 and 0.70rem — ten distinct values — and every one of them is the
+     same object: a tracked-out uppercase label. They had no step to land on,
+     so each was picked where it was written. */
+  --step--3: clamp(0.62rem, 0.605rem + 0.07vw, 0.66rem);
   --step-4: clamp(2.6rem, 1.9rem + 3.4vw, 4.5rem);
 
   /* Hairlines. A rule at 1px is a border; a rule at these weights is a scale
@@ -5757,7 +5762,11 @@ body::after {
   /* The fill gradient. Subtle on purpose: it is read as orientation, not as
      a gradient, and anything stronger reads as a button from 2010. */
   --plate-face: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 62%);
-  --key-face: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgb(var(--shade-rgb) / 0.035));
+  /* Was 0.9. Over --paper-elevated (#fff) a 90% white sheen is invisible, so
+     it bought nothing on the keys it was written for, while on any key with a
+     darker fill it bleached the top third. 0.55 matches --plate-face, which
+     is the same light model one surface down. */
+  --key-face: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgb(var(--shade-rgb) / 0.035));
   --well-face: linear-gradient(
     180deg,
     rgb(var(--shade-rgb) / 0.055),
@@ -6079,7 +6088,7 @@ body::after {
 .ladder-you em {
   transform: translateX(var(--label-shift, 0));
   font-family: var(--font-code);
-  font-size: 0.56rem;
+  font-size: var(--step--3);
   font-style: normal;
   letter-spacing: var(--track-label);
   text-transform: uppercase;
@@ -6166,6 +6175,39 @@ body::after {
    includes buttons — it walked straight past this because .btn was not on
    its list, which is the second time that list has been the thing that
    failed rather than the code it watches. */
+
+/* ── A cap is a solid fill with an edge, not a gloss ─────────────────────
+   The block above fixed the computed background-color and stopped there, so
+   the gate went green and the button did not. --key-face is still the FIRST
+   background-image layer on .btn-primary, and in light mode it opens at 90%
+   white — so the upper third of the product's primary call to action is a
+   near-white wash with white text on it, and the ascenders of "Watch a
+   booked trip" sit in the pale part of it. Photographed at 4x to be sure.
+
+   The gate could not see this and structurally could not: it reads
+   background-color and the background-color IS a solid forest green. That is
+   now fixed too, in scripts/audit-overlap.ts, which refuses to report a
+   ratio for anything painted on a gradient it cannot resolve.
+
+   The error is a category one. --key-face describes a LIGHT key on porcelain:
+   a keycap catching a light source from above. A dark key catching the same
+   light does not turn white at the top, it gains a thin bright edge and a
+   shallow lift in its own colour. So the dark keys redeclare the token rather
+   than fighting for the property — every rule that says var(--key-face)
+   picks up the corrected value here, with no new selector in the KEY block
+   and no specificity war.
+
+   Composited at the top edge, where the glyphs are tallest: 5.51:1 against a
+   4.5 floor, and it only gets darker downward. */
+.btn-primary,
+.nav-watch,
+.ticket-hero .btn-primary {
+  --key-face: linear-gradient(
+    180deg,
+    color-mix(in srgb, #fff 14%, transparent),
+    color-mix(in srgb, #000 12%, transparent)
+  );
+}
 
 .btn-primary {
   background-color: var(--forest-2);

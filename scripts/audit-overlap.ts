@@ -269,10 +269,53 @@ async function collect(page: Page): Promise<Omit<Finding, "page" | "width">[]> {
               : own.color;
           const fg = channels(painted);
 
+          /* Walk for the first opaque backdrop — and stop if anything in the
+             stack paints a gradient.
+
+             This read backgroundColor and nothing else, so an element whose
+             real backdrop is a background-IMAGE was measured against whatever
+             solid colour happened to sit underneath the gradient. That is not
+             a near-miss, it is the wrong surface. `.btn-primary` reported
+             16:1 for as long as this check existed, because its
+             background-color IS a solid forest green — while the --key-face
+             gradient painted on top of it opens at 90% white, so the upper
+             third of the product's primary call to action is near-white with
+             white text on it. The one button that matters most, unreadable,
+             past a gate whose comments say it was added to watch buttons
+             specifically.
+
+             Resolving a gradient properly means evaluating its colour stops
+             at the y-fraction where the glyphs sit, which is a parser to
+             maintain rather than a guard. So this refuses to report a number
+             it cannot stand behind. UNMEASURED is already a bucket in this
+             file and it exists for exactly this. */
           let backdrop: number[] | null = null;
+          let gradient: string | null = null;
           let walker: HTMLElement | null = el;
           while (walker) {
-            const candidate = channels(getComputedStyle(walker).backgroundColor);
+            const style = getComputedStyle(walker);
+            /* Texture or surface?
+               
+               Bailing on any gradient at all took the measurable readings from
+               722 to 53, because `body` paints the porcelain dot grid as a
+               radial-gradient and every element on every page inherits that
+               ancestor. A 6%-alpha dot pattern does not change what colour a
+               letter sits on; a 90%-white sheet does. The line is drawn at the
+               strongest stop in the gradient: under 15% it is texture and the
+               walk continues to the opaque fill beneath it, at or over 15% it
+               is a surface this checker cannot resolve. */
+            const stops = style.backgroundImage.match(/rgba?\([^)]*\)/g) ?? [];
+            const strongest = stops.length
+              ? Math.max(...stops.map((stop) => channels(stop)?.[3] ?? 1))
+              : /gradient/.test(style.backgroundImage)
+                ? 1
+                : 0;
+            if (/gradient/.test(style.backgroundImage) && strongest >= 0.15) {
+              gradient =
+                walker === el ? "its own fill" : `an ancestor (${walker.tagName.toLowerCase()})`;
+              break;
+            }
+            const candidate = channels(style.backgroundColor);
             if (candidate && candidate[3]! > 0.95) {
               backdrop = candidate;
               break;
@@ -281,6 +324,10 @@ async function collect(page: Page): Promise<Omit<Finding, "page" | "width">[]> {
           }
 
           const label = `${selector} "${(el.textContent ?? "").trim().slice(0, 18)}"`;
+          if (gradient) {
+            out.push({ kind: "unmeasured", a: `${label} — on a gradient, ${gradient}` });
+            continue;
+          }
           if (!fg || !backdrop) {
             out.push({ kind: "unmeasured", a: label });
             continue;
@@ -428,6 +475,13 @@ async function main(): Promise<void> {
    * quietly stops being checked. */
   const measured = findings.filter((f) => f.kind === "measured");
   const coveredSelectors = new Set(measured.map((f) => f.a));
+  /* Seen but unmeasurable is a different state from absent, and conflating
+     them made the report list thirty selectors as "not reached" when every
+     one of them had been found and examined. */
+  const seenSelectors = new Set([
+    ...coveredSelectors,
+    ...findings.filter((f) => f.kind === "unmeasured").map((f) => f.a.split(' "')[0]!),
+  ]);
 
   console.log(`\nChecked ${paths.length} pages at ${WIDTHS.join(", ")}px.\n`);
   console.log(
@@ -438,7 +492,7 @@ async function main(): Promise<void> {
     console.log("  NOTHING WAS MEASURED — the selector list matches no rendered element.");
     process.exitCode = 1;
   }
-  const unreached = TYPE_PRIMITIVES.filter((selector) => !coveredSelectors.has(selector));
+  const unreached = TYPE_PRIMITIVES.filter((selector) => !seenSelectors.has(selector));
   if (unreached.length > 0) {
     /* Not a failure. A selector can legitimately go unreached because the
        state that renders it is not in the sweep — an error panel, a populated
