@@ -1,5 +1,4 @@
 import { getConfig } from "@/lib/config";
-import { getMemoryRepositoryForTests } from "@/lib/services";
 import { createUserClient } from "@/lib/supabase/server";
 import { GUEST_COOKIE, parseGuestCookie } from "@/lib/auth/guest";
 import type { Route } from "next";
@@ -20,15 +19,19 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     if (!raw) {
       return readGuest(store.get(GUEST_COOKIE)?.value);
     }
-    const parsed = JSON.parse(raw) as SessionUser;
-    const repo = getMemoryRepositoryForTests();
-    await repo.upsertProfile({
-      id: parsed.id,
-      email: parsed.email || "guest@local",
-      timezone: "America/New_York",
-      createdAt: new Date().toISOString(),
-    });
-    return { ...parsed, isGuest: false };
+    /* Reading the session is not a creation event.
+     *
+     * This used to upsert a profile row here, stamped `new Date()`. Two things
+     * were wrong with that and only one of them is cosmetic. A render that
+     * writes is a render that cannot be replayed, and under Cache Components
+     * an unstable value in a prerender is an error, not a warning — 107 of
+     * them across /watches/[id], /watches/new and /dashboard, every one of
+     * them invisible to `next build`, because the branch they came from only
+     * runs offline. The field itself had no reader anywhere in the codebase.
+     *
+     * The profile that matters is written by create-watch, on the path that
+     * actually creates something, from a clock it is entitled to read. */
+    return { ...(JSON.parse(raw) as SessionUser), isGuest: false };
   }
 
   try {

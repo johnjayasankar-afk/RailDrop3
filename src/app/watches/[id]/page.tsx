@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+import { connection } from "next/server";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { PageFrame } from "@/components/page-frame";
@@ -36,7 +38,53 @@ export async function generateMetadata({
   }
 }
 
-export default async function WatchPage({ params }: { params: Promise<{ id: string }> }) {
+/* A static shell with the board behind a boundary.
+ *
+ * Everything visible on this route belongs to one watch, so the shell is the
+ * header, the footer and the board's own footprint — but that is the whole
+ * point of a shell: the chrome and the layout land immediately instead of
+ * after a session read, a database round trip and a corridor query. Reading
+ * the clock on the first line is also what made this the noisiest of the
+ * three prerender errors the production build could not see. */
+export default function WatchPage({ params }: { params: Promise<{ id: string }> }) {
+  return (
+    <PageFrame>
+      <Suspense fallback={<BoardSkeleton />}>
+        <Board params={params} />
+      </Suspense>
+    </PageFrame>
+  );
+}
+
+/** The board's own footprint, so the page does not jump when it lands. */
+function BoardSkeleton() {
+  return (
+    <main id="main" className="mx-auto max-w-6xl px-4 py-8" aria-hidden>
+      <div className="skeleton h-4 max-w-[8rem]" />
+      <div className="skeleton mt-6 h-24" />
+      <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="skeleton h-[4.5rem]" />
+        <div className="skeleton h-[4.5rem]" />
+        <div className="skeleton h-[4.5rem]" />
+        <div className="skeleton h-[4.5rem]" />
+      </div>
+      <div className="mt-8 space-y-2">
+        <div className="skeleton h-14" />
+        <div className="skeleton h-14" />
+        <div className="skeleton h-14" />
+        <div className="skeleton h-14" />
+        <div className="skeleton h-14" />
+      </div>
+    </main>
+  );
+}
+
+async function Board({ params }: { params: Promise<{ id: string }> }) {
+  /* The clock is a request-time read the same way cookies() is: it produces
+     different output per request, so prerendering it would bake one day's
+     answer into the shell. connection() is how you say that about a value the
+     framework cannot detect on its own. */
+  await connection();
   const user = await getSessionUser();
   const { id } = await params;
   if (!user) redirect(guestEntryHref(`/watches/${id}`));
@@ -114,21 +162,19 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
 
   if (!loaded.reachable) {
     return (
-      <PageFrame>
-        <main id="main" className="mx-auto max-w-3xl px-4 py-8">
-          {/* The page still needs its one h1, the same way /dashboard keeps
+      <main id="main" className="mx-auto max-w-3xl px-4 py-8">
+        {/* The page still needs its one h1, the same way /dashboard keeps
               "Your watches" above this card. Without it the board's unreachable
               state has no h1 at all and opens at h2 — both of the rules in
               docs/A11Y.md, broken in the one state nobody can see in a test
               run. It cannot name the route: reading the watch is what failed. */}
-          <h1 className="serif text-4xl">Your watch</h1>
-          <RecordsUnreachable
-            what="board"
-            retryHref={`/watches/${id}` as Route}
-            permanent={loaded.permanent}
-          />
-        </main>
-      </PageFrame>
+        <h1 className="serif text-4xl">Your watch</h1>
+        <RecordsUnreachable
+          what="board"
+          retryHref={`/watches/${id}` as Route}
+          permanent={loaded.permanent}
+        />
+      </main>
     );
   }
 
@@ -176,7 +222,7 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
   const corridor = summarizeCorridor(observations);
 
   return (
-    <PageFrame>
+    <>
       <WatchDetail
         watch={watch}
         ranked={ranked}
@@ -228,6 +274,6 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
       <div className="mx-auto max-w-6xl px-4 pb-10">
         <AssistantPanel watchId={watch.id} />
       </div>
-    </PageFrame>
+    </>
   );
 }

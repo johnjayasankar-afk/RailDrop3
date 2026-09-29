@@ -6614,3 +6614,53 @@ select.field {
 .board-cell-save {
   font-variant-numeric: tabular-nums slashed-zero;
 }
+
+/* ── The spec strip ──────────────────────────────────────────────────────
+   Three near-empty panels became one ruled row. Each cell carries its own
+   scale mark and reads label-then-value, the same grammar as the trip rail —
+   so the page states its specification once, in the app's own voice, instead
+   of three times in boxes. */
+
+.spec-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 2.5rem;
+  border-top: 1px solid var(--line);
+  padding-top: 0.9rem;
+}
+
+.spec-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding-top: 0.5rem;
+  min-width: 0;
+}
+
+.spec-cell::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  top: -0.9rem;
+  height: 2px;
+  background: color-mix(in srgb, var(--forest-2) 55%, transparent);
+}
+
+.spec-value {
+  font-size: var(--step-1);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+@media (max-width: 640px) {
+  .spec-strip {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .spec-cell::before {
+    display: none;
+  }
+}

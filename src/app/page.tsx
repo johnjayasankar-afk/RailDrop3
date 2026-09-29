@@ -149,21 +149,21 @@ export default async function HomePage() {
           </section>
         </div>
 
-        <section className="mt-16 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {/* A spec strip, not three cards.
+            These were three 365x86 panels holding two short lines each — the
+            least-earning elements on the page, and identical in weight to the
+            numbered how-it-works cards below them, which say considerably
+            more. A specification reads as one row under one rule, the way it
+            does on the back of an instrument. */}
+        <section className="spec-strip mt-14" aria-label="What this is">
           {[
             ["Live board", "On-demand listed fares"],
             ["±1 day", "Default search window"],
             ["Honest", "Never invent a price"],
-          ].map(([value, label], index) => (
-            <div
-              key={label}
-              className="panel reveal px-4 py-4"
-              style={{ animationDelay: `${90 + index * 50}ms` }}
-            >
-              <p className="serif text-xl sm:text-2xl">{value}</p>
-              <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-ink-soft sm:text-xs">
-                {label}
-              </p>
+          ].map(([value, label]) => (
+            <div key={label} className="spec-cell">
+              <span className="micro">{label}</span>
+              <span className="spec-value">{value}</span>
             </div>
           ))}
         </section>

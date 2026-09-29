@@ -216,279 +216,266 @@ export function NewWatchForm({
           onCancel={cancelScan}
         />
       ) : null}
-      <main id="main" className="mx-auto max-w-5xl px-4 py-8">
-        <p className="kicker">New watch</p>
-        <h1 className="serif mt-2 text-4xl">Watch a trip</h1>
-        <p className="mt-2 max-w-2xl text-ink-soft">
-          Live Amtrak inventory across your date window. Stay while the board loads.
-        </p>
-        <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_16rem]">
-          <form onSubmit={onSubmit} className="space-y-8">
-            <section className="panel space-y-4 p-5">
-              <h2 className="text-xs uppercase tracking-[0.16em] text-ink-soft">Journey</h2>
-              {/* One decision, one row.
+      <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_16rem]">
+        <form onSubmit={onSubmit} className="space-y-8">
+          <section className="panel space-y-4 p-5">
+            <h2 className="text-xs uppercase tracking-[0.16em] text-ink-soft">Journey</h2>
+            {/* One decision, one row.
                   Origin, a 300px ghost pill on its own line, then destination
                   was three stacked rows of vertical travel to say BOS to NYP.
                   The swap sits on the shared baseline of the pair now, so it
                   reads as the hinge between them. Below 720px it stacks, which
                   is the right answer on a phone. */}
-              <div className="route-fields">
-                <StationField label="Origin station" value={origin} onChange={setOrigin} />
-                <button
-                  type="button"
-                  className="btn btn-ghost route-swap text-xs uppercase tracking-[0.14em]"
-                  onClick={() => {
-                    setOrigin(destination);
-                    setDestination(origin);
-                  }}
-                  aria-label="Swap origin and destination"
-                >
-                  Swap
-                </button>
-                <StationField
-                  label="Destination station"
-                  value={destination}
-                  onChange={setDestination}
-                />
-              </div>
-              {lastRoute &&
-              (lastRoute.origin !== origin || lastRoute.destination !== destination) ? (
-                <button
-                  type="button"
-                  className="chip"
-                  onClick={() => {
-                    setOrigin(lastRoute.origin);
-                    setDestination(lastRoute.destination);
-                  }}
-                >
-                  Last {lastRoute.origin} → {lastRoute.destination}
-                </button>
-              ) : null}
-              {/* The flexibility is passed in so the calendar can shade the days
+            <div className="route-fields">
+              <StationField label="Origin station" value={origin} onChange={setOrigin} />
+              <button
+                type="button"
+                className="btn btn-ghost route-swap text-xs uppercase tracking-[0.14em]"
+                onClick={() => {
+                  setOrigin(destination);
+                  setDestination(origin);
+                }}
+                aria-label="Swap origin and destination"
+              >
+                Swap
+              </button>
+              <StationField
+                label="Destination station"
+                value={destination}
+                onChange={setDestination}
+              />
+            </div>
+            {lastRoute && (lastRoute.origin !== origin || lastRoute.destination !== destination) ? (
+              <button
+                type="button"
+                className="chip"
+                onClick={() => {
+                  setOrigin(lastRoute.origin);
+                  setDestination(lastRoute.destination);
+                }}
+              >
+                Last {lastRoute.origin} → {lastRoute.destination}
+              </button>
+            ) : null}
+            {/* The flexibility is passed in so the calendar can shade the days
                   the watch will also search — the reason this is not the
                   browser's date picker. */}
-              <DateField
-                value={date}
-                onChange={setDate}
-                today={today}
-                flexibilityDays={flexibility}
+            <DateField
+              value={date}
+              onChange={setDate}
+              today={today}
+              flexibilityDays={flexibility}
+            />
+            <fieldset className="text-sm">
+              <legend className="mb-2">Date flexibility</legend>
+              {[
+                [0, "Exact date"],
+                [1, "±1 day · recommended"],
+                [2, "±2 days"],
+              ].map(([value, label]) => (
+                <label
+                  key={String(value)}
+                  className={`choice ${flexibility === value ? "choice-on" : ""}`}
+                >
+                  <input
+                    type="radio"
+                    name="flex"
+                    checked={flexibility === value}
+                    onChange={() => setFlexibility(Number(value))}
+                  />{" "}
+                  {label}
+                </label>
+              ))}
+            </fieldset>
+            <label className="block text-sm">
+              Preferred departure time · optional
+              <input
+                type="time"
+                value={preferredTime}
+                onChange={(event) => setPreferredTime(event.target.value)}
+                className="field"
               />
-              <fieldset className="text-sm">
-                <legend className="mb-2">Date flexibility</legend>
-                {[
-                  [0, "Exact date"],
-                  [1, "±1 day · recommended"],
-                  [2, "±2 days"],
-                ].map(([value, label]) => (
-                  <label
-                    key={String(value)}
-                    className={`choice ${flexibility === value ? "choice-on" : ""}`}
-                  >
-                    <input
-                      type="radio"
-                      name="flex"
-                      checked={flexibility === value}
-                      onChange={() => setFlexibility(Number(value))}
-                    />{" "}
-                    {label}
-                  </label>
-                ))}
-              </fieldset>
-              <label className="block text-sm">
-                Preferred departure time · optional
-                <input
-                  type="time"
-                  value={preferredTime}
-                  onChange={(event) => setPreferredTime(event.target.value)}
-                  className="field"
-                />
-              </label>
-            </section>
-            <section className="panel space-y-4 p-5">
-              <h2 className="text-xs uppercase tracking-[0.16em] text-ink-soft">
-                Current reservation
-              </h2>
-              <label className="block text-sm">
-                Actual total paid
-                {/* The $ is drawn by .money-wrap, and the padding that clears
+            </label>
+          </section>
+          <section className="panel space-y-4 p-5">
+            <h2 className="text-xs uppercase tracking-[0.16em] text-ink-soft">
+              Current reservation
+            </h2>
+            <label className="block text-sm">
+              Actual total paid
+              {/* The $ is drawn by .money-wrap, and the padding that clears
                     it is .field-money rather than Tailwind's pl-7.
                     `.field` is unlayered CSS and Tailwind utilities live in
                     @layer utilities, so unlayered wins: pl-7 computed 13.6px
                     instead of 28px and the glyph overlapped its own
                     placeholder by 6.2px. top-[0.95rem] was a magic number
                     compensating for the same thing. */}
-                <div className="money-wrap">
+              <div className="money-wrap">
+                <input
+                  required
+                  inputMode="decimal"
+                  value={price}
+                  onChange={(event) => setPrice(event.target.value.replace(/[^0-9.]/g, ""))}
+                  className="field field-money"
+                  placeholder="What you actually paid"
+                />
+              </div>
+            </label>
+            <label className="block text-sm">
+              Train you already booked · optional
+              <input
+                value={bookedTrain}
+                onChange={(event) => setBookedTrain(event.target.value)}
+                className="field"
+                placeholder="93 or Acela 2155"
+                maxLength={16}
+              />
+            </label>
+            <fieldset className="text-sm">
+              <legend className="mb-2">Fare you actually bought</legend>
+              {(
+                [
+                  ["FLEXIBLE", "Flexible"],
+                  ["VALUE", "Value"],
+                  ["SAVER", "Saver"],
+                ] as const
+              ).map(([value, label]) => (
+                <label key={value} className={`choice ${fareFamily === value ? "choice-on" : ""}`}>
                   <input
-                    required
-                    inputMode="decimal"
-                    value={price}
-                    onChange={(event) => setPrice(event.target.value.replace(/[^0-9.]/g, ""))}
-                    className="field field-money"
-                    placeholder="What you actually paid"
-                  />
-                </div>
-              </label>
-              <label className="block text-sm">
-                Train you already booked · optional
-                <input
-                  value={bookedTrain}
-                  onChange={(event) => setBookedTrain(event.target.value)}
-                  className="field"
-                  placeholder="93 or Acela 2155"
-                  maxLength={16}
-                />
-              </label>
-              <fieldset className="text-sm">
-                <legend className="mb-2">Fare you actually bought</legend>
-                {(
-                  [
-                    ["FLEXIBLE", "Flexible"],
-                    ["VALUE", "Value"],
-                    ["SAVER", "Saver"],
-                  ] as const
-                ).map(([value, label]) => (
-                  <label
-                    key={value}
-                    className={`choice ${fareFamily === value ? "choice-on" : ""}`}
-                  >
-                    <input
-                      type="radio"
-                      name="fareFamily"
-                      checked={fareFamily === value}
-                      onChange={() => setFareFamily(value)}
-                    />{" "}
-                    {label}
-                  </label>
-                ))}
-                <p className="mt-2 text-xs text-ink-soft">{changeRuleNote(fareFamily)}</p>
-              </fieldset>
-              <label className="block text-sm">
-                Passengers
-                <input
-                  type="number"
-                  min={1}
-                  max={8}
-                  value={passengers}
-                  onChange={(event) => setPassengers(Number(event.target.value))}
-                  className="field"
-                />
-              </label>
-            </section>
-            <section className="panel space-y-4 p-5">
-              <h2 className="text-xs uppercase tracking-[0.16em] text-ink-soft">
-                Compare & monitor
-              </h2>
-              {/* .choice, which already styles a checkbox into the palette.
+                    type="radio"
+                    name="fareFamily"
+                    checked={fareFamily === value}
+                    onChange={() => setFareFamily(value)}
+                  />{" "}
+                  {label}
+                </label>
+              ))}
+              <p className="mt-2 text-xs text-ink-soft">{changeRuleNote(fareFamily)}</p>
+            </fieldset>
+            <label className="block text-sm">
+              Passengers
+              <input
+                type="number"
+                min={1}
+                max={8}
+                value={passengers}
+                onChange={(event) => setPassengers(Number(event.target.value))}
+                className="field"
+              />
+            </label>
+          </section>
+          <section className="panel space-y-4 p-5">
+            <h2 className="text-xs uppercase tracking-[0.16em] text-ink-soft">Compare & monitor</h2>
+            {/* .choice, which already styles a checkbox into the palette.
                   These two were bare inputs in a plain label, so they rendered
                   as 13px grey-blue macOS boxes — the only operating-system
                   widgets left on the page, on a near-black panel. The styling
                   did not need writing; they needed to be inside it. */}
-              <label className="choice">
-                <input
-                  type="checkbox"
-                  checked={restricted}
-                  onChange={(event) => setRestricted(event.target.checked)}
-                />
-                Also include cheaper restricted fares
-              </label>
-              <label className="choice">
-                <input
-                  type="checkbox"
-                  checked={includeThruway}
-                  onChange={(event) => setIncludeThruway(event.target.checked)}
-                />
-                Include Amtrak Thruway / bus connections
-              </label>
-              <label className="block text-sm">
-                Monitor for
-                <select
-                  value={monitor}
-                  onChange={(event) => setMonitor(event.target.value)}
-                  className="field"
-                >
-                  <option value="24h">24 hours</option>
-                  <option value="48h">48 hours</option>
-                  <option value="72h">72 hours</option>
-                  <option value="until_departure">Until departure</option>
-                </select>
-              </label>
-              <label className="block text-sm">
-                Alert when savings are at least
-                <select
-                  value={threshold}
-                  onChange={(event) => setThreshold(event.target.value)}
-                  className="field"
-                >
-                  <option value="1">$1</option>
-                  <option value="5">$5</option>
-                  <option value="10">$10</option>
-                  <option value="20">$20</option>
-                </select>
-              </label>
-              <label className="block text-sm">
-                Alert email · optional
-                <input
-                  type="email"
-                  value={alertEmail}
-                  onChange={(event) => setAlertEmail(event.target.value)}
-                  className="field"
-                  placeholder={email || "you@email.com"}
-                />
-              </label>
-              <p className="text-xs text-ink-soft">
-                {isGuest
-                  ? "Leave blank to watch prices on this device only. Add an email if you want fare-drop alerts."
-                  : "Leave blank to skip email alerts. We’ll use this address when a listed fare drops."}
-              </p>
-            </section>
-            {error ? (
-              <p className="text-sm text-danger" role="alert">
-                {error}
-              </p>
+            <label className="choice">
+              <input
+                type="checkbox"
+                checked={restricted}
+                onChange={(event) => setRestricted(event.target.checked)}
+              />
+              Also include cheaper restricted fares
+            </label>
+            <label className="choice">
+              <input
+                type="checkbox"
+                checked={includeThruway}
+                onChange={(event) => setIncludeThruway(event.target.checked)}
+              />
+              Include Amtrak Thruway / bus connections
+            </label>
+            <label className="block text-sm">
+              Monitor for
+              <select
+                value={monitor}
+                onChange={(event) => setMonitor(event.target.value)}
+                className="field"
+              >
+                <option value="24h">24 hours</option>
+                <option value="48h">48 hours</option>
+                <option value="72h">72 hours</option>
+                <option value="until_departure">Until departure</option>
+              </select>
+            </label>
+            <label className="block text-sm">
+              Alert when savings are at least
+              <select
+                value={threshold}
+                onChange={(event) => setThreshold(event.target.value)}
+                className="field"
+              >
+                <option value="1">$1</option>
+                <option value="5">$5</option>
+                <option value="10">$10</option>
+                <option value="20">$20</option>
+              </select>
+            </label>
+            <label className="block text-sm">
+              Alert email · optional
+              <input
+                type="email"
+                value={alertEmail}
+                onChange={(event) => setAlertEmail(event.target.value)}
+                className="field"
+                placeholder={email || "you@email.com"}
+              />
+            </label>
+            <p className="text-xs text-ink-soft">
+              {isGuest
+                ? "Leave blank to watch prices on this device only. Add an email if you want fare-drop alerts."
+                : "Leave blank to skip email alerts. We’ll use this address when a listed fare drops."}
+            </p>
+          </section>
+          {error ? (
+            <p className="text-sm text-danger" role="alert">
+              {error}
+            </p>
+          ) : null}
+          {unsaved ? <UnsavedFares preview={unsaved} retryWorks={unsavedRetryWorks} /> : null}
+          <button disabled={busy} className="btn btn-primary w-full py-3">
+            {busy ? "Checking your window…" : "Start watching"}
+          </button>
+        </form>
+        <aside className="h-fit lg:sticky lg:top-20">
+          <div className="depart-strip">
+            <Flap>{origin}</Flap>
+            <span className="text-[10px] uppercase tracking-[0.18em] opacity-70">to</span>
+            <Flap>{destination}</Flap>
+          </div>
+          <div className="ticket p-5 text-sm">
+            <p className="text-xs uppercase tracking-[0.16em] text-ink-soft">This search</p>
+            <div className="mt-4">
+              <RouteRibbon origin={origin} destination={destination} compact />
+            </div>
+            <p className="mt-1 text-ink-soft">
+              {stationLabel(origin)} to {stationLabel(destination)}
+            </p>
+            <p className="mt-3">
+              <Flap>{formatDisplayDate(date)}</Flap>
+              {flexibility ? ` ±${flexibility}` : " · exact date"}
+            </p>
+            {preferredTime ? (
+              <p className="mt-1 text-xs text-ink-soft">Preferred {preferredTime}</p>
             ) : null}
-            {unsaved ? <UnsavedFares preview={unsaved} retryWorks={unsavedRetryWorks} /> : null}
-            <button disabled={busy} className="btn btn-primary w-full py-3">
-              {busy ? "Checking your window…" : "Start watching"}
-            </button>
-          </form>
-          <aside className="h-fit lg:sticky lg:top-20">
-            <div className="depart-strip">
-              <Flap>{origin}</Flap>
-              <span className="text-[10px] uppercase tracking-[0.18em] opacity-70">to</span>
-              <Flap>{destination}</Flap>
-            </div>
-            <div className="ticket p-5 text-sm">
-              <p className="text-xs uppercase tracking-[0.16em] text-ink-soft">This search</p>
-              <div className="mt-4">
-                <RouteRibbon origin={origin} destination={destination} compact />
-              </div>
-              <p className="mt-1 text-ink-soft">
-                {stationLabel(origin)} to {stationLabel(destination)}
-              </p>
-              <p className="mt-3">
-                <Flap>{formatDisplayDate(date)}</Flap>
-                {flexibility ? ` ±${flexibility}` : " · exact date"}
-              </p>
-              {preferredTime ? (
-                <p className="mt-1 text-xs text-ink-soft">Preferred {preferredTime}</p>
-              ) : null}
-              {bookedTrain.trim() ? (
-                <p className="mt-1 text-xs text-ink-soft">Watching train {bookedTrain.trim()}</p>
-              ) : null}
-              <p className="mt-1">
-                {passengers} passenger{passengers === 1 ? "" : "s"} · {fareFamily.toLowerCase()}
-              </p>
-              <p className="price serif mt-4 text-3xl">
-                <Flap>{price ? `$${price}` : "$0"}</Flap>
-              </p>
-              <p className="text-xs text-ink-soft">Your booking · confirm on Amtrak later</p>
-              {initial?.origin && initial?.destination ? (
-                <p className="mt-3 text-xs text-ink-soft">Return trip prefilled.</p>
-              ) : null}
-            </div>
-          </aside>
-        </div>
-      </main>
+            {bookedTrain.trim() ? (
+              <p className="mt-1 text-xs text-ink-soft">Watching train {bookedTrain.trim()}</p>
+            ) : null}
+            <p className="mt-1">
+              {passengers} passenger{passengers === 1 ? "" : "s"} · {fareFamily.toLowerCase()}
+            </p>
+            <p className="price serif mt-4 text-3xl">
+              <Flap>{price ? `$${price}` : "$0"}</Flap>
+            </p>
+            <p className="text-xs text-ink-soft">Your booking · confirm on Amtrak later</p>
+            {initial?.origin && initial?.destination ? (
+              <p className="mt-3 text-xs text-ink-soft">Return trip prefilled.</p>
+            ) : null}
+          </div>
+        </aside>
+      </div>
     </>
   );
 }
