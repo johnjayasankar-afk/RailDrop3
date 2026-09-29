@@ -5206,3 +5206,31 @@ body::after {
 .verdict .micro {
   color: var(--board-mute);
 }
+
+/* The hero fare. The headline number on the page was still inside a box, so
+   the largest thing on the screen read as a widget. The depart and arrive
+   clocks beside it stay in flaps on purpose — there the split-flap frame is
+   the point, and a departure board is exactly what they are quoting. */
+.ticket-hero .price .flap,
+.flap-hero {
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+  font-family: var(--font-body);
+  font-weight: 400;
+  letter-spacing: -0.045em;
+  font-size: inherit;
+  line-height: 0.95;
+  font-variant-numeric: tabular-nums slashed-zero;
+  color: var(--board-ink);
+}
+
+.ticket-hero .price {
+  line-height: 0.95;
+  margin-top: 0.5rem;
+}
+
+.ticket-hero .flap-hero .flap-face {
+  animation: none;
+}
