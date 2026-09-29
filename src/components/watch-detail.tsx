@@ -2887,7 +2887,13 @@ export function WatchDetail({
         </section>
       ) : null}
 
-      <div className="no-print mt-4">
+      {/* Two toggles, one row.
+          "Watch settings" and "More analysis" were adjacent siblings each in
+          their own full-width wrapper, so two controls occupied two rows and
+          read as two unrelated sections rather than as the board's tools.
+          The analysis CONTENT stays where it is, below; only the control
+          moves up beside the one it belongs with. */}
+      <div className="board-tools no-print mt-4">
         <button
           type="button"
           className={`chip ${settingsOpen ? "chip-on" : ""}`}
@@ -2895,6 +2901,14 @@ export function WatchDetail({
           onClick={() => setSettingsOpen((value) => !value)}
         >
           Watch settings
+        </button>
+        <button
+          type="button"
+          className={`chip ${analysisOpen ? "chip-on" : ""}`}
+          aria-expanded={analysisOpen}
+          onClick={() => setAnalysisOpen((value) => !value)}
+        >
+          {analysisOpen ? "Hide deeper analysis" : "More analysis"}
         </button>
         {settingsOpen ? (
           <WatchSettingsForm
@@ -2947,12 +2961,6 @@ export function WatchDetail({
             </button>
           </div>
         ) : null}
-      </div>
-
-      <div className="analysis mt-4 no-print">
-        <button type="button" className="chip" onClick={() => setAnalysisOpen((value) => !value)}>
-          {analysisOpen ? "Hide deeper analysis" : "More analysis"}
-        </button>
       </div>
 
       {analysisOpen ? (
