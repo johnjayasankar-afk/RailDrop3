@@ -1950,7 +1950,7 @@ export function WatchDetail({
         <p className="mt-2 text-xs opacity-70">{changeRuleNote(watch.bookedFareFamily)}</p>
         {hassle ? <p className="mt-2 text-sm text-drop">{hassle}</p> : null}
         <div className="mt-3 no-print">
-          <p className="eyebrow opacity-70">Estimated change fee</p>
+          <p className="eyebrow">Estimated change fee</p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             {([0, 10, 20, 50] as const).map((dollars) => {
               const current = Number(feeDollars);
@@ -2022,7 +2022,7 @@ export function WatchDetail({
               onClick={() => dispatch({ type: "SET_DATE", date: selected ? "all" : date })}
               className={`date-card px-3 py-3 text-left ${desired || selected ? "is-on" : ""}`}
             >
-              <p className="eyebrow opacity-70">
+              <p className="eyebrow">
                 {formatDisplayDate(date)}
                 {desired ? " · desired" : ""}
                 {selected ? " · on" : ""}
@@ -2091,7 +2091,7 @@ export function WatchDetail({
                     else dispatch({ type: "SET_DATE", date });
                   }}
                 >
-                  <p className="eyebrow opacity-70">
+                  <p className="eyebrow">
                     {formatDisplayDate(date)}
                     {desired ? " · yours" : ""}
                   </p>
@@ -2127,7 +2127,7 @@ export function WatchDetail({
               className={`date-card text-left ${bucket === key ? "is-on" : ""}`}
               onClick={() => dispatch({ type: "TOGGLE_BUCKET", bucket: key })}
             >
-              <p className="eyebrow opacity-70">{label}</p>
+              <p className="eyebrow">{label}</p>
               <p className="price serif text-lg">
                 {candidate ? <Flap>{formatUsdCompact(candidate.totalPartyPriceCents)}</Flap> : "—"}
               </p>
@@ -2155,7 +2155,7 @@ export function WatchDetail({
                 className="date-card pick-card px-3 py-3"
                 onClick={() => jumpTo(pick.candidate)}
               >
-                <p className="eyebrow opacity-70">{pick.label}</p>
+                <p className="eyebrow">{pick.label}</p>
                 <p className="price serif mt-1 text-2xl">
                   {formatUsdCompact(pick.candidate.totalPartyPriceCents)}
                 </p>
@@ -3068,13 +3068,13 @@ export function WatchDetail({
           {active && compare ? (
             <div className={`live-compare${compare.beats ? " is-beats" : ""}`} aria-live="polite">
               <div className="live-col">
-                <p className="eyebrow opacity-70">You paid</p>
+                <p className="eyebrow">You paid</p>
                 <p className="price serif text-2xl">
                   <Flap>{formatUsdCompact(watch.currentBookedPriceCents)}</Flap>
                 </p>
               </div>
               <div className="live-col">
-                <p className="eyebrow opacity-70">This train</p>
+                <p className="eyebrow">This train</p>
                 <p className="price serif text-2xl">
                   <Flap>{formatUsdCompact(active.totalPartyPriceCents)}</Flap>
                 </p>
@@ -3089,7 +3089,7 @@ export function WatchDetail({
                 </p>
               </div>
               <div className="live-col">
-                <p className="eyebrow opacity-70">
+                <p className="eyebrow">
                   {compare.saveCents > 0 ? "Save" : compare.saveCents < 0 ? "More" : "Vs paid"}
                 </p>
                 <p

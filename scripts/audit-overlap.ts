@@ -183,6 +183,16 @@ async function collect(page: Page): Promise<Omit<Finding, "page" | "width">[]> {
       ".hud-delta",
       ".hud-callname",
       ".verdict-qual",
+      /* The date row. Unboxing the fare turned this card from a board
+         surface into a paper one and left board ink on it, so in light mode
+         its labels were white on white — and the sweep did not look, because
+         the card was not on this list. */
+      ".date-card .eyebrow",
+      ".date-card > :first-child",
+      ".date-card .from-word",
+      ".ladder-end",
+      ".unsaved-lead",
+      ".unsaved-foot",
     ];
 
     const channels = (value: string): number[] | null => {

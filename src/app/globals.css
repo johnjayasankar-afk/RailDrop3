@@ -2437,11 +2437,22 @@ a.depart-strip:hover {
   }
 }
 
-.date-card .eyebrow,
+/* Dimmed with a token, not with opacity.
+ *
+ * `color: inherit; opacity: 0.7` on a paper card put the date labels at
+ * 3.05:1 against a 4.5 requirement at 10.9px — the contrast sweep found 48 of
+ * them once .date-card joined the list. Opacity is the wrong instrument for
+ * the same reason it was wrong on the currency mark: one value has to work on
+ * a white card and a near-black board, and it cannot. --ink-soft and
+ * --board-mute are the two tokens that already know which surface they are
+ * on, and both are AA on theirs. */
+.date-card .eyebrow {
+  color: var(--ink-soft);
+}
+
 .verdict .eyebrow,
 .trip-rail .eyebrow {
-  color: inherit;
-  opacity: 0.7;
+  color: var(--board-mute);
 }
 
 .trip-rail.is-zen {
@@ -5252,6 +5263,16 @@ body::after {
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--ink) 3%, transparent), transparent 42%),
     var(--paper-elevated);
+  /* Paper surface, paper ink.
+   *
+   * Unboxing the fare turned this card from a board surface into a paper one
+   * and left `color: var(--board-ink)` on the earlier .date-card block. In
+   * dark mode --paper-elevated is #121a15 and --board-ink is #f2f8f4, so it
+   * looked right and I only ever screenshotted dark. In light mode the card
+   * is #ffffff and the ink is #f0f7f3: "from", "2 days earlier" and "$7 more"
+   * were white on white, on the row a reader scans first. Only the fare
+   * itself was legible, because it sets its own colour. */
+  color: var(--ink);
   box-shadow:
     inset 0 1px 0 var(--edge-hi),
     var(--sh-1);
@@ -5873,4 +5894,50 @@ body::after {
 
 .daypart-strip .date-card {
   padding: 0.55rem 0.7rem 0.6rem;
+}
+
+/* ── Board surfaces are dark in both themes, so they get their own face ───
+   The plate and key faces are written for a surface that is light in light
+   mode: --key-face opens at 90% white. A handful of components are NOT that
+   — they are the departure board, dark on porcelain and dark on near-black
+   alike, carrying --board-ink text — and putting a 90% white gradient over
+   one turns it into a white card with near-white text on it.
+
+   Measured in light mode at 375 after the material layer landed: the date
+   cards rendered as white plates, and "from", "2 days earlier" and "$7 more"
+   were washed to the point of illegibility while the fare stayed black. That
+   is a contrast regression on the one surface a reader scans, introduced by
+   the change meant to make it look like an object.
+
+   The board face is the same light model — lighter at the top, two edges —
+   built from the board's own ink so it works on a dark fill in either theme. */
+
+/* .date-card is NOT in this list: unboxing the fare made it a paper surface,
+   and giving it the board face is what sent me looking for the bug above. */
+.trip-rail,
+.live-compare,
+.depart-strip,
+.census,
+.help-card,
+.board-toast,
+.share-sheet,
+.station-list,
+.verdict,
+.dock-compare-toggle {
+  --face-board: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--board-ink) 6%, transparent),
+    color-mix(in srgb, #000 14%, transparent)
+  );
+  background-image: var(--face-board);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--board-ink) 13%, transparent),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.5),
+    var(--lift-key);
+}
+
+/* The chips inside a board surface are on the board, not on the page. */
+.verdict .chip,
+.trip-rail .chip {
+  background-image: none;
 }
