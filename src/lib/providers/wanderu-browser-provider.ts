@@ -86,6 +86,8 @@ const globalBrowser = globalThis as unknown as {
   __raildropWanderuActive?: number;
   __raildropWanderuWait?: Array<() => void>;
   __raildropWanderuPlaces?: Record<string, { pathCity: string; query: string }>;
+  /** A launch already under way, so concurrent callers wait rather than race. */
+  __raildropWanderuLaunch?: Promise<PlaywrightBrowser> | null;
 };
 
 export class WanderuBrowserProvider implements FareProvider {
@@ -342,10 +344,46 @@ export class WanderuBrowserProvider implements FareProvider {
     if (existing && existing.isConnected?.() !== false) {
       return existing;
     }
-    await this.resetBrowser();
-    globalBrowser.__raildropWanderuBrowser =
-      (await launchChromium()) as unknown as PlaywrightBrowser;
-    return globalBrowser.__raildropWanderuBrowser;
+    return this.launchShared();
+  }
+
+  /**
+   * One launch at a time, however many callers arrive at once.
+   *
+   * `withSlot` caps concurrent *searches* at one under serverless, but it does
+   * not cover `healthCheck`, and `healthCheck` is the unauthenticated half of
+   * GET /api/health/provider. So a health check arriving while a cron search
+   * is starting cold hit this with both callers seeing a null browser, both
+   * running the whole six-strategy launcher, and the second assignment
+   * overwriting the first — one Chromium left running with no handle, on a
+   * function with 2 GB to spend and no way to reclaim it before the instance
+   * dies. The launcher's first strategy alone allows 45 seconds, so the window
+   * is not a narrow one.
+   *
+   * Callers now share the in-flight promise. A failure rejects all of them,
+   * which is correct: they were all waiting on the same browser.
+   */
+  private launchShared(): Promise<PlaywrightBrowser> {
+    const pending = globalBrowser.__raildropWanderuLaunch;
+    if (pending) return pending;
+
+    const launch = (async () => {
+      await this.resetBrowser();
+      const browser = (await launchChromium()) as unknown as PlaywrightBrowser;
+      globalBrowser.__raildropWanderuBrowser = browser;
+      return browser;
+    })();
+    globalBrowser.__raildropWanderuLaunch = launch;
+    // Attached here rather than at the call site, so it runs exactly once even
+    // when several callers are waiting and whatever any of them do with it.
+    void launch
+      .catch(() => undefined)
+      .finally(() => {
+        if (globalBrowser.__raildropWanderuLaunch === launch) {
+          globalBrowser.__raildropWanderuLaunch = null;
+        }
+      });
+    return launch;
   }
 
   private async context(): Promise<PlaywrightContext> {
