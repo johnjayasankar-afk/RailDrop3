@@ -38,9 +38,9 @@
 
   --radius: 18px;
   --radius-sm: 12px;
-  --sh-1: 0 1px 2px rgba(28, 51, 38, 0.05);
-  --sh-2: 0 1px 2px rgba(28, 51, 38, 0.05), 0 14px 32px -14px rgba(28, 51, 38, 0.22);
-  --sh-3: 0 1px 2px rgba(28, 51, 38, 0.05), 0 30px 64px -28px rgba(28, 51, 38, 0.32);
+  --sh-1: 0 1px 2px rgb(var(--shade-rgb) / 0.05);
+  --sh-2: 0 1px 2px rgb(var(--shade-rgb) / 0.05), 0 14px 32px -14px rgb(var(--shade-rgb) / 0.22);
+  --sh-3: 0 1px 2px rgb(var(--shade-rgb) / 0.05), 0 30px 64px -28px rgb(var(--shade-rgb) / 0.32);
   --ease: cubic-bezier(0.32, 0.72, 0, 1);
   --primary-grad: linear-gradient(180deg, #2c5a42 0%, #1a3a2a 100%);
 
@@ -74,6 +74,7 @@
    ───────────────────────────────────────────────────────────────────────────── */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
+    --shade-rgb: 0 0 0;
     --paper: #0a0e0b;
     --paper-elevated: #121a15;
     --ink: #edf3ee;
@@ -118,6 +119,7 @@
    than shared because a media query cannot be combined with an attribute
    selector in plain CSS, and a preprocessor for one block is not worth it. */
 :root[data-theme="dark"] {
+  --shade-rgb: 0 0 0;
   --paper: #0a0e0b;
   --paper-elevated: #121a15;
   --ink: #edf3ee;
@@ -201,14 +203,14 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-image: radial-gradient(
     circle at 1px 1px,
-    rgba(28, 51, 38, 0.06) 1px,
+    rgb(var(--shade-rgb) / 0.06) 1px,
     transparent 1.2px
   );
   background-size: 24px 24px;
 }
 
 ::selection {
-  background: rgba(110, 231, 183, 0.45);
+  background: color-mix(in srgb, var(--mint-2) 45%, transparent);
   color: var(--ink);
 }
 
@@ -311,7 +313,7 @@ h2.serif {
   background: var(--primary-grad);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    0 3px 8px -3px rgba(15, 42, 29, 0.55);
+    0 3px 8px -3px rgb(var(--shade-rgb) / 0.55);
 }
 
 .rail-mark i {
@@ -402,27 +404,27 @@ h2.serif {
   background: var(--primary-grad);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    0 1px 2px rgba(15, 23, 18, 0.25),
-    0 10px 24px -12px rgba(19, 36, 27, 0.65);
+    0 1px 2px rgb(var(--shade-rgb) / 0.25),
+    0 10px 24px -12px rgb(var(--shade-rgb) / 0.65);
 }
 
 .btn-primary:hover:not(:disabled) {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.2),
-    0 1px 2px rgba(15, 23, 18, 0.25),
-    0 18px 34px -14px rgba(19, 36, 27, 0.75);
+    0 1px 2px rgb(var(--shade-rgb) / 0.25),
+    0 18px 34px -14px rgb(var(--shade-rgb) / 0.75);
 }
 
 .btn-ghost {
   border: 1px solid var(--line-2);
   background: var(--paper-elevated);
   color: var(--ink);
-  box-shadow: 0 1px 2px rgba(28, 51, 38, 0.06);
+  box-shadow: 0 1px 2px rgb(var(--shade-rgb) / 0.06);
 }
 
 .btn-ghost:hover:not(:disabled) {
-  border-color: rgba(28, 51, 38, 0.32);
-  box-shadow: 0 10px 22px -12px rgba(28, 51, 38, 0.32);
+  border-color: rgb(var(--shade-rgb) / 0.32);
+  box-shadow: 0 10px 22px -12px rgb(var(--shade-rgb) / 0.32);
 }
 
 .btn-ink {
@@ -513,7 +515,7 @@ input[type="radio"] {
   height: 0.45rem;
   border-radius: var(--r-pill);
   background: var(--mint-3);
-  box-shadow: 0 0 0 0.22rem rgba(52, 211, 153, 0.2);
+  box-shadow: 0 0 0 0.22rem color-mix(in srgb, var(--mint-3) 20%, transparent);
   animation: pulse 1.4s ease-in-out infinite;
 }
 
@@ -959,7 +961,7 @@ kbd {
   background: var(--paper-elevated);
   -webkit-backdrop-filter: blur(14px) saturate(1.4);
   backdrop-filter: blur(14px) saturate(1.4);
-  box-shadow: 0 -12px 40px -8px rgba(15, 42, 29, 0.18);
+  box-shadow: 0 -12px 40px -8px rgb(var(--shade-rgb) / 0.18);
 }
 
 /* The dock is pinned to the bottom of the viewport, so it floats over whatever
@@ -1305,7 +1307,7 @@ kbd {
   height: 7px;
   border-radius: var(--r-pill);
   background: var(--forest-2);
-  box-shadow: 0 0 0 3px rgba(31, 107, 74, 0.16);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--forest-2) 16%, transparent);
   animation: train-run 3.6s var(--ease) infinite;
 }
 
@@ -1936,7 +1938,7 @@ kbd {
 
 .ladder-dot.is-save {
   background: var(--save);
-  box-shadow: 0 0 0 3px rgba(31, 107, 74, 0.14);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--forest-2) 14%, transparent);
 }
 
 .ladder-you {
@@ -1989,7 +1991,7 @@ kbd {
   align-items: flex-end;
   justify-content: center;
   padding: var(--sp-4);
-  background: rgba(15, 23, 18, 0.42);
+  background: rgb(var(--shade-rgb) / 0.42);
   -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
 }
@@ -2003,7 +2005,7 @@ kbd {
   padding: var(--sp-5) var(--sp-5);
   box-shadow:
     inset 0 2px 0 color-mix(in srgb, var(--mint-2) 50%, transparent),
-    0 30px 64px -20px rgba(8, 20, 14, 0.55);
+    0 30px 64px -20px rgb(var(--shade-rgb) / 0.55);
 }
 
 .help-grid {
@@ -2205,7 +2207,7 @@ a.depart-strip:hover {
   color: var(--board-ink);
   padding: var(--sp-2-5) var(--sp-4) var(--sp-2-5);
   min-width: 0;
-  box-shadow: 0 12px 30px -18px rgba(8, 20, 14, 0.6);
+  box-shadow: 0 12px 30px -18px rgb(var(--shade-rgb) / 0.6);
 }
 
 .hud-cell {
@@ -2682,7 +2684,7 @@ a.depart-strip:hover {
   padding: var(--sp-3) var(--sp-4);
   box-shadow:
     inset 0 2px 0 var(--gold),
-    0 18px 40px -16px rgba(8, 20, 14, 0.5);
+    0 18px 40px -16px rgb(var(--shade-rgb) / 0.5);
   animation: surface-in 200ms var(--ease-out) both;
 }
 
@@ -2854,7 +2856,7 @@ a.depart-strip:hover {
   background: var(--primary-grad);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    0 6px 16px -8px rgba(19, 36, 27, 0.6);
+    0 6px 16px -8px rgb(var(--shade-rgb) / 0.6);
   transition:
     transform var(--t-base) var(--ease),
     box-shadow var(--t-base) var(--ease);
@@ -2865,7 +2867,7 @@ a.depart-strip:hover {
   transform: translateY(-1px);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.2),
-    0 10px 22px -10px rgba(19, 36, 27, 0.7);
+    0 10px 22px -10px rgb(var(--shade-rgb) / 0.7);
 }
 
 .help-card kbd {
@@ -3107,7 +3109,7 @@ a.depart-strip:hover {
   align-items: flex-start;
   justify-content: center;
   padding: max(3.5rem, 8vh) var(--sp-4) var(--sp-4);
-  background: rgba(15, 23, 18, 0.5);
+  background: rgb(var(--shade-rgb) / 0.5);
   -webkit-backdrop-filter: blur(7px);
   backdrop-filter: blur(7px);
 }
@@ -3124,7 +3126,7 @@ a.depart-strip:hover {
   color: var(--board-ink);
   box-shadow:
     inset 0 2px 0 var(--gold),
-    0 36px 70px -22px rgba(8, 20, 14, 0.62);
+    0 36px 70px -22px rgb(var(--shade-rgb) / 0.62);
   animation: palette-in 180ms cubic-bezier(0.2, 0.8, 0.3, 1);
 }
 
@@ -4291,7 +4293,7 @@ a.depart-strip:hover {
   /* A light source above the page. The hairline is what reads as "raised" —
      more convincingly than a bigger shadow, and at a fraction of the weight. */
   --edge-hi: rgba(255, 255, 255, 0.72);
-  --edge-lo: rgba(28, 51, 38, 0.06);
+  --edge-lo: rgb(var(--shade-rgb) / 0.06);
 
   /* Springy enough to feel responsive, short enough never to be in the way. */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
@@ -4347,6 +4349,21 @@ a.depart-strip:hover {
   --sp-10: 2.5rem;
   --sp-12: 3rem;
   --sp-16: 4rem;
+
+  /* ── The colour a shadow is ────────────────────────────────────────────────
+     Twenty-six colour literals bypassed the tokens, and all but a few were
+     the same mistake: a shadow tinted with forest, written out by hand, in a
+     rule with no theme scope. --sh-1/2/3 already switch to black at night;
+     these did not, so every hand-rolled shadow in the product — the dock, the
+     palette, the toast, the help sheet, both buttons, the trip rail — was
+     still casting a green-grey shadow onto a near-black page, which is
+     exactly the wash that makes a dark UI look like a light one with the
+     lights off.
+
+     One channel triple, switched with the theme, so `rgb(var(--shade-rgb) /
+     0.55)` is correct in both. Shadows on paper are the colour of the paper's
+     own ink; shadows at night are the absence of light. */
+  --shade-rgb: 28 51 38;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -4519,7 +4536,7 @@ a.depart-strip:hover {
 .site-header.is-scrolled {
   box-shadow:
     0 1px 0 var(--line),
-    0 10px 30px -22px rgba(15, 42, 29, 0.5);
+    0 10px 30px -22px rgb(var(--shade-rgb) / 0.5);
   border-bottom-color: var(--line-2);
 }
 
@@ -5735,19 +5752,25 @@ body::after {
 
   /* The two edges of a surface under a light above. */
   --lit-top: rgba(255, 255, 255, 0.8);
-  --lit-bottom: rgba(28, 51, 38, 0.1);
+  --lit-bottom: rgb(var(--shade-rgb) / 0.1);
 
   /* The fill gradient. Subtle on purpose: it is read as orientation, not as
      a gradient, and anything stronger reads as a button from 2010. */
   --plate-face: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 62%);
-  --key-face: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(28, 51, 38, 0.035));
-  --well-face: linear-gradient(180deg, rgba(28, 51, 38, 0.055), rgba(28, 51, 38, 0) 40%);
+  --key-face: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgb(var(--shade-rgb) / 0.035));
+  --well-face: linear-gradient(
+    180deg,
+    rgb(var(--shade-rgb) / 0.055),
+    rgb(var(--shade-rgb) / 0) 40%
+  );
 
   /* Contact plus ambient. One blurred shadow is a smudge; the tight one is
      what tells you the object is actually touching something. */
-  --lift-plate: 0 1px 1px rgba(28, 51, 38, 0.05), 0 6px 16px -10px rgba(28, 51, 38, 0.18);
-  --lift-key: 0 1px 0 rgba(28, 51, 38, 0.1), 0 2px 5px -2px rgba(28, 51, 38, 0.16);
-  --lift-key-hover: 0 1px 0 rgba(28, 51, 38, 0.1), 0 6px 14px -4px rgba(28, 51, 38, 0.22);
+  --lift-plate:
+    0 1px 1px rgb(var(--shade-rgb) / 0.05), 0 6px 16px -10px rgb(var(--shade-rgb) / 0.18);
+  --lift-key: 0 1px 0 rgb(var(--shade-rgb) / 0.1), 0 2px 5px -2px rgb(var(--shade-rgb) / 0.16);
+  --lift-key-hover:
+    0 1px 0 rgb(var(--shade-rgb) / 0.1), 0 6px 14px -4px rgb(var(--shade-rgb) / 0.22);
 }
 
 @media (prefers-color-scheme: dark) {
