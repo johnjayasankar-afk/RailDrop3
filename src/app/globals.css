@@ -2337,6 +2337,70 @@ a.depart-strip:hover {
   --lamp: var(--board-mute);
 }
 
+/* The rail condenses as you scroll into the board.
+ *
+ * Sticky costs what it covers. At 375px this bar wraps to three rows and
+ * measures 143px — with the 56px app header above it, a fifth of a phone
+ * screen is permanently spent on a summary of what you already know, while
+ * you are trying to read sixty fares underneath it.
+ *
+ * The labels are what you need once and then never again: by the time you are
+ * scrolling the board you know which column is the fare. So they collapse,
+ * and the cells close up behind them, driven by the document's own scroll
+ * position rather than by a listener — no scroll handler, no state, nothing
+ * to throttle, and it tracks a fling or a trackpad scrub exactly because it is
+ * not sampling anything. The values, the lamp and the tools never move.
+ *
+ * The ResizeObserver in watch-detail is measuring the rail the whole time, so
+ * the board header's sticky offset follows it down rather than being left with
+ * a stale number — which is the reason that measurement had to exist before
+ * this could.
+ *
+ * Both gates are load-bearing. Without scroll-driven animations the rail stays
+ * at full height, which is where it started and is perfectly usable; under
+ * reduced-motion it also stays, because a bar that changes size while you
+ * scroll is exactly the kind of motion that setting is asking us not to make.
+ * Zen mode is already the condensed reading view, so it opts out too. */
+@supports (animation-timeline: scroll(root block)) {
+  @media (prefers-reduced-motion: no-preference) {
+    .trip-rail:not(.is-zen) .hud-label {
+      /* An explicit start height, because `auto` does not interpolate: with
+         the natural height the label held full size to the halfway point and
+         then snapped to nothing. Stated in em and paired with the matching
+         line-height so it is the same box the browser would have made, at
+         whatever text size the reader has chosen. */
+      height: 1.5em;
+      line-height: 1.5;
+      overflow: hidden;
+      animation: hud-stow linear both;
+      animation-timeline: scroll(root block);
+      animation-range: 110px 300px;
+    }
+
+    .trip-rail:not(.is-zen) {
+      animation: rail-close linear both;
+      animation-timeline: scroll(root block);
+      animation-range: 110px 300px;
+    }
+  }
+}
+
+@keyframes hud-stow {
+  to {
+    height: 0;
+    opacity: 0;
+    transform: translateY(0.35rem);
+  }
+}
+
+@keyframes rail-close {
+  to {
+    padding-top: 0.45rem;
+    padding-bottom: 0.5rem;
+    row-gap: 0.35rem;
+  }
+}
+
 /* A scan line, and only while something is actually in flight. The class is set
    by the component that owns the request, so the bar cannot claim to be working
    when it is idle. */
