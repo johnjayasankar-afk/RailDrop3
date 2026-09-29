@@ -2061,167 +2061,183 @@ export function WatchDetail({
           );
         })}
       </section>
-      {ranked.length > 0 ? (
-        <p className="quiet-row">
-          <button type="button" className="no-print" onClick={() => void copyWindow()}>
-            Copy window
-          </button>
-        </p>
-      ) : null}
+      {/* One aside, three up, instead of nine consecutive full-width bands.
+          Measured: main#main is display:block and 20 of its 24 children were
+          exactly 1120px at exactly x=160 — structurally a CMS rendering a
+          list of blocks, which is what made the middle of the page read as
+          unfinished. Several of these hold one line: a 1120x16 "Fastest
+          cheaper" band, a daypart strip carrying three numbers.
 
-      {ranked.length > 0 ? (
-        <div className="analysis">
-          <PriceLadder ladder={ladder} />
-        </div>
-      ) : null}
-
-      {sameTrain.length > 0 ? (
-        <section className="mt-4">
-          <p className="eyebrow">Train {watch.bookedTrainNumber} across your window</p>
-          <div className="same-train mt-2">
-            {sameTrain.map(({ date, candidate }) => {
-              const desired = date === watch.desiredTravelDate;
-              return (
-                <button
-                  type="button"
-                  key={date}
-                  className={`date-card same-train-cell px-3 py-3 ${desired ? "is-on" : ""}`}
-                  onClick={() => {
-                    if (candidate) jumpTo(candidate);
-                    else dispatch({ type: "SET_DATE", date });
-                  }}
-                >
-                  <p className="eyebrow">
-                    {formatDisplayDate(date)}
-                    {desired ? " · yours" : ""}
-                  </p>
-                  <p className="price serif mt-1 text-2xl">
-                    {candidate ? formatUsdCompact(candidate.totalPartyPriceCents) : "—"}
-                  </p>
-                  {candidate ? (
-                    <p className="mt-1 text-xs opacity-70">
-                      <Flap>{formatClock(candidate.journey.departureAt)}</Flap>
-                    </p>
-                  ) : (
-                    <p className="mt-1 text-xs opacity-70">Not listed</p>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </section>
-      ) : null}
-
-      {ranked.length > 0 ? (
-        <section className="daypart-strip mt-4">
-          {(
-            [
-              ["Morning", "morning", buckets.morning],
-              ["Afternoon", "afternoon", buckets.afternoon],
-              ["Evening", "evening", buckets.evening],
-            ] as const
-          ).map(([label, key, candidate]) => (
-            <button
-              key={label}
-              type="button"
-              className={`date-card text-left ${bucket === key ? "is-on" : ""}`}
-              onClick={() => dispatch({ type: "TOGGLE_BUCKET", bucket: key })}
-            >
-              <p className="eyebrow">{label}</p>
-              <p className="price serif text-lg">
-                {candidate ? <Flap>{formatUsdCompact(candidate.totalPartyPriceCents)}</Flap> : "—"}
-              </p>
+          `grid-auto-flow: row dense` is what makes this survive the fact
+          that four of the seven children are conditionally rendered — any
+          subset packs into full rows with no holes. */}
+      <div className="board-aside">
+        {ranked.length > 0 ? (
+          <p className="quiet-row">
+            <button type="button" className="no-print" onClick={() => void copyWindow()}>
+              Copy window
             </button>
-          ))}
-        </section>
-      ) : null}
-      {insight ? <p className="analysis mt-2 text-xs text-ink-soft">{insight}</p> : null}
-      {fastest && best && candidateKey(fastest) !== candidateKey(best) ? (
-        <p className="analysis mt-2 text-xs text-ink-soft">
-          Fastest cheaper · {trainLabel(fastest)} ·{" "}
-          {formatDurationMinutes(fastest.journey.durationMinutes)} ·{" "}
-          {formatUsdCompact(fastest.totalPartyPriceCents)}
-        </p>
-      ) : null}
+          </p>
+        ) : null}
 
-      {picks.length > 0 ? (
-        <section className="mt-5">
-          <p className="eyebrow">Decision picks</p>
-          <div className="pick-grid mt-2">
-            {picks.map((pick) => (
+        {ranked.length > 0 ? (
+          <div className="analysis">
+            <PriceLadder ladder={ladder} />
+          </div>
+        ) : null}
+
+        {sameTrain.length > 0 ? (
+          <section className="aside-wide mt-4">
+            <p className="eyebrow">Train {watch.bookedTrainNumber} across your window</p>
+            <div className="same-train mt-2">
+              {sameTrain.map(({ date, candidate }) => {
+                const desired = date === watch.desiredTravelDate;
+                return (
+                  <button
+                    type="button"
+                    key={date}
+                    className={`date-card same-train-cell px-3 py-3 ${desired ? "is-on" : ""}`}
+                    onClick={() => {
+                      if (candidate) jumpTo(candidate);
+                      else dispatch({ type: "SET_DATE", date });
+                    }}
+                  >
+                    <p className="eyebrow">
+                      {formatDisplayDate(date)}
+                      {desired ? " · yours" : ""}
+                    </p>
+                    <p className="price serif mt-1 text-2xl">
+                      {candidate ? formatUsdCompact(candidate.totalPartyPriceCents) : "—"}
+                    </p>
+                    {candidate ? (
+                      <p className="mt-1 text-xs opacity-70">
+                        <Flap>{formatClock(candidate.journey.departureAt)}</Flap>
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-xs opacity-70">Not listed</p>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
+
+        {ranked.length > 0 ? (
+          <section className="daypart-strip mt-4">
+            {(
+              [
+                ["Morning", "morning", buckets.morning],
+                ["Afternoon", "afternoon", buckets.afternoon],
+                ["Evening", "evening", buckets.evening],
+              ] as const
+            ).map(([label, key, candidate]) => (
               <button
-                key={pick.kind}
+                key={label}
                 type="button"
-                className="date-card pick-card px-3 py-3"
-                onClick={() => jumpTo(pick.candidate)}
+                className={`date-card text-left ${bucket === key ? "is-on" : ""}`}
+                onClick={() => dispatch({ type: "TOGGLE_BUCKET", bucket: key })}
               >
-                <p className="eyebrow">{pick.label}</p>
-                <p className="price serif mt-1 text-2xl">
-                  {formatUsdCompact(pick.candidate.totalPartyPriceCents)}
-                </p>
-                <p className="mt-1 text-sm">{trainLabel(pick.candidate)}</p>
-                <p className="text-xs opacity-70">
-                  {formatClock(pick.candidate.journey.departureAt)} →{" "}
-                  {formatClock(pick.candidate.journey.arrivalAt)}
+                <p className="eyebrow">{label}</p>
+                <p className="price serif text-lg">
+                  {candidate ? (
+                    <Flap>{formatUsdCompact(candidate.totalPartyPriceCents)}</Flap>
+                  ) : (
+                    "—"
+                  )}
                 </p>
               </button>
             ))}
-          </div>
-        </section>
-      ) : null}
-
-      {neighbors.length > 0 ? (
-        <section className="mt-4 panel p-4">
-          <p className="eyebrow">Nearby departures</p>
-          <ul className="mt-3 space-y-2">
-            {neighbors.slice(0, 4).map((candidate) => (
-              <li key={candidateKey(candidate)}>
-                <button
-                  type="button"
-                  className="w-full text-left"
-                  onClick={() => jumpTo(candidate)}
-                >
-                  <span className="price serif text-xl">
-                    {formatUsdCompact(candidate.totalPartyPriceCents)}
-                  </span>
-                  <span className="ml-2 text-sm">
-                    {trainLabel(candidate)} · {formatClock(candidate.journey.departureAt)}
-                  </span>
-                  {candidate.savingsCents > 0 ? (
-                    <span className="ml-2 text-sm text-save">
-                      save {formatUsdCompact(candidate.savingsCents)}
-                    </span>
-                  ) : null}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      {contrast ? (
-        <section className="analysis panel mt-4 p-4 text-sm">
-          <p className="eyebrow">Acela vs Regional</p>
-          <p className="mt-2">
-            {trainLabel(contrast.acela)} is {formatUsdCompact(Math.abs(contrast.extraCents))}
-            {contrast.extraCents >= 0 ? " more" : " less"}
-            {contrast.fasterMinutes != null && contrast.fasterMinutes > 0
-              ? ` and ${formatDurationMinutes(contrast.fasterMinutes)} faster`
-              : contrast.fasterMinutes != null && contrast.fasterMinutes < 0
-                ? ` and ${formatDurationMinutes(-contrast.fasterMinutes)} longer`
-                : ""}{" "}
-            than {trainLabel(contrast.regional)}.
+          </section>
+        ) : null}
+        {insight ? <p className="analysis aside-note mt-2 text-xs">{insight}</p> : null}
+        {fastest && best && candidateKey(fastest) !== candidateKey(best) ? (
+          <p className="analysis aside-note mt-2 text-xs">
+            Fastest cheaper · {trainLabel(fastest)} ·{" "}
+            {formatDurationMinutes(fastest.journey.durationMinutes)} ·{" "}
+            {formatUsdCompact(fastest.totalPartyPriceCents)}
           </p>
-          <div className="quiet-row">
-            <button type="button" onClick={() => jumpTo(contrast.regional)}>
-              Regional {formatUsdCompact(contrast.regional.totalPartyPriceCents)}
-            </button>
-            <button type="button" onClick={() => jumpTo(contrast.acela)}>
-              Acela {formatUsdCompact(contrast.acela.totalPartyPriceCents)}
-            </button>
-          </div>
-        </section>
-      ) : null}
+        ) : null}
+
+        {picks.length > 0 ? (
+          <section className="aside-cell mt-5">
+            <p className="eyebrow">Decision picks</p>
+            <div className="pick-grid mt-2">
+              {picks.map((pick) => (
+                <button
+                  key={pick.kind}
+                  type="button"
+                  className="date-card pick-card px-3 py-3"
+                  onClick={() => jumpTo(pick.candidate)}
+                >
+                  <p className="eyebrow">{pick.label}</p>
+                  <p className="price serif mt-1 text-2xl">
+                    {formatUsdCompact(pick.candidate.totalPartyPriceCents)}
+                  </p>
+                  <p className="mt-1 text-sm">{trainLabel(pick.candidate)}</p>
+                  <p className="text-xs opacity-70">
+                    {formatClock(pick.candidate.journey.departureAt)} →{" "}
+                    {formatClock(pick.candidate.journey.arrivalAt)}
+                  </p>
+                </button>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        {neighbors.length > 0 ? (
+          <section className="mt-4 panel p-4">
+            <p className="eyebrow">Nearby departures</p>
+            <ul className="mt-3 space-y-2">
+              {neighbors.slice(0, 4).map((candidate) => (
+                <li key={candidateKey(candidate)}>
+                  <button
+                    type="button"
+                    className="w-full text-left"
+                    onClick={() => jumpTo(candidate)}
+                  >
+                    <span className="price serif text-xl">
+                      {formatUsdCompact(candidate.totalPartyPriceCents)}
+                    </span>
+                    <span className="ml-2 text-sm">
+                      {trainLabel(candidate)} · {formatClock(candidate.journey.departureAt)}
+                    </span>
+                    {candidate.savingsCents > 0 ? (
+                      <span className="ml-2 text-sm text-save">
+                        save {formatUsdCompact(candidate.savingsCents)}
+                      </span>
+                    ) : null}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {contrast ? (
+          <section className="analysis aside-cell panel mt-4 p-4 text-sm">
+            <p className="eyebrow">Acela vs Regional</p>
+            <p className="mt-2">
+              {trainLabel(contrast.acela)} is {formatUsdCompact(Math.abs(contrast.extraCents))}
+              {contrast.extraCents >= 0 ? " more" : " less"}
+              {contrast.fasterMinutes != null && contrast.fasterMinutes > 0
+                ? ` and ${formatDurationMinutes(contrast.fasterMinutes)} faster`
+                : contrast.fasterMinutes != null && contrast.fasterMinutes < 0
+                  ? ` and ${formatDurationMinutes(-contrast.fasterMinutes)} longer`
+                  : ""}{" "}
+              than {trainLabel(contrast.regional)}.
+            </p>
+            <div className="quiet-row">
+              <button type="button" onClick={() => jumpTo(contrast.regional)}>
+                Regional {formatUsdCompact(contrast.regional.totalPartyPriceCents)}
+              </button>
+              <button type="button" onClick={() => jumpTo(contrast.acela)}>
+                Acela {formatUsdCompact(contrast.acela.totalPartyPriceCents)}
+              </button>
+            </div>
+          </section>
+        ) : null}
+      </div>
 
       {best ? (
         <section
