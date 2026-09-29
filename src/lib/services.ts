@@ -4,6 +4,7 @@ import { MemoryRepository } from "@/lib/db/memory-store";
 import { createPersistedMemoryRepository } from "@/lib/db/local-persist";
 import type { RailDropRepository } from "@/lib/db/repository";
 import { SupabaseRepository } from "@/lib/db/supabase-repository";
+import { withDatabaseRetry } from "@/lib/db/retrying-repository";
 import { RecordingMailer, ResendMailer } from "@/lib/notifications/resend-mailer";
 import type { Mailer } from "@/lib/notifications/send-alert";
 import type { FareProvider } from "@/lib/providers/fare-provider";
@@ -41,7 +42,11 @@ export function getRepository(): RailDropRepository {
         : new MemoryRepository();
     return globalStore.__raildropMemory;
   }
-  return new SupabaseRepository(createAdminClient());
+  /* Wrapped, because one lost TCP handshake should not lose a trip.
+     Reads retry on anything the diagnosis says is worth retrying; writes
+     retry only on connect-phase failures, which provably never reached the
+     server and therefore cannot have been applied twice. */
+  return withDatabaseRetry(new SupabaseRepository(createAdminClient()));
 }
 
 /**
