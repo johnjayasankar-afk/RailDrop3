@@ -93,22 +93,48 @@ export default async function HomePage() {
               <span className="micro">Amtrak fare watch · live inventory</span>
             </p>
             <h1 className="serif mt-5 max-w-3xl text-[2.6rem] leading-[1.02] sm:text-6xl md:text-7xl">
-              Know when your train gets cheaper.
+              What is Amtrak charging right now?
             </h1>
             <p className="mt-6 max-w-xl text-lg text-ink-soft">
-              Book the trip. We watch every bookable Amtrak rail option across your window — and
-              tell you when a listed fare drops.
+              Listed fares for every bookable train on your route, read from live inventory the
+              moment you ask. No account, nothing saved, and never an estimate.
             </p>
-            <div className="mt-10 flex flex-wrap gap-3">
-              <Link href="/api/auth/guest?next=%2Fwatches%2Fnew" className="btn btn-primary">
-                Watch a booked trip
-              </Link>
-              <Link href="/login" className="btn btn-ghost">
-                Sign in with email
-              </Link>
-            </div>
+            {/* A plain GET form, on purpose.
+                The front door of this product is a price, and a price is one
+                question: where, where, when. /fares already reads from/to/on
+                out of the query string for shared links, so the landing page
+                can hand off to it with no JavaScript at all — this works
+                before hydration, and with it switched off. Leaving the date
+                empty is not a gap: readSharedSearch falls back to today, and
+                today is what most people mean. */}
+            <form action="/fares" method="get" className="hero-search mt-9">
+              <label className="hero-field">
+                <span className="micro">From</span>
+                <input name="from" defaultValue="BOS" maxLength={3} autoComplete="off" />
+              </label>
+              <label className="hero-field">
+                <span className="micro">To</span>
+                <input name="to" defaultValue="NYP" maxLength={3} autoComplete="off" />
+              </label>
+              <label className="hero-field hero-field-date">
+                <span className="micro">Date · today if blank</span>
+                <input name="on" type="date" />
+              </label>
+              <button type="submit" className="btn btn-primary hero-go">
+                See live fares
+              </button>
+            </form>
             <p className="mt-5 text-xs uppercase tracking-[0.16em] text-ink-soft">
-              No account required · email alerts optional · no invented prices
+              No account · nothing saved · never an invented price
+            </p>
+            {/* The watch is the second question, and only worth asking once
+                you have seen the first answer. */}
+            <p className="mt-4 text-sm text-ink-soft">
+              Already booked?{" "}
+              <Link href="/api/auth/guest?next=%2Fwatches%2Fnew" className="text-ink underline">
+                Watch the trip
+              </Link>{" "}
+              and we will email you if a listed fare drops.
             </p>
           </div>
           <section className="ticket reveal" style={{ animationDelay: "80ms" }}>
@@ -171,14 +197,14 @@ export default async function HomePage() {
         <section className="spec-strip mt-14" aria-label="What this is">
           {[
             [
-              "Live board",
-              "On-demand listed fares",
-              "Regional, Acela and connections — not just the train you already bought.",
+              "Right now",
+              "Read when you ask",
+              "Live Amtrak inventory at the moment you search — not a cached table.",
             ],
             [
-              "±1 day",
-              "Default search window",
-              "The day before, your travel day, and the day after.",
+              "Every train",
+              "Regional, Acela, connections",
+              "All bookable rail on the route, not just the one you had in mind.",
             ],
             [
               "Honest",
@@ -267,12 +293,12 @@ export default async function HomePage() {
             that already has too many. */}
         <section className="closer mt-20">
           <div className="closer-line">
-            <p className="serif closer-say">Book the trip. We watch the board.</p>
-            <Link href="/api/auth/guest?next=%2Fwatches%2Fnew" className="btn btn-primary">
-              Watch a booked trip
+            <p className="serif closer-say">See what your route costs right now.</p>
+            <Link href="/fares" className="btn btn-primary">
+              Check a fare
             </Link>
           </div>
-          <p className="micro closer-foot">You decide on Amtrak · we never invent a price</p>
+          <p className="micro closer-foot">You book on Amtrak · we never invent a price</p>
         </section>
       </main>
     </PageFrame>

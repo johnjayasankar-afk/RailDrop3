@@ -30,7 +30,15 @@ export async function HeaderAccount() {
   if (!active) {
     return (
       <>
-        <Link href="/api/auth/guest?next=%2Fwatches%2Fnew" className="nav-watch text-ink">
+        {/* The pill is the thing the product does for you in ten seconds,
+            not the thing that asks for a commitment. Checking a fare needs
+            no account and no database; watching needs both. Leading with
+            the commitment put the cheapest, most useful action behind a
+            plain link and the expensive one in front of it. */}
+        <Link href="/fares" className="nav-watch text-ink">
+          Check a fare
+        </Link>
+        <Link href="/api/auth/guest?next=%2Fwatches%2Fnew" className="hover:text-ink">
           Watch trip
         </Link>
         <Link href="/login" className="hover:text-ink">
@@ -42,13 +50,13 @@ export async function HeaderAccount() {
 
   return (
     <>
+      <Link href="/fares" className="nav-watch text-ink">
+        Check a fare
+      </Link>
       <Link href="/dashboard" className="hidden sm:inline hover:text-ink">
         Watches
       </Link>
-      <Link href="/fares" className="hidden sm:inline hover:text-ink">
-        Check a fare
-      </Link>
-      <Link href="/watches/new" className="nav-watch text-ink">
+      <Link href="/watches/new" className="hover:text-ink">
         Watch trip
       </Link>
       <Link href="/settings" className="hover:text-ink" aria-label="Settings">
@@ -86,7 +94,7 @@ export async function HeaderAccount() {
 export function HeaderAccountFallback() {
   return (
     <span className="header-account-pending" aria-hidden inert>
-      <span className="nav-watch text-ink">Watch trip</span>
+      <span className="nav-watch text-ink">Check a fare</span>
       <span>Sign in</span>
     </span>
   );

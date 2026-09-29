@@ -4730,11 +4730,6 @@ a.depart-strip:hover {
   line-height: 1;
 }
 
-.lookup-best-note {
-  font-size: var(--step--1);
-  color: var(--ink-soft);
-}
-
 .lookup-days {
   display: flex;
   flex-wrap: wrap;
@@ -5209,15 +5204,6 @@ body::after {
 
 .lookup-head .lookup-best {
   margin-top: 0.35rem;
-}
-
-.lookup-best-note {
-  margin: 0;
-  font-size: var(--step--2);
-  letter-spacing: var(--track-code);
-  text-transform: uppercase;
-  color: var(--ink-soft);
-  font-family: var(--font-code);
 }
 
 /* The rows read as a readout: monospace, right-aligned money, hairline ticks
@@ -7531,4 +7517,205 @@ time,
     inset 0 1px 0 var(--lit-top),
     inset 0 -1px 0 var(--lit-bottom),
     var(--lift-plate);
+}
+
+/* ── The front door is a price ──────────────────────────────────────────────
+   The hero used to offer two commitments — watch a booked trip, or sign in —
+   and put the thing the product can do for a stranger in ten seconds behind
+   a nav link. Checking a fare needs no account and no database; watching
+   needs both, and the database is the half that can be down.
+
+   A route is one question asked three ways, so it is one row: from, to,
+   when. It stays a row until there is genuinely not width for one. */
+.hero-search {
+  display: grid;
+  grid-template-columns: 5.5rem 5.5rem minmax(0, 1fr) auto;
+  gap: var(--sp-2);
+  align-items: end;
+  max-width: 34rem;
+}
+
+.hero-field {
+  display: grid;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+.hero-field input {
+  width: 100%;
+  height: var(--control-h, 2.5rem);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-well);
+  background: var(--paper-elevated);
+  color: var(--ink);
+  padding: 0 var(--sp-2-5);
+  font-family: var(--font-code);
+  font-size: var(--step--1);
+  letter-spacing: var(--track-code);
+  text-transform: uppercase;
+  transition:
+    border-color var(--t-base) var(--ease-out),
+    box-shadow var(--t-base) var(--ease-out);
+}
+
+/* A date is not a station code, so it keeps the reading face and its case. */
+.hero-field-date input {
+  text-transform: none;
+  letter-spacing: var(--track-tight);
+}
+
+.hero-field input:focus {
+  outline: none;
+  border-color: var(--forest-2);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--forest-2) 16%, transparent);
+}
+
+.hero-go {
+  height: var(--control-h, 2.5rem);
+  white-space: nowrap;
+}
+
+/* Below 34rem the row cannot hold four cells without each becoming a slot
+   too narrow to read a station code in. The pair stays paired — they are one
+   decision — and the date and the action take a line each. */
+@media (max-width: 34rem) {
+  .hero-search {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .hero-field-date,
+  .hero-go {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ── /fares answers three questions, so it shows three answers ──────────────
+   It used to show one figure and a list. The three things a traveller
+   actually wants are: what is it, which day is cheapest, and which
+   departure is cheapest — and all three are already in the fares the search
+   returned. None of it is history and none of it is prediction: "the
+   cheapest one we saw was Oct 8, in the morning" describes observations,
+   where "book on a Tuesday" would be a claim about the future that this
+   product does not make. */
+.lookup-verdict {
+  margin-top: var(--sp-1);
+  font-size: var(--step--1);
+  color: var(--ink-soft);
+}
+
+.lookup-when {
+  margin-top: var(--sp-5);
+}
+
+.lookup-when-head {
+  color: var(--ink-soft);
+  margin-bottom: var(--sp-2);
+}
+
+/* The cheapest cell is the one the eye should land on, so it is the only one
+   with an accent. Marking all of them marks none of them. */
+.lookup-day.is-best {
+  border-color: color-mix(in srgb, var(--save) 55%, transparent);
+  box-shadow: inset 2px 0 0 var(--save);
+}
+
+.lookup-day-flag {
+  display: block;
+  margin-top: var(--sp-0-5);
+  color: var(--ink-soft);
+}
+
+.lookup-day.is-best .lookup-day-flag {
+  color: var(--save);
+}
+
+/* ── What you paid, without an account ──────────────────────────────────────
+   This comparison is the best thing the product does and it was locked
+   behind creating a watch — which needs a session AND the one dependency
+   that can be down. It is arithmetic on two numbers the reader already has,
+   so it belongs next to the answer. */
+.lookup-paid {
+  display: grid;
+  gap: var(--sp-2);
+  align-content: start;
+  min-width: 0;
+}
+
+.lookup-paid-label {
+  display: grid;
+  gap: var(--sp-1);
+}
+
+.lookup-paid-input {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  height: var(--control-h, 2.5rem);
+  max-width: 9rem;
+  padding: 0 var(--sp-2-5);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-well);
+  background: var(--paper-elevated);
+  color: var(--ink-soft);
+  font-family: var(--font-code);
+  transition:
+    border-color var(--t-base) var(--ease-out),
+    box-shadow var(--t-base) var(--ease-out);
+}
+
+.lookup-paid-input:focus-within {
+  border-color: var(--forest-2);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--forest-2) 16%, transparent);
+}
+
+.lookup-paid-input input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-variant-numeric: tabular-nums slashed-zero;
+  outline: none;
+}
+
+.lookup-paid-out {
+  font-size: var(--step--1);
+  line-height: 1.45;
+}
+
+.lookup-paid-idle {
+  color: var(--ink-soft);
+}
+
+/* ── Watching, offered after an answer ──────────────────────────────────────
+   Was a sentence of small print under the results. Watching is the useful
+   second step once somebody has seen a price they might act on, so it gets
+   a real control — and it carries the route and date they just searched,
+   rather than asking them to type it again. Dashed and unfilled: a prompt
+   inside the results, not a card competing with them. */
+.lookup-next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  margin-top: var(--sp-6);
+  padding: var(--sp-4) var(--sp-5);
+  border: 1px dashed var(--line-2);
+  border-radius: var(--r-card);
+}
+
+.lookup-next-say {
+  font-size: var(--step-0);
+  font-weight: var(--w-medium);
+  color: var(--ink);
+}
+
+.lookup-next-sub {
+  margin-top: var(--sp-1);
+  font-size: var(--step--1);
+  line-height: 1.5;
+  color: var(--ink-soft);
+  max-width: 46ch;
 }

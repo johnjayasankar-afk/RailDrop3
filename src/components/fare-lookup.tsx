@@ -12,6 +12,9 @@ import { FareProvenance } from "@/components/fare-provenance";
 import { Money } from "@/components/money";
 import type { DateProgress, FarePreview } from "@/lib/watches/preview-fares";
 import { sharedSearchHref, type SharedSearch } from "@/lib/domain/share-search";
+import { cheapestByBucket } from "@/lib/domain/board-insights";
+import type { TimeBucket } from "@/lib/domain/board-tools";
+import type { RankedCandidate } from "@/lib/domain/types";
 
 /* What does this cost, right now.
  *
@@ -218,16 +221,39 @@ export function FareLookup({ today, initial }: { today: string; initial?: Shared
         </button>
       </form>
 
-      <Results state={state} passengers={passengers} />
+      <Results
+        state={state}
+        passengers={passengers}
+        origin={origin}
+        destination={destination}
+        date={date}
+      />
     </div>
   );
 }
 
-function Results({ state, passengers }: { state: State; passengers: number }) {
+function Results({
+  state,
+  passengers,
+  origin,
+  destination,
+  date,
+}: {
+  state: State;
+  passengers: number;
+  origin: string;
+  destination: string;
+  date: string;
+}) {
   const cheapest = useMemo(
     () => (state.status === "done" ? state.preview.ranked[0] : undefined),
     [state],
   );
+  /* Lives with the result rather than the query, because it is a question
+     about the answer: "is this better than what I already have?" Nothing is
+     sent anywhere and nothing is stored — it is arithmetic on two numbers
+     the reader is already looking at. */
+  const [paid, setPaid] = useState("");
 
   if (state.status === "idle") {
     return (
@@ -303,6 +329,38 @@ function Results({ state, passengers }: { state: State; passengers: number }) {
     );
   }
 
+  /* Which day, and which part of the day, is cheapest.
+   *
+   * Both come out of the fares this search actually returned — no history,
+   * no model, no prediction. "The cheapest one we saw was on Oct 8, in the
+   * morning" is a description of observations; "book on a Tuesday" would be
+   * a claim about the future, and this product does not make those. */
+  /* By price, not by position. Marking the FIRST cheapest day told a reader
+     that Sep 29 beat Sep 30 when both were $22 — a distinction the data does
+     not support, on the one element whose entire job is to say which day to
+     pick. Every day at the floor is flagged, which is also the honest answer
+     to "when should I travel": sometimes it is "either of these". */
+  const dayPrices = preview.byDate.map(([, candidate]) => candidate.totalPartyPriceCents);
+  const dayFloor = dayPrices.length ? Math.min(...dayPrices) : 0;
+  const dayCeiling = dayPrices.length ? Math.max(...dayPrices) : 0;
+  /* Only worth saying when the days actually differ. A "spread" of zero is a
+     sentence that sounds like advice and contains none. */
+  const daySpread = dayCeiling - dayFloor;
+  const cheapestDay = preview.byDate.find(
+    ([, candidate]) => candidate.totalPartyPriceCents === dayFloor,
+  );
+  const buckets = cheapestByBucket(preview.ranked);
+  const bucketRows = (["morning", "afternoon", "evening"] as const)
+    .map((bucket) => [bucket, buckets[bucket]] as const)
+    .filter((row): row is readonly [TimeBucket, RankedCandidate] => row[1] != null);
+  const bucketFloor = bucketRows.length
+    ? Math.min(...bucketRows.map(([, c]) => c.totalPartyPriceCents))
+    : 0;
+
+  const paidCents = Math.round(Number(paid) * 100);
+  const paidIsReal = Number.isFinite(paidCents) && paidCents > 0;
+  const delta = paidIsReal ? paidCents - cheapest!.totalPartyPriceCents : null;
+
   return (
     <section className="lookup-results" aria-label="Listed fares">
       <header className="lookup-head bracketed">
@@ -316,22 +374,98 @@ function Results({ state, passengers }: { state: State; passengers: number }) {
                 Money now, with the cents. */}
             <Money cents={cheapest!.totalPartyPriceCents} className="readout-lg" />
           </p>
+          <p className="lookup-verdict">
+            cheapest of {preview.ranked.length} listed
+            {cheapestDay ? ` · ${formatDisplayDate(cheapestDay[0])}` : ""}
+            {cheapest?.journey.departureAt ? ` · ${formatClock(cheapest.journey.departureAt)}` : ""}
+            {passengers > 1 ? ` · ${passengers} passengers, total` : ""}
+          </p>
         </div>
-        <p className="lookup-best-note">
-          cheapest of {preview.ranked.length} listed
-          {passengers > 1 ? ` · ${passengers} passengers, total` : ""}
-        </p>
+
+        {/* What you paid, without an account, a watch or a database.
+            This comparison was the best thing the product did and it was
+            locked behind creating a watch — which needs a session AND the
+            one dependency that can be down. It is arithmetic on two numbers
+            the reader already has. */}
+        <div className="lookup-paid">
+          <label className="lookup-paid-label" htmlFor="paid">
+            <span className="micro">Already booked? What you paid</span>
+            <span className="lookup-paid-input">
+              <span aria-hidden>$</span>
+              <input
+                id="paid"
+                inputMode="decimal"
+                value={paid}
+                onChange={(event) => setPaid(event.target.value)}
+                placeholder="128"
+                aria-describedby="paid-out"
+              />
+            </span>
+          </label>
+          <p id="paid-out" className="lookup-paid-out" aria-live="polite">
+            {delta === null ? (
+              <span className="lookup-paid-idle">Type it to compare against the live board.</span>
+            ) : delta > 0 ? (
+              <>
+                <Money cents={delta} className="text-save" /> cheaper now
+              </>
+            ) : delta < 0 ? (
+              <>
+                <Money cents={-delta} /> more than you paid — you did well
+              </>
+            ) : (
+              <>Exactly what you paid.</>
+            )}
+          </p>
+        </div>
       </header>
 
       {preview.byDate.length > 1 ? (
-        <ul className="lookup-days stagger">
-          {preview.byDate.map(([day, candidate]) => (
-            <li key={day} className={`lookup-day${day === preview.byDate[0]?.[0] ? "" : ""}`}>
-              <span className="lookup-day-label micro">{formatDisplayDate(day)}</span>
-              <span className="price">{formatUsdCompact(candidate.totalPartyPriceCents)}</span>
-            </li>
-          ))}
-        </ul>
+        <section className="lookup-when" aria-label="Cheapest by date">
+          <p className="micro lookup-when-head">
+            Cheapest day in this window
+            {daySpread > 0 ? (
+              <>
+                {" · "}
+                <Money cents={daySpread} /> between the best and worst
+              </>
+            ) : null}
+          </p>
+          <ul className="lookup-days stagger">
+            {preview.byDate.map(([day, candidate]) => {
+              const best = candidate.totalPartyPriceCents === dayFloor;
+              return (
+                <li key={day} className={`lookup-day${best ? " is-best" : ""}`}>
+                  <span className="lookup-day-label micro">{formatDisplayDate(day)}</span>
+                  <span className="price">{formatUsdCompact(candidate.totalPartyPriceCents)}</span>
+                  {best ? <span className="lookup-day-flag micro">cheapest</span> : null}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
+
+      {bucketRows.length > 1 ? (
+        <section className="lookup-when" aria-label="Cheapest by time of day">
+          <p className="micro lookup-when-head">Cheapest departure time</p>
+          <ul className="lookup-days">
+            {bucketRows.map(([bucket, candidate]) => (
+              <li
+                key={bucket}
+                className={`lookup-day${
+                  candidate.totalPartyPriceCents === bucketFloor ? " is-best" : ""
+                }`}
+              >
+                <span className="lookup-day-label micro">{bucket}</span>
+                <span className="price">{formatUsdCompact(candidate.totalPartyPriceCents)}</span>
+                <span className="lookup-day-flag micro">
+                  {formatClock(candidate.journey.departureAt)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
       ) : null}
 
       <ol className="lookup-list stagger">
@@ -368,13 +502,30 @@ function Results({ state, passengers }: { state: State; passengers: number }) {
         </p>
       ) : null}
 
-      <p className="lookup-note">
-        Listed fares, not a booking, and nothing here is being watched.{" "}
-        <Link href="/watches/new" className="underline">
+      {/* Offered after an answer, not instead of one.
+          This was a sentence of small print under the results. Watching is
+          the genuinely useful second step once somebody has seen a price
+          they might want to move on — so it gets a real control, and it
+          carries the route and date they just searched rather than making
+          them type it a second time. */}
+      <aside className="lookup-next">
+        <div>
+          <p className="lookup-next-say">Want to know if this drops?</p>
+          <p className="lookup-next-sub">
+            We check once a day and email you only when a listed fare actually improves. Optional,
+            and no account needed.
+          </p>
+        </div>
+        <Link
+          href={`/api/auth/guest?next=${encodeURIComponent(
+            `/watches/new?from=${origin}&to=${destination}&on=${date}`,
+          )}`}
+          className="btn btn-ghost"
+        >
           Watch this trip
-        </Link>{" "}
-        to be told when one drops.
-      </p>
+        </Link>
+      </aside>
+      <p className="lookup-note">Listed fares, not a booking. Confirm on Amtrak.</p>
     </section>
   );
 }
