@@ -2355,7 +2355,16 @@ a.depart-strip:hover {
 }
 
 .hud-none {
-  opacity: 0.45;
+  /* Was opacity 0.45, which measures 4.10:1 on the rail — under AA, on the
+     one mark that carries the product's central claim. This em dash is not
+     a blank: it is RailDrop saying "nobody listed a fare, and we are not
+     going to invent one." That is information, and dimming information to
+     45% because it happens to be short is the same instinct that produces a
+     fabricated zero in the first place.
+     
+     The sweep had never seen it. It only renders when the board comes back
+     with no trains, and every previous run happened to produce some. */
+  color: var(--board-mute);
   font-variant-numeric: tabular-nums;
 }
 
@@ -7310,18 +7319,35 @@ time,
   align-items: start;
 }
 
-@media (min-width: 60rem) {
-  .settings-main {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: var(--sp-6);
-  }
+/* The heading owns its own rhythm; the grid gap only separates it from the
+   cards. */
+.settings-lede {
+  margin-top: var(--sp-2);
+}
 
-  /* The strip, the title and the two lines under it are the page's address,
-     not one of its cards. */
-  .settings-main > .depart-strip,
-  .settings-main > h1,
-  .settings-main > p {
-    grid-column: 1 / -1;
+.settings-cards {
+  display: grid;
+  gap: var(--sp-6);
+}
+
+@media (min-width: 60rem) {
+  /* Two tracks, sized to their own content.
+     
+     I tried a balancing column box here first, on the reviewer's suggestion
+     that a grid pairs a tall card with a short one and leaves a void. It
+     does — but the connector card is nearly as tall as the other three
+     together and cannot be split, so the balancer put one card in column
+     one and three in column two and left a 400px hole instead of a 110px
+     one. Measured, not reasoned about; the grid was better.
+     
+     It is also the wrong thing to optimise: the connector only renders in
+     local mode, so production has three cards, not four. `align-items:
+     start` is what matters — it stops a two-line note being stretched to
+     the height of a four-step form, which is the void that actually reads
+     as a rendering fault. */
+  .settings-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
   }
 }
 
@@ -7435,7 +7461,10 @@ time,
 }
 
 .readout.is-unknown {
-  color: var(--ink-soft);
+  /* No colour of its own. Whatever surface this lands on has already had
+     its text colour checked, and re-dimming it here is how the rail's em
+     dash ended up at 4.10:1. An em dash beside a row of figures is quiet
+     enough without help. */
   letter-spacing: 0;
 }
 
