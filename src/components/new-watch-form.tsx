@@ -58,6 +58,9 @@ export function NewWatchForm({
    * was working perfectly the whole time.
    */
   const [unsaved, setUnsaved] = useState<FarePreview | null>(null);
+  const [unsavedRetryWorks, setUnsavedRetryWorks] = useState(true);
+  /** Written in the catch before the state that renders it, so they cannot disagree. */
+  const retryRef = useRef(true);
   const [busy, setBusy] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
@@ -130,7 +133,12 @@ export function NewWatchForm({
         }),
       });
       const json = await response.json();
-      if (!response.ok) throw new Error(json.error ?? "Could not create watch");
+      if (!response.ok) {
+        // The verdict rides along on the error, so the panel below can tell
+        // "wait a minute" apart from "someone has to fix this".
+        if (typeof json.retryWorks === "boolean") retryRef.current = json.retryWorks;
+        throw new Error(json.error ?? "Could not create watch");
+      }
       router.push(`/watches/${json.watch.id}`);
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
@@ -147,7 +155,12 @@ export function NewWatchForm({
        * rejected date or a bad station code is the form's problem and showing
        * fares underneath it would be answering a different question than the
        * one that failed. */
-      if (/could not reach|try again in a minute/i.test(message)) {
+      /* Fire for any database failure, not for a validation one.
+         The old test matched "try again in a minute", which the honest
+         messages for a paused or deleted project deliberately no longer say —
+         so the one case where showing the fares matters most had stopped
+         showing them. */
+      if (/could not reach|nothing was saved|tables are missing/i.test(message)) {
         try {
           const response = await fetch("/api/fares", {
             method: "POST",
@@ -164,7 +177,10 @@ export function NewWatchForm({
             }),
           });
           const json = await response.json();
-          if (response.ok && json.preview) setUnsaved(json.preview as FarePreview);
+          if (response.ok && json.preview) {
+            setUnsavedRetryWorks(retryRef.current);
+            setUnsaved(json.preview as FarePreview);
+          }
         } catch {
           // The fallback failing changes nothing: the error above already says
           // what happened, and a second message about a second failure helps
@@ -409,7 +425,7 @@ export function NewWatchForm({
                 {error}
               </p>
             ) : null}
-            {unsaved ? <UnsavedFares preview={unsaved} /> : null}
+            {unsaved ? <UnsavedFares preview={unsaved} retryWorks={unsavedRetryWorks} /> : null}
             <button disabled={busy} className="btn btn-primary w-full py-3">
               {busy ? "Checking your window…" : "Start watching"}
             </button>

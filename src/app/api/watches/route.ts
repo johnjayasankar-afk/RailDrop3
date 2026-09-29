@@ -3,7 +3,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { getFareProvider, getMailer, getRepository } from "@/lib/services";
 import { createWatchAndScan } from "@/lib/watches/create-watch";
 import { ProviderNotConfiguredError } from "@/lib/providers/fare-provider";
-import { errorDetail, errorMessage, isTransportFailure } from "@/lib/errors";
+import { databaseDiagnosis, errorDetail, errorMessage, isTransportFailure } from "@/lib/errors";
 import { routeGuard } from "@/lib/api/respond";
 import { logger } from "@/lib/logger";
 
@@ -50,6 +50,16 @@ export async function POST(request: Request) {
     // not: nothing about the request could have changed the outcome.
     const status =
       transport || message.includes("guest fix") || message.includes("Database needs") ? 503 : 400;
-    return NextResponse.json({ error: message }, { status });
+    /* `retryWorks` travels with the error, because the client draws a
+       different closing line for "try again in a minute" than for "someone
+       has to go and fix this". It used to say the first one in both cases,
+       under a list of fares, to a person whose trip had just been lost. */
+    const verdict = status === 503 ? databaseDiagnosis(error) : null;
+    return NextResponse.json(
+      verdict
+        ? { error: message, fault: verdict.fault, retryWorks: verdict.retryWorks }
+        : { error: message },
+      { status },
+    );
   }
 }

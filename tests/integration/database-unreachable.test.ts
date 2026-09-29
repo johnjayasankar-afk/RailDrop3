@@ -137,8 +137,19 @@ describe("a route whose database is unreachable", () => {
     const response = await routeGuard({ route: "/test" }, async () => {
       throw new Error("permission denied for table watches");
     });
+    // The point of this test: a permission fault is ours, not a transport
+    // one, so it must not be dressed as an outage a retry might clear.
     expect(response.status).toBe(500);
-    expect((await response.json()).error).toContain("permission denied");
+
+    /* This used to assert the raw "permission denied" reached the reader.
+       It named a Postgres table to a traveler, which tells them nothing they
+       can use and leaks a schema detail; and it did not say the trip was not
+       saved, or that waiting would not help — which, for an RLS misconfig,
+       is the fact that matters. The remedy is still named, in operatorHint. */
+    const shown = (await response.json()).error as string;
+    expect(shown).toMatch(/refused the save/i);
+    expect(shown).not.toContain("watches");
+    expect(shown).not.toMatch(/try again in a minute/i);
   });
 });
 

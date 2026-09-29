@@ -1339,6 +1339,18 @@ kbd {
   position: relative;
   display: inline-block;
   transform-style: preserve-3d;
+  /* Four copies of the glyph are four copies to a text selection.
+     Selecting the trip rail and copying it produced "BOSBOSBOSBOSBOS" —
+     the mechanism's four halves plus the screen-reader text. The mechanism
+     is a picture of an object turning, so it is not selectable; the one
+     real string beside it is. */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.flap .sr-only {
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .flap-half,

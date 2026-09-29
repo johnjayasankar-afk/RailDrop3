@@ -25,7 +25,18 @@ export class SupabaseRepository implements RailDropRepository {
       email: profile.email,
       timezone: profile.timezone,
     });
-    if (error) throw new Error(error.message);
+    /* The whole error, not just its message.
+     *
+     * supabase-js puts the errno in `details` and nowhere else — `message` is
+     * the bare "TypeError: fetch failed" for a deleted project, a paused one,
+     * a reset connection and a timeout alike. Wrapping it in a new Error here
+     * threw the one distinguishing fact away before anything could read it,
+     * so every database outage arrived at the reader as "we could not tell
+     * what went wrong, try again", including the ones that will never come
+     * back on their own. Forty-three other methods in this file already
+     * rethrow; these two did not, and one of them is the insert behind
+     * "Start watching". */
+    if (error) throw error;
     return profile;
   }
 
@@ -41,7 +52,18 @@ export class SupabaseRepository implements RailDropRepository {
 
   async createWatch(watch: WatchRecord): Promise<WatchRecord> {
     const { error } = await this.db.from("watches").insert(watchToRow(watch));
-    if (error) throw new Error(error.message);
+    /* The whole error, not just its message.
+     *
+     * supabase-js puts the errno in `details` and nowhere else — `message` is
+     * the bare "TypeError: fetch failed" for a deleted project, a paused one,
+     * a reset connection and a timeout alike. Wrapping it in a new Error here
+     * threw the one distinguishing fact away before anything could read it,
+     * so every database outage arrived at the reader as "we could not tell
+     * what went wrong, try again", including the ones that will never come
+     * back on their own. Forty-three other methods in this file already
+     * rethrow; these two did not, and one of them is the insert behind
+     * "Start watching". */
+    if (error) throw error;
     return watch;
   }
 

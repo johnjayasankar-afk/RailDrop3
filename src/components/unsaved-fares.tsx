@@ -19,7 +19,22 @@ import type { FarePreview } from "@/lib/watches/preview-fares";
  * we cannot reach is our problem; it should not also become the traveler's
  * empty screen.
  */
-export function UnsavedFares({ preview }: { preview: FarePreview }) {
+export function UnsavedFares({
+  preview,
+  retryWorks = true,
+}: {
+  preview: FarePreview;
+  /**
+   * Whether trying again could plausibly work.
+   *
+   * False for a deleted project, a paused one, a rejected key, a missing
+   * schema — five of the six ways this fails. The closing line used to say
+   * "try saving the trip again in a minute" for all of them, under a list of
+   * fares, to somebody whose trip had just been lost. They try, it fails, and
+   * the product has now lied to them twice.
+   */
+  retryWorks?: boolean;
+}) {
   const rows = preview.ranked.slice(0, 8);
 
   return (
@@ -72,8 +87,10 @@ export function UnsavedFares({ preview }: { preview: FarePreview }) {
       ) : null}
 
       <p className="unsaved-foot">
-        Listed fares, not a booking. Confirm on Amtrak. Try saving the trip again in a minute — if
-        it works, we will start watching these for you.
+        Listed fares, not a booking. Confirm on Amtrak.{" "}
+        {retryWorks
+          ? "Try saving the trip again in a minute — if it works, we will start watching these for you."
+          : "Saving will keep failing until the problem above is fixed, so copy anything you need from this list before you leave the page."}
       </p>
     </section>
   );

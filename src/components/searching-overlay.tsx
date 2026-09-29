@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { Flap } from "@/components/flap";
+import { formatDisplayDate } from "@/lib/domain/calendar";
 
 export function SearchingOverlay({
   origin,
@@ -26,7 +27,11 @@ export function SearchingOverlay({
   useEffect(() => {
     cancelRef.current = onCancel;
   }, [onCancel]);
-  const windowLabel = flexibility > 0 ? `${date} ±${flexibility}` : date;
+  /* formatDisplayDate, not the raw prop. The heading read "Checking every
+     train on 2026-10-13 ±1" — the only place in the product that shows a
+     reader an ISO date, on the screen they stare at for half a minute. */
+  const pretty = formatDisplayDate(date);
+  const windowLabel = flexibility > 0 ? `${pretty} ±${flexibility}` : pretty;
   /* The number of dates this scan covers. Real: it is what generateSearchDates
      produces from the same flexibility, and it is the only quantity about this
      scan that anybody here actually knows. */

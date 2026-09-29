@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ZodError, z } from "zod";
-import { errorDetail, errorMessage, isTransportFailure } from "@/lib/errors";
+import { databaseDiagnosis, errorDetail, errorMessage, isTransportFailure } from "@/lib/errors";
 
 /* The regression this file exists for.
  *
@@ -79,10 +79,31 @@ describe("errorMessage", () => {
     expect(shown).toMatch(/SQL Editor/i);
   });
 
-  it("keeps a configuration error verbatim, since it names the fix", () => {
-    expect(errorMessage(new Error("Supabase service role is not configured"))).toBe(
-      "Supabase service role is not configured",
+  /* This used to assert the opposite — that "Supabase service role is not
+     configured" reached the reader verbatim, "since it names the fix".
+     It names the fix for one person, and that person is not the one reading
+     it. To everybody else it is an internal symbol: it does not say the trip
+     was not saved, it does not say the fare search still works, and it does
+     not say whether waiting will help. All three matter more than the string.
+
+     The fix is still named, in `operatorHint`, which /api/health reports and
+     the log line carries. */
+  it("turns a missing service role into something a reader can act on", () => {
+    const shown = errorMessage(new Error("Supabase service role is not configured"));
+    expect(shown).toMatch(/nothing was saved/i);
+    expect(shown).toMatch(/our side/i);
+    expect(shown).not.toMatch(/service role/i);
+    // And it does not tell them to wait for something that will not change.
+    expect(shown).not.toMatch(/try again in a minute/i);
+  });
+
+  it("names the fix for whoever deployed it", () => {
+    const { fault, retryWorks, operatorHint } = databaseDiagnosis(
+      new Error("Supabase service role is not configured"),
     );
+    expect(fault).toBe("not-configured");
+    expect(retryWorks).toBe(false);
+    expect(operatorHint).toMatch(/SUPABASE_SERVICE_ROLE_KEY/);
   });
 
   it("reads a zod failure as the field problems it is", () => {

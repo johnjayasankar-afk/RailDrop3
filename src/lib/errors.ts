@@ -1,4 +1,5 @@
 import { ZodError } from "zod";
+import { diagnoseDatabase, looksLikeTransport } from "@/lib/db/diagnosis";
 
 /* What a person is told when something fails, and what the logs get instead.
  *
@@ -15,14 +16,11 @@ import { ZodError } from "zod";
  */
 
 /** Transport-level failure: the request never reached anything. */
-/**
- * Transport failures that mean the name itself has no answer.
- *
- * A subset of TRANSPORT_SIGNS, and the reason the two are separate: these do not
- * get better by waiting. A Supabase project that has been deleted resolves to
- * NXDOMAIN forever.
- */
-const UNRESOLVED_SIGNS = ["enotfound", "eai_again", "getaddrinfo", "nxdomain"];
+/* The unresolved/refused/timeout split moved to src/lib/db/diagnosis.ts, which
+   is where the decision that depends on it now lives. TRANSPORT_SIGNS stays
+   here because isTransportFailure answers a coarser question — did this ever
+   reach the database — which route status codes and page guards both need
+   without caring which way it failed. */
 
 const TRANSPORT_SIGNS = [
   "fetch failed",
@@ -125,14 +123,39 @@ function rawMessage(error: unknown): string {
   return String(error);
 }
 
+/**
+ * Set on an Error this function has already produced.
+ *
+ * Translating twice was destroying the diagnosis. createWatchAndScan wraps a
+ * failure with toAppError, which correctly read ECONNREFUSED out of the
+ * Supabase error's `details` and produced "the database is not accepting
+ * connections — on our hosting that usually means it has been paused". The
+ * route then called errorMessage() on that Error, which called toAppError
+ * again — and the second pass had only the sentence to work from, which
+ * contains no errno, so it fell through to "we could not tell whether it is a
+ * passing glitch" and told the reader to try again.
+ *
+ * Both messages are in the same log line, which is what gave it away: `detail`
+ * held the right answer and `message` held the wrong one.
+ */
+const TRANSLATED = Symbol.for("raildrop.translatedError");
+
 /** Normalize Supabase / Zod / unknown failures into a user-facing Error. */
 export function toAppError(error: unknown): Error {
+  if (
+    error instanceof Error &&
+    (error as unknown as Record<symbol, unknown>)[TRANSLATED] === true
+  ) {
+    return error;
+  }
   if (error instanceof ZodError) {
     const detail = error.issues.map((issue) => issue.message).join("; ");
-    return new Error(detail || "Invalid watch details");
+    return markTranslated(new Error(detail || "Invalid watch details"));
   }
   if (error instanceof Error) {
-    const rewritten = new Error(friendlyDbMessage(error.message, "", errorDetail(error)));
+    const rewritten = markTranslated(
+      new Error(friendlyDbMessage(error.message, "", errorDetail(error))),
+    );
     return isTransportFailure(error) ? markTransport(rewritten, error) : rewritten;
   }
   if (typeof error === "object" && error && "message" in error) {
@@ -141,54 +164,52 @@ export function toAppError(error: unknown): Error {
       "code" in error && (error as { code: unknown }).code != null
         ? String((error as { code: unknown }).code)
         : "";
-    const rewritten = new Error(friendlyDbMessage(message, code, errorDetail(error)));
+    const rewritten = markTranslated(
+      new Error(friendlyDbMessage(message, code, errorDetail(error))),
+    );
     return isTransportFailure(error) ? markTransport(rewritten, error) : rewritten;
   }
-  return new Error("Could not create watch");
+  return markTranslated(new Error("Could not create watch"));
 }
 
-/**
- * @param diagnostic The untouched text including any cause, used only to classify.
- *   undici puts "fetch failed" on the message and the errno on the cause, so
- *   deciding from `message` alone could not tell a name that does not resolve
- *   from a connection that was reset — and got it wrong in the direction that
- *   told people to wait for something permanent.
+/** Stamp an Error as already translated, so a second pass leaves it alone. */
+function markTranslated(error: Error): Error {
+  Object.defineProperty(error, TRANSLATED, { value: true, enumerable: false });
+  return error;
+}
+
+/* One classifier, in src/lib/db/diagnosis.ts.
+ *
+ * This function used to hold the whole decision, and it had two branches for
+ * transport: a hostname that does not resolve, and everything else, where
+ * "everything else" ended "try again in a minute". A paused Supabase project
+ * — the free tier's default after a week of quiet — keeps its DNS record and
+ * refuses the connection, so it landed in "everything else" and told people
+ * to wait for something that only comes back when a person restores it.
+ *
+ * `diagnoseDatabase` separates six causes and, more importantly, carries
+ * `retryWorks`, so no branch can promise recovery by accident. /api/health
+ * reads the same classifier, which is the other reason it moved: the page a
+ * reader sees and the endpoint an operator curls now cannot disagree about
+ * what is wrong.
  */
 function friendlyDbMessage(message: string, code = "", diagnostic = message): string {
-  const lower = `${message} ${diagnostic}`.toLowerCase();
-  if (TRANSPORT_SIGNS.some((sign) => lower.includes(sign))) {
-    /* Two different failures were wearing one sentence.
-     *
-     * "Try again in a minute" is right for a reset connection or a timeout: the
-     * database is there and the request was unlucky. It is false for a hostname
-     * that does not resolve, which is what a deleted Supabase project looks
-     * like — that cannot come back on its own, and no number of attempts will
-     * change it. Telling someone to wait a minute for a permanent
-     * misconfiguration is the same class of claim as inventing a price: a
-     * confident sentence about something we did not observe.
-     *
-     * The distinction is available in the error itself. getaddrinfo ENOTFOUND
-     * and EAI_AGAIN mean DNS had no answer; ECONNRESET, ETIMEDOUT and the rest
-     * mean something answered and the exchange failed. */
-    return UNRESOLVED_SIGNS.some((sign) => lower.includes(sign))
-      ? "We could not reach the RailDrop database, so nothing was saved. Its address does not resolve, so this is a setting that needs fixing rather than a passing glitch — trying again will not help until it is. Live fare search does not use the database and still works."
-      : "We could not reach the RailDrop database, so nothing was saved. This is a problem on our side — try again in a minute.";
+  const carrier = { message, code, details: diagnostic };
+  const { fault, message: friendly } = diagnoseDatabase(carrier);
+  /* A message we could not place is left alone rather than replaced.
+   *
+   * Validation failures arrive here too — "Enter the actual total you paid" is
+   * not a database fault — and a house sentence about the database would be a
+   * worse answer than the accurate one the caller already wrote. */
+  if (fault === "unknown" && !looksLikeTransport(carrier)) {
+    return message || "Could not create watch";
   }
-  if (
-    code === "23503" ||
-    lower.includes("profiles_id_fkey") ||
-    (lower.includes("foreign key") && lower.includes("profiles"))
-  ) {
-    /* Points at the whole schema, not one migration. Naming a single file is how
-       a database ends up with two of the nine applied — which is what the setup
-       instructions used to produce, and it fails later against a column that
-       does not exist rather than at setup. */
-    return "The database is missing part of its schema: in the Supabase SQL Editor, run supabase/SETUP_ALL.sql, then try again.";
-  }
-  if (lower.includes("service role") || lower.includes("supabase is not configured")) {
-    return message;
-  }
-  return message || "Could not create watch";
+  return friendly;
+}
+
+/** The full diagnosis, for callers that want the remedy as well as the sentence. */
+export function databaseDiagnosis(error: unknown, configured = true) {
+  return diagnoseDatabase(error, { configured });
 }
 
 export function errorMessage(error: unknown): string {

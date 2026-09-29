@@ -4,7 +4,8 @@ import { getConfig } from "@/lib/config";
 import { getRepository } from "@/lib/services";
 import { budgetDecision, budgetPressure, monthStart } from "@/lib/domain/provider-budget";
 import { localIsoDate } from "@/lib/domain/timezone";
-import { errorDetail, isTransportFailure } from "@/lib/errors";
+import { databaseDiagnosis, errorDetail, isTransportFailure } from "@/lib/errors";
+import type { DatabaseFault } from "@/lib/db/diagnosis";
 
 export async function GET() {
   const config = getConfig();
@@ -26,15 +27,24 @@ export async function GET() {
    * The budget read below is the probe: it is one indexed row and it is on the
    * path everything else uses, so if it comes back the database is genuinely
    * answering. */
+  const configured =
+    config.isOffline || Boolean(config.supabaseUrl && config.supabaseServiceRoleKey);
   let database: "ok" | "unreachable" | "erroring" | "not-configured" = config.isOffline
     ? "ok"
-    : Boolean(config.supabaseUrl && config.supabaseServiceRoleKey)
+    : configured
       ? "unreachable"
       : "not-configured";
   let databaseDetail: string | null =
     database === "not-configured"
       ? "No Supabase URL or service role key is set for this environment."
       : null;
+  /** Which of the six causes, so this can be read without interpreting prose. */
+  let fault: DatabaseFault = config.isOffline ? "ok" : configured ? "unknown" : "not-configured";
+  /** Whether anything is served by waiting. False means a person has to act. */
+  let retryWorks = false;
+  let remedy: string | null = configured
+    ? null
+    : "Set NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY for this environment, then redeploy.";
   try {
     const repo = getRepository();
     const [today, month] = await Promise.all([
@@ -51,6 +61,9 @@ export async function GET() {
     const pressure = budgetPressure(input);
     database = "ok";
     databaseDetail = null;
+    fault = "ok";
+    retryWorks = false;
+    remedy = null;
     budget = {
       known: true,
       checksPaused: !decision.allow,
@@ -67,23 +80,37 @@ export async function GET() {
     // A health endpoint that fails because the database is unreachable is
     // worse than one that reports what it can — but it must still say so.
     budget = { known: false };
-    if (database !== "not-configured") {
-      database = isTransportFailure(error) ? "unreachable" : "erroring";
-      /* The operator gets the errno and the host they need to go look at.
-       *
-       * supabase-js flattens the network error into a bare "TypeError: fetch
-       * failed" before we ever see it, losing the hostname that undici had on
-       * the cause — so the detail names the configured host itself. It is the
-       * NEXT_PUBLIC_ URL, already in the client bundle, so this reveals
-       * nothing; and it is the single fact that turns "the site is broken" into
-       * "that project is gone". */
-      databaseDetail = [
-        errorDetail(error),
-        config.supabaseUrl ? `host ${hostOf(config.supabaseUrl)}` : null,
-      ]
-        .filter(Boolean)
-        .join(" · ");
-    }
+    /* The same classifier the reader's message comes from.
+     *
+     * This endpoint used to reach its own verdict — transport failure or not —
+     * while src/lib/errors.ts reached a different one for the same error, so
+     * the page could say "try again in a minute" while the health check said
+     * "erroring", and neither named the cause. One classifier means the
+     * sentence a traveler reads and the JSON an operator curls cannot
+     * disagree about what is wrong.
+     *
+     * The operator also gets the errno and the host. supabase-js flattens the
+     * network error into a bare "TypeError: fetch failed" before we ever see
+     * it, losing the hostname undici had on the cause — so the detail names
+     * the configured host itself. It is the NEXT_PUBLIC_ URL, already in the
+     * client bundle, so this reveals nothing; and it is the single fact that
+     * turns "the site is broken" into "that project is gone". */
+    const verdict = databaseDiagnosis(error, configured);
+    fault = verdict.fault;
+    retryWorks = verdict.retryWorks;
+    remedy = verdict.operatorHint;
+    database =
+      verdict.fault === "not-configured"
+        ? "not-configured"
+        : isTransportFailure(error) || verdict.fault === "refused"
+          ? "unreachable"
+          : "erroring";
+    databaseDetail = [
+      errorDetail(error),
+      config.supabaseUrl ? `host ${hostOf(config.supabaseUrl)}` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
   }
 
   const healthy = database === "ok";
@@ -100,6 +127,10 @@ export async function GET() {
         /** Whether it answered, not whether it was spelled. */
         database,
         databaseDetail,
+        /** Which cause, and whether waiting helps. The remedy is the fix. */
+        databaseFault: fault,
+        databaseRetryWorks: retryWorks,
+        databaseRemedy: remedy,
         databaseConfigured:
           config.isOffline || Boolean(config.supabaseUrl && config.supabaseAnonKey),
         schedulerConfigured: Boolean(config.cronSecret) || config.isOffline,
