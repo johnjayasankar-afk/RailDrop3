@@ -15,6 +15,8 @@ import type {
   CorridorObservation,
 } from "./models";
 import type { RailDropRepository, WatchUpdate } from "./repository";
+import { IN_FLIGHT_TTL_MS } from "@/lib/domain/search-dedup";
+import { logger } from "@/lib/logger";
 
 export class SupabaseRepository implements RailDropRepository {
   constructor(private readonly db: SupabaseClient) {}
@@ -359,6 +361,51 @@ export class SupabaseRepository implements RailDropRepository {
   }
 
   async markSearchInFlight(row: ProviderRequestRecord): Promise<boolean> {
+    /* Expire abandoned claims before asking for one.
+     *
+     * The partial unique index on (search_key) WHERE status = 'IN_FLIGHT' is
+     * the right lock and the wrong lifetime: it has no notion of age, so a
+     * worker killed between claiming and finishing strands a marker and that
+     * search key can never be claimed again. planSearch already treats a
+     * marker older than IN_FLIGHT_TTL_MS as abandoned and returns `search`,
+     * so the planner says go and the index says no, forever — a per-corridor
+     * deadlock that survives every deploy, because the row is in the
+     * database.
+     *
+     * On Vercel a killed invocation is ordinary: a timeout, a redeploy
+     * mid-scan, an OOM. This is the fault that makes a route stop returning
+     * fares for good while every other route keeps working, which is exactly
+     * how it presents — "it worked before".
+     *
+     * Marked as a failure rather than deleted: a search really was started
+     * here and really did not come back, and that is true of this corridor.
+     * Deleting it would make the record claim nobody ever looked. */
+    /* Dated against the incoming claim's own stamp, not wall time: every row
+       in this table is written from a cycle's injected clock, and mixing the
+       two domains makes a live claim look stale to anyone whose clock runs
+       ahead of the writer's. */
+    const claimedAt = Date.parse(row.createdAt);
+    const reference = Number.isFinite(claimedAt) ? claimedAt : Date.now();
+    const expiredBefore = new Date(reference - IN_FLIGHT_TTL_MS).toISOString();
+    const { error: sweep } = await this.db
+      .from("provider_requests")
+      .update({
+        status: "PROVIDER_ERROR",
+        error_message: "Search was claimed and never finished; the claim expired.",
+      })
+      .eq("search_key", row.searchKey)
+      .eq("status", "IN_FLIGHT")
+      .lt("created_at", expiredBefore);
+    /* A failed sweep is not fatal. Either somebody else swept it, or the
+       insert below is about to fail with 23505 and the caller waits — both
+       are states this function already has an answer for. */
+    if (sweep) {
+      logger.warn("search.claim_sweep_failed", {
+        searchKey: row.searchKey,
+        message: sweep.message,
+      });
+    }
+
     const { error } = await this.db.from("provider_requests").insert({
       id: row.id,
       search_key: row.searchKey,

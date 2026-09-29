@@ -1,3 +1,4 @@
+import { IN_FLIGHT_TTL_MS } from "@/lib/domain/search-dedup";
 import { STATIONS } from "@/lib/stations/catalog";
 import type { JourneyOption } from "@/lib/domain/types";
 import type {
@@ -300,12 +301,58 @@ export class MemoryRepository implements RailDropRepository {
   }
 
   async markSearchInFlight(row: ProviderRequestRecord): Promise<boolean> {
-    // No await between the check and the set, so this is atomic on a single
-    // thread — the same guarantee the partial unique index gives in Postgres.
-    const held = [...this.providerRequests.values()].some(
-      (r) => r.searchKey === row.searchKey && r.status === "IN_FLIGHT",
-    );
-    if (held) return false;
+    /* A claim expires. This is the half that did not know that.
+     *
+     * planSearch already decides an IN_FLIGHT marker older than
+     * IN_FLIGHT_TTL_MS is abandoned — "the worker that claimed it is not
+     * coming back" — and returns `search`. This function then refused the
+     * claim, because it asked only whether an in-flight row EXISTS, with no
+     * notion of age. Two components with different definitions of "somebody
+     * is working on this", and the disagreement is a deadlock: the planner
+     * says go, the store says no, the loop re-plans, forever, until
+     * MAX_TURNS trips and the date is recorded as PROVIDER_ERROR.
+     *
+     * It is permanent and it is per-corridor. Any worker killed between
+     * claiming and finishing strands a marker, and that search key never
+     * searches again. Measured here on 2026-09-29: three rows stranded at
+     * 17:09:28 by a dev server I killed mid-scan, and every BOS→NYP scan
+     * afterwards failed with `search.plan_did_not_settle` — which reads like
+     * a provider outage and is not one. On Vercel a killed invocation is
+     * ordinary, so this is a production fault, not a local one.
+     *
+     * The reference clock is the INCOMING row's own createdAt, not
+     * Date.now(). Every row here is stamped from the cycle's injected clock,
+     * and my first version compared those stamps against wall time — which
+     * made a test that runs a cycle at a fixed 2026-09-26 see every live
+     * claim as three days stale and hand out a second one, breaking the race
+     * guarantee this function exists to provide. Two claimants comparing
+     * their own stamps to each other is the same question asked in one
+     * clock domain.
+     *
+     * Still atomic: no await between the read and the write. */
+    const claimedAt = Date.parse(row.createdAt);
+    const reference = Number.isFinite(claimedAt) ? claimedAt : Date.now();
+    const cutoff = reference - IN_FLIGHT_TTL_MS;
+    const stale: ProviderRequestRecord[] = [];
+    for (const held of this.providerRequests.values()) {
+      if (held.searchKey !== row.searchKey || held.status !== "IN_FLIGHT") continue;
+      const startedAt = Date.parse(held.createdAt);
+      // An unparseable timestamp is treated as abandoned rather than as a
+      // live claim: a marker nobody can date is one nobody can wait out.
+      if (Number.isFinite(startedAt) && startedAt > cutoff) return false;
+      stale.push(held);
+    }
+    /* The abandoned claim becomes a recorded failure rather than vanishing.
+       Something did start a search here and never came back, and that is a
+       fact about this corridor worth keeping — deleting it would make the
+       history claim the search was never attempted. */
+    for (const abandoned of stale) {
+      this.providerRequests.set(abandoned.id, {
+        ...abandoned,
+        status: "PROVIDER_ERROR",
+        errorMessage: "Search was claimed and never finished; the claim expired.",
+      });
+    }
     this.providerRequests.set(row.id, row);
     return true;
   }
