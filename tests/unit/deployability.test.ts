@@ -175,3 +175,50 @@ describe("the app can actually be built for production", () => {
     expect([...locate("middleware"), ...locate("proxy")]).toHaveLength(1);
   });
 });
+
+/* A file read at request time is invisible to tracing.
+ *
+ * The setup route does `readFile(path.join(process.cwd(), "supabase",
+ * "SETUP_ALL.sql"))`. Tracing follows imports, and a path composed at runtime
+ * is not one — so the route works perfectly in dev, where the repo is on
+ * disk, and throws ENOENT on Vercel where only the traced files exist. That
+ * is exactly how the Chromium binary went missing for six routes and a
+ * fortnight: `executablePath()` composed its path at runtime too.
+ *
+ * So the rule is stated rather than remembered: a route that reads a repo
+ * file at runtime must name it in outputFileTracingIncludes.
+ */
+describe("files read at runtime are shipped", () => {
+  it("traces SETUP_ALL.sql to the route that applies it", async () => {
+    const config = (await import("../../next.config")).default;
+    const includes = config.outputFileTracingIncludes ?? {};
+    const patterns = includes["/api/admin/setup-database"] ?? [];
+    expect(patterns.some((p) => p.includes("SETUP_ALL.sql"))).toBe(true);
+  });
+
+  it("the file it names is actually there", () => {
+    // A trace entry for a path that does not exist ships nothing and says
+    // nothing, which is the same failure wearing a different hat.
+    expect(existsSync(path.join(ROOT, "supabase/SETUP_ALL.sql"))).toBe(true);
+  });
+
+  it("every runtime readFile of a repo path is covered", () => {
+    /* Finds the pattern rather than the one known instance: a `readFile` or
+       `readFileSync` whose path is built from process.cwd() inside src/app. */
+    const offenders: string[] = [];
+    const walk = (dir: string): void => {
+      for (const entry of readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
+        const next = `${dir}/${entry.name}`;
+        if (entry.isDirectory()) walk(next);
+        else if (/\.tsx?$/.test(entry.name)) {
+          const source = readFileSync(path.join(ROOT, next), "utf8");
+          if (/read[fF]ile(Sync)?\([^)]*process\.cwd\(\)/.test(source)) offenders.push(next);
+        }
+      }
+    };
+    walk("src/app");
+    // src/app itself has none: the read lives in src/lib/db/provision.ts and
+    // is reached from the route, which is why the route is the traced key.
+    expect(offenders).toEqual([]);
+  });
+});

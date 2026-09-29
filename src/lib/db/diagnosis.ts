@@ -167,7 +167,8 @@ export function diagnoseDatabase(
         SEARCH_STILL_WORKS,
       retryWorks: false,
       operatorHint:
-        "Open the Supabase SQL Editor for this project and run supabase/SETUP_ALL.sql once.",
+        "Run supabase/SETUP_ALL.sql: POST /api/admin/setup-database with the CRON_SECRET " +
+        "bearer token if SUPABASE_DB_URL is set, or paste it into the Supabase SQL Editor.",
     };
   }
 

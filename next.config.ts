@@ -90,6 +90,14 @@ const nextConfig: NextConfig = {
     "/api/cron/worker": ["./node_modules/@sparticuz/chromium/bin/**"],
     "/api/cron/dispatch": ["./node_modules/@sparticuz/chromium/bin/**"],
     "/api/health/provider": ["./node_modules/@sparticuz/chromium/bin/**"],
+    /* The schema, read from disk at request time.
+     *
+     * Tracing follows imports, and this is a readFile of a path built at
+     * runtime — so nothing tells the bundler the file is needed and the route
+     * would 500 in production with ENOENT while working perfectly in dev.
+     * The same omission is what kept the Chromium binary out of the bundle
+     * for six routes above. */
+    "/api/admin/setup-database": ["./supabase/SETUP_ALL.sql"],
   },
   turbopack: {
     root: process.cwd(),

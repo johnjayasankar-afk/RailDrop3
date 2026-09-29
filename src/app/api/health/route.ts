@@ -98,7 +98,15 @@ export async function GET() {
     const verdict = databaseDiagnosis(error, configured);
     fault = verdict.fault;
     retryWorks = verdict.retryWorks;
-    remedy = verdict.operatorHint;
+    /* When the tables are missing and this deployment has a direct Postgres
+       URL, the remedy is a request rather than an errand. Naming the SQL
+       editor in that case would be telling someone to do by hand the thing
+       the app is now able to do for them. */
+    remedy =
+      verdict.fault === "schema-missing" && config.databaseUrl
+        ? "POST /api/admin/setup-database with the CRON_SECRET bearer token. It applies " +
+          "supabase/SETUP_ALL.sql and is safe to re-run."
+        : verdict.operatorHint;
     database =
       verdict.fault === "not-configured"
         ? "not-configured"
@@ -131,6 +139,8 @@ export async function GET() {
         databaseFault: fault,
         databaseRetryWorks: retryWorks,
         databaseRemedy: remedy,
+        /** Whether this deployment can apply its own schema. */
+        databaseSelfSetup: Boolean(config.databaseUrl),
         databaseConfigured:
           config.isOffline || Boolean(config.supabaseUrl && config.supabaseAnonKey),
         schedulerConfigured: Boolean(config.cronSecret) || config.isOffline,

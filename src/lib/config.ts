@@ -5,6 +5,21 @@ const envSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.string().optional(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
+  /* A direct Postgres connection, which the REST API cannot substitute for.
+   *
+   * supabase-js talks to PostgREST, and PostgREST cannot run DDL — so with
+   * only the service role key the app can read and write rows it has tables
+   * for and can do nothing at all about not having them. That is why "the
+   * database is reachable but its tables are missing" was a fault the app
+   * could name and not fix, and why setting this project up meant pasting 729
+   * lines into a SQL editor by hand.
+   *
+   * Vercel's Supabase integration sets POSTGRES_URL; Supabase's own dashboard
+   * calls it the connection string. Either is accepted, and it is optional —
+   * without it everything works exactly as before, minus self-setup. */
+  SUPABASE_DB_URL: z.string().optional(),
+  POSTGRES_URL: z.string().optional(),
+  DATABASE_URL: z.string().optional(),
   PARSE_API_KEY: z.string().optional(),
   PARSE_SCRAPER_ID: z.string().default("f800c27d-0aaa-4ca0-864e-4dc69e20f764"),
   RESEND_API_KEY: z.string().optional(),
@@ -27,6 +42,8 @@ export type AppConfig = {
   supabaseUrl: string | null;
   supabaseAnonKey: string | null;
   supabaseServiceRoleKey: string | null;
+  /** Direct Postgres, for DDL. Null when the deployment cannot self-provision. */
+  databaseUrl: string | null;
   parseApiKey: string | null;
   parseScraperId: string;
   resendApiKey: string | null;
@@ -128,6 +145,7 @@ export function getConfig(): AppConfig {
     supabaseUrl: parsed.NEXT_PUBLIC_SUPABASE_URL || null,
     supabaseAnonKey: parsed.NEXT_PUBLIC_SUPABASE_ANON_KEY || null,
     supabaseServiceRoleKey: parsed.SUPABASE_SERVICE_ROLE_KEY || null,
+    databaseUrl: parsed.SUPABASE_DB_URL || parsed.POSTGRES_URL || parsed.DATABASE_URL || null,
     parseApiKey: parsed.PARSE_API_KEY || null,
     parseScraperId: parsed.PARSE_SCRAPER_ID,
     resendApiKey: parsed.RESEND_API_KEY || null,
