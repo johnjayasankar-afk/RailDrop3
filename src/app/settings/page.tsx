@@ -19,7 +19,7 @@ import Link from "next/link";
 export default function SettingsPage() {
   return (
     <PageFrame>
-      <main id="main" className="settings-main mx-auto max-w-5xl px-4 py-8">
+      <main id="main" className="settings-main mx-auto max-w-6xl px-4 py-8">
         <div className="depart-strip">
           <Flap>SET</Flap>
           <span className="depart-strip-rule" aria-hidden />

@@ -293,7 +293,7 @@ export function NewWatchForm({
                 type="time"
                 value={preferredTime}
                 onChange={(event) => setPreferredTime(event.target.value)}
-                className="field"
+                className="field field-code"
               />
             </label>
           </section>
@@ -326,7 +326,7 @@ export function NewWatchForm({
               <input
                 value={bookedTrain}
                 onChange={(event) => setBookedTrain(event.target.value)}
-                className="field"
+                className="field field-code"
                 placeholder="93 or Acela 2155"
                 maxLength={16}
               />
@@ -419,7 +419,7 @@ export function NewWatchForm({
                 type="email"
                 value={alertEmail}
                 onChange={(event) => setAlertEmail(event.target.value)}
-                className="field"
+                className="field field-mid"
                 placeholder={email || "you@email.com"}
               />
             </label>

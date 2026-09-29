@@ -7363,3 +7363,26 @@ time,
   color: var(--ink-soft);
   letter-spacing: 0;
 }
+
+/* ── A field as wide as the thing it holds ──────────────────────────────────
+   `.field` is width:100%, which was fine while the forms sat in a 1024px
+   page and became silly when they moved to 1152: an 833px input for a train
+   number that maxLength caps at sixteen characters, and the same width for a
+   time of day. A field that is five times wider than its longest possible
+   value is not generous, it is a misread of what goes in it — and on a form
+   where one input takes "$128" and another takes "Acela 2155", equal widths
+   actively hide which is which.
+
+   Capped by content, not by taste. A max-width, so they still shrink on a
+   phone. */
+.field-code {
+  max-width: 11rem;
+}
+
+.field-mid {
+  max-width: 24rem;
+}
+
+.datefield {
+  max-width: 20rem;
+}

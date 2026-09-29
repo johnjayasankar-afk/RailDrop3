@@ -26,7 +26,7 @@ export default function NewWatchPage({
 }) {
   return (
     <PageFrame>
-      <main id="main" className="mx-auto max-w-5xl px-4 py-8">
+      <main id="main" className="mx-auto max-w-6xl px-4 py-8">
         <p className="kicker">New watch</p>
         <h1 className="serif mt-2 text-4xl">Watch a trip</h1>
         <p className="mt-2 max-w-2xl text-ink-soft">

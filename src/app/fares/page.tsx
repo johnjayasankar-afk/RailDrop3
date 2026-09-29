@@ -50,7 +50,7 @@ export default function FaresPage({
 }) {
   return (
     <PageFrame>
-      <main id="main" className="ambient mx-auto max-w-5xl px-4 py-10">
+      <main id="main" className="ambient mx-auto max-w-6xl px-4 py-10">
         <div className="lookup-eyebrow">
           <span className="pulse" aria-hidden />
           <span className="micro">Live board · reads Amtrak inventory directly</span>
