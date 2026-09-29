@@ -92,3 +92,61 @@ describe("provisioning refuses clearly when it cannot run", () => {
     expect(sql).toContain("create table if not exists public.watches");
   });
 });
+
+/* The third side of the triangle.
+ *
+ * provision.ts's REQUIRED_TABLES and SETUP_ALL.sql are already checked
+ * against each other above. Neither is checked against the code that
+ * actually issues the queries, and that is the pairing a runtime failure
+ * comes from: a table added to supabase-repository.ts without a matching
+ * CREATE ships fine, builds fine, passes every test here, and then throws
+ * 42P01 on the one request that touches it — against a database that is
+ * otherwise healthy, which is the hardest kind of outage to read.
+ *
+ * Confirmed matching when this was written: fifteen tables in the repository
+ * and the same fifteen in the script. This exists so the sixteenth cannot be
+ * added to only one of them.
+ */
+describe("the schema the script creates is the schema the code queries", () => {
+  const REPOSITORY = readFileSync(
+    path.resolve(__dirname, "../../src/lib/db/supabase-repository.ts"),
+    "utf8",
+  );
+
+  /** Every table the repository selects from, inserts into or updates. */
+  function queried(): string[] {
+    const found = [...REPOSITORY.matchAll(/\.from\("([a-z_]+)"\)/g)].map((m) => m[1]!);
+    return [...new Set(found)].sort();
+  }
+
+  /** Every table the script creates, however the statement is spelled. */
+  function created(): string[] {
+    const found = [
+      ...SQL.matchAll(/create\s+table\s+(?:if\s+not\s+exists\s+)?(?:public\.)?([a-z_]+)/gi),
+    ].map((m) => m[1]!.toLowerCase());
+    return [...new Set(found)].sort();
+  }
+
+  it("is reading both files", () => {
+    // Two regexes that match nothing would agree perfectly.
+    expect(queried().length).toBeGreaterThanOrEqual(15);
+    expect(created().length).toBeGreaterThanOrEqual(15);
+  });
+
+  it("creates every table the repository queries", () => {
+    const madeUp = queried().filter((table) => !created().includes(table));
+    expect(
+      madeUp,
+      `the repository queries these and SETUP_ALL.sql does not create them, so a fresh ` +
+        `project would throw 42P01 on the first request that touches one`,
+    ).toEqual([]);
+  });
+
+  it("queries every table it creates", () => {
+    /* Not a runtime failure, but it is how a schema silently grows a table
+       nobody reads — and the next person cannot tell whether it is dead or
+       load-bearing. */
+    const unread = created().filter((table) => !queried().includes(table));
+    expect(unread).toEqual([]);
+  });
+});
