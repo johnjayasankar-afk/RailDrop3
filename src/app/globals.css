@@ -6810,3 +6810,77 @@ select.field {
     display: none;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   VOICE
+   ───────────────────────────────────────────────────────────────────────────
+   The typographic half of the redesign. Everything here is weight, rhythm and
+   figure behaviour; no layout, no colour.
+
+   The finding that drove it: inter-var.woff2 is loaded with `weight: "100
+   900"` — the whole axis, every gram of it downloaded on first paint — and
+   the stylesheet used exactly three values from it. Worse, it used them
+   upside down. `.serif` is `font-weight: 400`, and `.serif` is what sets the
+   h1, every section heading and every price on the board; meanwhile all
+   fifteen uses of 600 were on labels of 10 and 11 pixels. The boldest thing
+   on a RailDrop page was a caption, and the headline was regular.
+
+   That inversion is most of why the product read soft. A page whose largest
+   element has no more presence than its body copy has no first thing to look
+   at, and a reader resolves that by looking at whatever has a box around it
+   — which is how fourteen identical panels came to be the visual structure
+   of the board.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Named for the job, so a future change is one edit rather than a sweep. */
+  --w-body: 400;
+  --w-medium: 500;
+  --w-label: 560; /* micro caps: small and tracked out, they need the weight */
+  --w-strong: 600;
+  --w-display: 640; /* headlines and figures */
+}
+
+/* Display type carries weight, and loses it back in tracking.
+   Both halves matter: 640 alone at 72px is heavy, and the negative tracking
+   already declared in --track-hero is what turns it into presence. */
+.serif {
+  font-weight: var(--w-display);
+}
+
+h2.serif,
+.lookup-title {
+  font-weight: var(--w-display);
+}
+
+/* Every figure in the product is a measurement, so every figure aligns.
+   
+   tabular-nums was applied in ten places and missed the rest, which is why a
+   column of fares in the timetable does not line up on the decimal while the
+   hero's does. slashed-zero is the departure-board convention and the reason
+   an O and a 0 are never confused on a real one. */
+.price,
+.readout,
+.metric-value,
+.spec-value,
+.hud-money,
+.hud-value,
+.hud-delta,
+.flap,
+time,
+.station-code {
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+
+/* Micro caps hold their own at small sizes.
+   A tracked-out 10px label at weight 400 is a grey smear; the tracking that
+   makes it legible as a label is the same tracking that thins it. */
+.micro,
+.kicker,
+.eyebrow,
+.hud-label,
+.filter-label,
+.sample-head,
+.board-head {
+  font-weight: var(--w-label);
+}
