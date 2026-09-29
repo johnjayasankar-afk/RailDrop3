@@ -2654,6 +2654,30 @@ a.depart-strip:hover {
   color: inherit;
 }
 
+/* What a panel, a toast and a list row were actually asking for.
+ *
+ * All three ran the split-flap's keyframe — rotateX(-72deg) to flat — and none
+ * of them has a `perspective` ancestor. Without perspective a rotateX is an
+ * orthographic projection, so -72deg is exactly scaleY(0.309): the share
+ * sheet, every toast and every palette row opened as a 31%-tall squashed band
+ * and sprang to full height. That reads as a rendering fault rather than an
+ * entrance, and it had been doing so for as long as the rule existed.
+ *
+ * Retiring that keyframe with the flap rewrite left all three naming a
+ * keyframe that no longer exists, which is silently no animation at all — so
+ * this is a repair and a replacement at once. A surface arriving should rise
+ * and resolve. Only a character cell should turn. */
+@keyframes surface-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .share-sheet {
   display: flex;
   flex-wrap: wrap;
@@ -2664,7 +2688,7 @@ a.depart-strip:hover {
   background: var(--board);
   color: var(--board-ink);
   box-shadow: inset 0 2px 0 var(--gold);
-  animation: flap-tick 220ms ease;
+  animation: surface-in 220ms var(--ease-out) both;
 }
 
 .share-sheet button {
@@ -2723,7 +2747,7 @@ a.depart-strip:hover {
   box-shadow:
     inset 0 2px 0 var(--gold),
     0 18px 40px -16px rgba(8, 20, 14, 0.5);
-  animation: flap-tick 280ms ease;
+  animation: surface-in 200ms var(--ease-out) both;
 }
 
 .ticket .timetable {
@@ -3265,7 +3289,7 @@ a.depart-strip:hover {
   padding: 0.5rem 1rem;
   cursor: pointer;
   transform-origin: top center;
-  animation: flap-tick 170ms ease both;
+  animation: surface-in 170ms var(--ease-out) both;
 }
 
 .palette-row.is-active {
@@ -3629,6 +3653,10 @@ a.depart-strip:hover {
   display: flex;
   gap: 0.35rem;
   margin-bottom: 0.2rem;
+  /* The children rotate in X, and without this that is an orthographic
+     projection — -58deg becomes scaleY(0.53), a squash rather than a fold.
+     Third place in this file where a rotateX had no perspective above it. */
+  perspective: 160px;
 }
 
 .board-empty-flaps span {

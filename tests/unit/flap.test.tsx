@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { createElement } from "react";
 import { Flap, nextFlapState, type FlapState } from "@/components/flap";
 
 /* The split-flap, which did not split and did not flap.
@@ -45,7 +44,7 @@ describe("nextFlapState", () => {
 });
 
 describe("the rendered mechanism", () => {
-  const html = renderToStaticMarkup(createElement(Flap, { children: "8:14 PM" }));
+  const html = renderToStaticMarkup(<Flap>8:14 PM</Flap>);
 
   it("paints four halves: two static, two leaves", () => {
     for (const cls of ["flap-top", "flap-bottom", "flap-leaf-out", "flap-leaf-in"]) {
@@ -69,15 +68,15 @@ describe("the rendered mechanism", () => {
   it("shows the same glyph top and bottom at rest", () => {
     // Nothing has changed yet, so the cell must read as one character — not
     // as a flip frozen halfway.
-    const halves = [...html.matchAll(/class="flap-(?:half flap-(?:top|bottom)|leaf[^"]*)"[^>]*>([^<]*)</g)];
+    const halves = [
+      ...html.matchAll(/class="flap-(?:half flap-(?:top|bottom)|leaf[^"]*)"[^>]*>([^<]*)</g),
+    ];
     expect(halves).toHaveLength(4);
     expect(new Set(halves.map((m) => m[1]))).toEqual(new Set(["8:14 PM"]));
   });
 
   it("keeps the caller's className on the cell", () => {
-    const withClass = renderToStaticMarkup(
-      createElement(Flap, { children: "95", className: "flap-hero" }),
-    );
+    const withClass = renderToStaticMarkup(<Flap className="flap-hero">95</Flap>);
     expect(withClass).toContain('class="flap flap-hero"');
   });
 });
