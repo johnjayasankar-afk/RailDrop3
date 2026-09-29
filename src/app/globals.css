@@ -17,7 +17,21 @@
   --drop: #8a4a0b;
   --danger: #9a2f21;
   --rail: #8c2f39;
-  --gold: #1f6b4a;
+  /* Was #1f6b4a — byte-identical to --save directly above it.
+     
+     The product declares a three-colour semantics: mint for a saving, amber
+     for urgency, burgundy for the rail. In dark mode --gold is #d8b075 and
+     that reads. In light mode it was the savings green, so amber did not
+     exist in daylight at all, and the twenty-seven places that spend this
+     token — the 01/02/03 folios on the landing page, the help sheet's title,
+     the urgency edge on the trip rail, the lit top edge of the hero clocks —
+     all said "saving" when four of them meant "look at this" and none of
+     them meant "money back". A palette with a duplicate in it is a palette
+     with one fewer colour than it thinks.
+     
+     Same hue family as the dark value, dark enough to carry text: 5.47:1 on
+     porcelain against a 4.5 floor. */
+  --gold: #8a5a12;
   --board: #13241b;
   --board-face: #1f382b;
   --board-ink: #f0f7f3;
