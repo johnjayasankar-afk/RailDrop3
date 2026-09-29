@@ -331,7 +331,7 @@ export function NewWatchForm({
                 maxLength={16}
               />
             </label>
-            <fieldset className="text-sm">
+            <fieldset className="choice-row text-sm">
               <legend className="mb-2">Fare you actually bought</legend>
               {(
                 [

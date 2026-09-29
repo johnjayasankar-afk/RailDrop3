@@ -389,7 +389,12 @@ h2.serif {
 }
 
 .field::placeholder {
-  color: color-mix(in srgb, var(--ink-soft) 80%, transparent);
+  /* Was --ink-soft at 80%, which composites to 3.43:1 on the light field
+     fill — under the 4.5 floor, on the text that tells you what a field
+     wants. A placeholder is not decoration; on half these inputs it is the
+     only example of the format. Full --ink-soft measures 4.87:1 and is
+     still visibly lighter than the value you type. */
+  color: var(--ink-soft);
   opacity: 1;
 }
 
@@ -4948,6 +4953,17 @@ body::after {
 .ambient {
   position: relative;
   isolation: isolate;
+  /* The glow bleeds 10% past each edge on purpose — that is what makes it
+     read as light spilling in rather than as a shape on the page. On a
+     390px phone that 10% is 39px a side, and because it is a pseudo-element
+     no ELEMENT overflows, so nothing in the DOM points at the cause: the
+     dashboard and /fares just had 55px of horizontal scroll that went
+     nowhere and moved the whole layout under your thumb.
+     
+     `clip`, not `hidden`: hidden on one axis forces the other to `auto` and
+     would create a scroll container, which breaks position:sticky for every
+     descendant — and the board's rail and dock both rely on it. */
+  overflow-x: clip;
 }
 
 .ambient::before {
@@ -7048,7 +7064,11 @@ time,
 .closer-say {
   font-size: var(--step-2);
   line-height: 1.12;
-  max-width: 22ch;
+  /* 22ch dropped "board." onto a line of its own at desktop. Wide enough
+     for the sentence, with balance so that where it does wrap on a phone
+     the two lines are even rather than one-word-orphaned. */
+  max-width: 34ch;
+  text-wrap: balance;
 }
 
 .closer-foot {
@@ -7172,6 +7192,15 @@ time,
     grid-template-columns: minmax(0, 1fr);
   }
 
+  /* The aside itself splits into two columns at 1024px — which was right
+     when it was a full-width band and is exactly wrong now that it IS the
+     margin. Two tracks inside a 336px rail is what was clipping the
+     decision picks at half width; the `.aside-cell` and `.pick-grid`
+     overrides below could not take effect underneath it. */
+  .board-top > .board-aside {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   /* The picks were drawn for a 550px cell and clipped at 336px. In a real
      margin they are a list, not a row. */
   .board-top .aside-cell {
@@ -7180,6 +7209,24 @@ time,
 
   .board-top .pick-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* The ladder is 1.6rem tall and holds a 1.05rem tick with its "YOU PAID"
+     label stacked underneath — about 29px of content in a 25.6px box, with
+     the track and its dots centred at 12.8px. At 1120px the label had
+     enough horizontal room to miss everything; in a 336px rail the dots
+     bunch up and the label lands straight on them.
+     
+     Taller box, track raised to 38%: the tick still straddles the scale and
+     the label gets a row of its own beneath the dots rather than through
+     them. */
+  .board-top .ladder {
+    height: 2.6rem;
+  }
+
+  .board-top .ladder-rail,
+  .board-top .ladder-dot {
+    top: 38%;
   }
 }
 
@@ -7209,16 +7256,25 @@ time,
 .lookup-flex .choice {
   margin: 0;
   justify-content: center;
-  /* Equal tracks are (288 - 2 gaps) / 3 = 92px each, and a pill is a radio
+  text-align: center;
+}
+
+/* The type step-down is a two-column-layout fix and belongs at the width
+   that has the two-column layout. Below 900px .lookup is one full-width
+   column, the pills have all the room they need, and shrinking them to an
+   11px label on a phone solved a problem that does not exist there. */
+@media (min-width: 900px) {
+  .lookup-flex .choice {
+    /* Equal tracks are (288 - 2 gaps) / 3 = 92px each, and a pill is a radio
      dot plus a label plus two paddings. At the inherited size "This day"
      needed 96 and wrapped INSIDE its own pill, which trades one ragged row
      for one taller pill and is not an improvement. One step down, a tighter
      dot gap and nowrap put the longest label at 85. */
-  padding-inline: var(--sp-1-5);
-  gap: var(--sp-1);
-  font-size: var(--step--2);
-  white-space: nowrap;
-  text-align: center;
+    padding-inline: var(--sp-1-5);
+    gap: var(--sp-1);
+    font-size: var(--step--2);
+    white-space: nowrap;
+  }
 }
 
 /* ── The results column before there are results ────────────────────────────
@@ -7280,8 +7336,13 @@ time,
    nothing, pinned to the top of the viewport. An auth screen is the one
    place where centring in the viewport is not a decoration — there is
    nothing else to align to. */
-@media (min-height: 40rem) {
+@media (min-width: 48rem) and (min-height: 40rem) {
   .auth-main {
+    /* Gated to the widths this was designed for. The 14rem is a guess at the
+       header, the footer and the local-mode banner, and on a phone that
+       banner wraps to two lines — so the guess ran long and pushed the
+       footer half off the bottom. Centring an auth screen is worth doing
+       where there is room to centre it and not worth guessing for. */
     min-height: calc(100svh - 14rem);
     display: flex;
     flex-direction: column;
