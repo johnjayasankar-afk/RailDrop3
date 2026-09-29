@@ -266,7 +266,7 @@ export function NewWatchForm({
               today={today}
               flexibilityDays={flexibility}
             />
-            <fieldset className="text-sm">
+            <fieldset className="choice-row text-sm">
               <legend className="mb-2">Date flexibility</legend>
               {[
                 [0, "Exact date"],

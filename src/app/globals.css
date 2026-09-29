@@ -7274,3 +7274,68 @@ time,
     justify-content: center;
   }
 }
+
+/* ── Below 720px the swap stopped being a hinge ─────────────────────────────
+   Above 720px the route row is origin / swap / destination on one shared
+   baseline, which is the whole idea. Below it the grid drops and the swap
+   becomes a left-aligned pill sitting between two full-width fields, reading
+   as a third unrelated control rather than as the thing that exchanges the
+   two either side of it.
+
+   On a phone it is centred and shortened: the same hinge, drawn small,
+   between the pair it acts on rather than beside them. */
+@media (max-width: 719.98px) {
+  .route-fields > .route-swap {
+    display: flex;
+    margin-inline: auto;
+    /* No negative top margin. The first version pulled the swap up by 4px to
+       tighten it against the origin field, and at 375px that was enough to
+       collide it with the "Origin station" label — 384px of overlap, caught
+       by the overlap audit, which is the whole reason that audit exists. */
+    margin-block: var(--sp-1);
+    width: auto;
+    min-width: 6rem;
+  }
+}
+
+/* ── A three-way choice, three equal tracks ─────────────────────────────────
+   The same repair /fares needed: "Exact date", "±1 day · recommended" and
+   "±2 days" in a flow, so at 390px the first sat alone and the other two
+   shared a line. Three options presented as one-then-two is not three equal
+   options. Here the middle label is much the longest, so the tracks are
+   content-sized and the group wraps as a unit rather than orphaning its
+   first item. */
+.choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1-5);
+  border: 0;
+  padding: 0;
+  /* `margin: 0` resets the browser's fieldset margin, which is what the
+     group wants — but it also removed the gap to whatever follows, and on a
+     phone "Preferred departure time" ended up sitting on the last pill. The
+     group owns its own trailing space rather than borrowing the default. */
+  margin: 0 0 var(--sp-2);
+}
+
+.choice-row legend {
+  width: 100%;
+}
+
+.choice-row .choice {
+  margin: 0;
+  flex: 0 1 auto;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+/* Below 30rem three of these cannot share a line: the container is about
+   318px and "±1 day · recommended" alone is 200. Letting them flow produces
+   one full-width option above two half ones, which presents a three-way
+   choice as one-then-two and makes the first look like the default. One per
+   row is three equal rows, which is what three equal options are. */
+@media (max-width: 30rem) {
+  .choice-row .choice {
+    flex: 1 1 100%;
+  }
+}
