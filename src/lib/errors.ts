@@ -150,11 +150,12 @@ export function toAppError(error: unknown): Error {
   }
   if (error instanceof ZodError) {
     const detail = error.issues.map((issue) => issue.message).join("; ");
-    return markTranslated(new Error(detail || "Invalid watch details"));
+    return markTranslated(new Error(detail || "Invalid watch details"), error);
   }
   if (error instanceof Error) {
     const rewritten = markTranslated(
       new Error(friendlyDbMessage(error.message, "", errorDetail(error))),
+      error,
     );
     return isTransportFailure(error) ? markTransport(rewritten, error) : rewritten;
   }
@@ -166,15 +167,42 @@ export function toAppError(error: unknown): Error {
         : "";
     const rewritten = markTranslated(
       new Error(friendlyDbMessage(message, code, errorDetail(error))),
+      error,
     );
     return isTransportFailure(error) ? markTransport(rewritten, error) : rewritten;
   }
-  return markTranslated(new Error("Could not create watch"));
+  return markTranslated(new Error("Could not create watch"), error);
 }
 
 /** Stamp an Error as already translated, so a second pass leaves it alone. */
-function markTranslated(error: Error): Error {
+const SOURCE = Symbol.for("raildrop.originalError");
+
+/* Keep the untranslated failure on every rewrite, not just on transport ones.
+ *
+ * markTransport already did this, and that asymmetry was the bug. Once a
+ * message has been replaced by a sentence for a human, the errno, the
+ * SQLSTATE and the hostname are gone — so any later caller that needs to
+ * DECIDE something has nothing left to read but the prose. The route was
+ * reduced to `message.includes("Database needs")` to pick a status code,
+ * which is a string match against a sentence I am free to reword, and which
+ * silently misclassified the two faults it did not happen to name.
+ *
+ * A translated error now carries its source, and `databaseDiagnosis` unwraps
+ * to it. Diagnose the cause, never the copy. */
+function markTranslated(error: Error, original?: unknown): Error {
   Object.defineProperty(error, TRANSLATED, { value: true, enumerable: false });
+  if (original !== undefined) {
+    Object.defineProperty(error, SOURCE, { value: original, enumerable: false });
+  }
+  return error;
+}
+
+/** The failure as it arrived, before any rewriting. */
+export function originalError(error: unknown): unknown {
+  if (typeof error === "object" && error) {
+    const source = (error as Record<symbol, unknown>)[SOURCE];
+    if (source !== undefined) return source;
+  }
   return error;
 }
 
@@ -209,7 +237,27 @@ function friendlyDbMessage(message: string, code = "", diagnostic = message): st
 
 /** The full diagnosis, for callers that want the remedy as well as the sentence. */
 export function databaseDiagnosis(error: unknown, configured = true) {
-  return diagnoseDatabase(error, { configured });
+  // The source, not the sentence: a translated error's message has had the
+  // errno and the SQLSTATE replaced by prose, and prose does not classify.
+  return diagnoseDatabase(originalError(error), { configured });
+}
+
+/**
+ * Whether this failure belongs to the database rather than to the request.
+ *
+ * The distinction decides a status code, and the status code decides what the
+ * form does: a 4xx says "your request was wrong, edit it and resend", which
+ * for an unreachable database or an unapplied schema is false and cruel —
+ * nothing the traveller could change about the request would have worked.
+ *
+ * Transport is the obvious half. The other half is the Postgres conditions —
+ * a missing table, a rejected key, row-level security — which are equally
+ * not the reader's fault and were being answered with 400.
+ */
+export function isDatabaseFault(error: unknown): boolean {
+  const source = originalError(error);
+  const { fault } = diagnoseDatabase(source);
+  return fault !== "unknown" || looksLikeTransport(source) || isTransportFailure(error);
 }
 
 export function errorMessage(error: unknown): string {

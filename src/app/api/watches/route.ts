@@ -3,7 +3,13 @@ import { getSessionUser } from "@/lib/auth/session";
 import { getFareProvider, getMailer, getRepository } from "@/lib/services";
 import { createWatchAndScan } from "@/lib/watches/create-watch";
 import { ProviderNotConfiguredError } from "@/lib/providers/fare-provider";
-import { databaseDiagnosis, errorDetail, errorMessage, isTransportFailure } from "@/lib/errors";
+import {
+  databaseDiagnosis,
+  errorDetail,
+  errorMessage,
+  isDatabaseFault,
+  isTransportFailure,
+} from "@/lib/errors";
 import { routeGuard } from "@/lib/api/respond";
 import { logger } from "@/lib/logger";
 
@@ -46,10 +52,22 @@ export async function POST(request: Request) {
     if (error instanceof ProviderNotConfiguredError) {
       return NextResponse.json({ error: message }, { status: 503 });
     }
-    // 400 said "your request was wrong". For an unreachable database it was
-    // not: nothing about the request could have changed the outcome.
-    const status =
-      transport || message.includes("guest fix") || message.includes("Database needs") ? 503 : 400;
+    /* 400 says "your request was wrong, edit it and send it again". For a
+       database fault that is false and it is cruel — nothing the traveller
+       could change about this request would have worked, and the form invites
+       them to try.
+       
+       This condition used to be `transport || message.includes("guest fix") ||
+       message.includes("Database needs")`: a string match against the
+       sentence this very function had just generated. It covered the
+       transport faults and, by accident of wording, one other. A missing
+       schema and a row-level-security refusal matched nothing, so the two
+       faults that most need "an operator must fix this" were answered with
+       "your request was wrong" and shipped no `retryWorks` at all.
+       
+       Asked of the diagnosis now, which reads the original error rather than
+       the prose that replaced it. */
+    const status = isDatabaseFault(error) ? 503 : 400;
     /* `retryWorks` travels with the error, because the client draws a
        different closing line for "try again in a minute" than for "someone
        has to go and fix this". It used to say the first one in both cases,
