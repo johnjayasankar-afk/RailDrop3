@@ -1714,378 +1714,408 @@ export function WatchDetail({
       {paletteOpen ? (
         <CommandPalette commands={commands} onClose={() => setPaletteOpen(false)} />
       ) : null}
-      <BackLink>Your watches</BackLink>
-      <h1 className="sr-only">
-        {stationLabel(watch.originCode)} to {stationLabel(watch.destinationCode)}{" "}
-        {formatDisplayDate(watch.desiredTravelDate)}
-      </h1>
-      <div
-        ref={railRef}
-        className={`trip-rail no-print${zen ? " is-zen" : ""}${scanning ? " is-scanning" : ""}`}
-      >
-        <div className="hud-cell">
-          <span className="hud-label">Route</span>
-          <span className="hud-value">
-            <span className="hud-code">{watch.originCode}</span>
-            <i className="hud-arrow" aria-hidden />
-            <span className="hud-code">{watch.destinationCode}</span>
-          </span>
-        </div>
-        <div className="hud-cell">
-          <span className="hud-label">Window</span>
-          <span className="hud-value">
-            <span className="hud-code">{formatDisplayDate(watch.desiredTravelDate)}</span>
-            {watch.dateFlexibilityDays ? (
-              <em className="hud-flex">±{watch.dateFlexibilityDays}d</em>
-            ) : null}
-          </span>
-        </div>
-        {boardNow ? (
-          <div className="hud-cell trip-rail-meta">
-            <span className="hud-label">Board time</span>
-            <span className="hud-value board-clock" aria-live="polite">
-              <span className="hud-code">{boardNow.label}</span>
+      {/* The two-track region, and only the two-track region.
+          
+          The first version made <main> itself the grid, with the aside
+          spanning every row. That put the timetable in track one at 936px —
+          184px NARROWER than the single column it replaced — so every train
+          name wrapped to two lines, on the one element of this page that is
+          genuinely a table. It also left the assistant panel below, which is
+          outside <main>, running to the full 84rem while everything inside
+          ran to 84rem minus the rail: four different right edges on one
+          surface.
+          
+          Both faults are the same mistake. A margin column belongs beside
+          the region that wants a margin — the decision, its window and its
+          evidence — and not beside the table, which wants every pixel there
+          is. So the grid stops here, and the timetable and everything below
+          it get the full measure, which is 1311px: MORE than the 1120 they
+          had before any of this. */}
+      <div className="board-top">
+        <BackLink>Your watches</BackLink>
+        <h1 className="sr-only">
+          {stationLabel(watch.originCode)} to {stationLabel(watch.destinationCode)}{" "}
+          {formatDisplayDate(watch.desiredTravelDate)}
+        </h1>
+        <div
+          ref={railRef}
+          className={`trip-rail no-print${zen ? " is-zen" : ""}${scanning ? " is-scanning" : ""}`}
+        >
+          <div className="hud-cell">
+            <span className="hud-label">Route</span>
+            <span className="hud-value">
+              <span className="hud-code">{watch.originCode}</span>
+              <i className="hud-arrow" aria-hidden />
+              <span className="hud-code">{watch.destinationCode}</span>
             </span>
           </div>
-        ) : null}
-        <div className="hud-cell trip-rail-meta">
-          <span className="hud-label">You paid</span>
-          {/* The one figure on this rail the traveller supplied. Beside
+          <div className="hud-cell">
+            <span className="hud-label">Window</span>
+            <span className="hud-value">
+              <span className="hud-code">{formatDisplayDate(watch.desiredTravelDate)}</span>
+              {watch.dateFlexibilityDays ? (
+                <em className="hud-flex">±{watch.dateFlexibilityDays}d</em>
+              ) : null}
+            </span>
+          </div>
+          {boardNow ? (
+            <div className="hud-cell trip-rail-meta">
+              <span className="hud-label">Board time</span>
+              <span className="hud-value board-clock" aria-live="polite">
+                <span className="hud-code">{boardNow.label}</span>
+              </span>
+            </div>
+          ) : null}
+          <div className="hud-cell trip-rail-meta">
+            <span className="hud-label">You paid</span>
+            {/* The one figure on this rail the traveller supplied. Beside
               "Best now", which a provider was observed listing, it had been
               set identically — so the number we scraped and the number
               somebody typed carried the same authority. */}
-          <Money
-            cents={watch.currentBookedPriceCents}
-            className="hud-money is-benchmark"
-            source="entered"
-          />
-        </div>
-        <div className="hud-cell">
-          <span className="hud-label">Best now</span>
-          {best ? (
-            <Money cents={best.totalPartyPriceCents} className="hud-money" />
-          ) : (
-            /* An em dash, not a zero and not the last figure we happened to
+            <Money
+              cents={watch.currentBookedPriceCents}
+              className="hud-money is-benchmark"
+              source="entered"
+            />
+          </div>
+          <div className="hud-cell">
+            <span className="hud-label">Best now</span>
+            {best ? (
+              <Money cents={best.totalPartyPriceCents} className="hud-money" />
+            ) : (
+              /* An em dash, not a zero and not the last figure we happened to
                hold. Nothing on this board qualifies, and saying so is the
                only honest thing this cell can say. */
-            <span className="hud-value hud-none">—</span>
-          )}
-        </div>
-        <div className="hud-cell">
-          <span className="hud-label">Difference</span>
-          {best && best.savingsCents > 0 ? (
-            <Money cents={-best.savingsCents} signed className="hud-delta is-down" />
-          ) : (
-            <span className="hud-delta hud-none">—</span>
-          )}
-        </div>
-        <div className="hud-cell hud-call" data-call={verdict.kind}>
-          <span className="hud-label">Call</span>
-          <span className="hud-callname">
-            <i className="hud-lamp" aria-hidden />
-            {verdict.label}
-          </span>
-        </div>
-        <div className="trip-rail-tools">
-          <a href="#board">Board</a>
-          <button type="button" onClick={() => dispatch({ type: "TOGGLE_ZEN" })}>
-            {zen ? "Full" : "Zen"}
-          </button>
-          <button
-            type="button"
-            aria-expanded={shareOpen}
-            aria-haspopup="true"
-            aria-controls="share-sheet"
-            onClick={() => setShareOpen((value) => !value)}
-          >
-            Share
-          </button>
-          {/* The palette, not the shortcut sheet, is the way in now: it lists
+              <span className="hud-value hud-none">—</span>
+            )}
+          </div>
+          <div className="hud-cell">
+            <span className="hud-label">Difference</span>
+            {best && best.savingsCents > 0 ? (
+              <Money cents={-best.savingsCents} signed className="hud-delta is-down" />
+            ) : (
+              <span className="hud-delta hud-none">—</span>
+            )}
+          </div>
+          <div className="hud-cell hud-call" data-call={verdict.kind}>
+            <span className="hud-label">Call</span>
+            <span className="hud-callname">
+              <i className="hud-lamp" aria-hidden />
+              {verdict.label}
+            </span>
+          </div>
+          <div className="trip-rail-tools">
+            <a href="#board">Board</a>
+            <button type="button" onClick={() => dispatch({ type: "TOGGLE_ZEN" })}>
+              {zen ? "Full" : "Zen"}
+            </button>
+            <button
+              type="button"
+              aria-expanded={shareOpen}
+              aria-haspopup="true"
+              aria-controls="share-sheet"
+              onClick={() => setShareOpen((value) => !value)}
+            >
+              Share
+            </button>
+            {/* The palette, not the shortcut sheet, is the way in now: it lists
               every action with its key, so the sheet is one row inside it. */}
-          <button
-            type="button"
-            className="trip-rail-shortcuts"
-            onClick={() => setPaletteOpen(true)}
-            aria-keyshortcuts="Meta+K Control+K"
-          >
-            Commands <kbd className="rail-kbd">⌘K</kbd>
-          </button>
-        </div>
-      </div>
-      {shareOpen ? (
-        <ShareSheet
-          onClose={() => setShareOpen(false)}
-          copyFriend={copyFriend}
-          copyWindow={copyWindow}
-          copyPacket={copyPacket}
-          copyShare={copyShare}
-          shareLabel={shareLabel}
-        />
-      ) : null}
-      <p className="mt-3 text-sm text-ink-soft">
-        {stationLabel(watch.originCode)} → {stationLabel(watch.destinationCode)}
-        {watch.bookedTrainNumber ? ` · ${watch.bookedTrainNumber}` : ""} ·{" "}
-        {formatDaysUntil(watch.desiredTravelDate, today)}
-        {drops ? ` · ${drops} cheaper` : ""} ·{" "}
-        <RelativeTime at={watch.lastCheckedAt} fallback={stamp} />
-      </p>
-      {notice ? (
-        <p className="board-toast no-print" role="status">
-          {notice}
-        </p>
-      ) : null}
-      {staleFromLink > 0 ? (
-        /* A shared link named rows this board does not have. Saying so is the
-           whole point: the alternative is a link that silently shows a
-           different board than the one that was described. */
-        <p className="board-note no-print" role="status">
-          {staleFromLink === 1
-            ? "One train from this link is not on the board any more — it sold out, or the fare was relisted."
-            : `${staleFromLink} trains from this link are not on the board any more — they sold out, or the fares were relisted.`}{" "}
-          Everything else in the link was applied.{" "}
-          <button type="button" className="underline" onClick={() => setStaleFromLink(0)}>
-            Dismiss
-          </button>
-        </p>
-      ) : null}
-      {manualCopy ? (
-        /* Both clipboard routes refused. Rather than a toast claiming success,
-           the text goes on screen where it can be selected by hand. */
-        <div className="copy-fallback no-print" role="alertdialog" aria-label={manualCopy.message}>
-          <p>
-            This browser blocked the clipboard. Select the text below and copy it yourself — the
-            board did not copy it for you.
-          </p>
-          <textarea
-            readOnly
-            rows={4}
-            value={manualCopy.text}
-            aria-label={manualCopy.message}
-            onFocus={(event) => event.currentTarget.select()}
-            ref={(node) => node?.select()}
-          />
-          <button type="button" className="underline" onClick={() => setManualCopy(null)}>
-            Done
-          </button>
-        </div>
-      ) : null}
-      {urgency.level !== "watch" || remaining ? (
-        <div
-          className={`mt-3 text-sm ${urgency.level === "now" ? "urgency-now px-3 py-2" : ""} ${urgency.level === "soon" ? "urgency-soon px-3 py-2" : ""}`}
-        >
-          {urgency.level !== "watch" ? <p>{urgency.copy}</p> : null}
-          {remaining ? (
-            <>
-              <p className="eyebrow mt-1">{remaining.label}</p>
-              {/* The gauge takes the colour of how much window is left, which
-                  is the thing it is measuring. */}
-              <div
-                className={`fuse mt-2${urgency.level === "now" ? " is-now" : urgency.level === "soon" ? " is-soon" : ""}`}
-                aria-hidden
-              >
-                <span style={{ width: `${remaining.percent}%` }} />
-              </div>
-              {watch.status === "ACTIVE" ? (
-                <div className="mt-3 flex flex-wrap gap-2 no-print">
-                  {(["24h", "48h", "72h"] as const).map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      className="btn btn-ghost"
-                      disabled={busy}
-                      onClick={() => extendMonitoring(preset)}
-                    >
-                      +{preset}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </>
-          ) : null}
-        </div>
-      ) : null}
-      {stale ? (
-        <p className="mt-3 text-sm text-drop">Board is stale: recheck for current listed fares.</p>
-      ) : null}
-      {cycleStatus === "PARTIAL_SUCCESS" ? (
-        <p className="mt-3 text-sm text-drop">
-          Best found: {best ? formatUsdCompact(best.totalPartyPriceCents) : "—"}.{" "}
-          {datesFailed.map((date) => formatDisplayDate(date)).join(", ")} could not be refreshed.
-        </p>
-      ) : null}
-      {cycleStatus === "PROVIDER_ERROR" ? (
-        <p className="mt-3 text-sm text-danger">
-          Live fares are unavailable right now. Recheck in a minute.
-          {snapshots.find((snapshot) => snapshot.errorMessage)?.errorMessage
-            ? ` (${snapshots.find((snapshot) => snapshot.errorMessage)?.errorMessage})`
-            : null}
-        </p>
-      ) : null}
-      {actionError ? (
-        <p className="mt-3 text-sm text-danger" role="alert">
-          {actionError}
-        </p>
-      ) : null}
-      {watch.status === "COMPLETED" ? (
-        <div className="panel mt-3 p-4 no-print">
-          <p className="text-sm text-ink-soft">Monitoring ended.</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {(["24h", "48h", "72h"] as const).map((preset) => (
-              <button
-                key={preset}
-                type="button"
-                className="btn btn-ghost"
-                disabled={busy}
-                onClick={() => extendMonitoring(preset)}
-              >
-                Watch another {preset}
-              </button>
-            ))}
+            <button
+              type="button"
+              className="trip-rail-shortcuts"
+              onClick={() => setPaletteOpen(true)}
+              aria-keyshortcuts="Meta+K Control+K"
+            >
+              Commands <kbd className="rail-kbd">⌘K</kbd>
+            </button>
           </div>
         </div>
-      ) : null}
-      {missed ? <p className="mt-2 text-sm text-drop">{missed}</p> : null}
-      <div className={`verdict mt-4 px-4 py-3 verdict-${verdict.kind}`}>
-        <p className="verdict-label">{verdict.label}</p>
-        {best && best.savingsCents > 0 ? (
-          /* The saving is the answer to the question this panel exists to ask,
+        {shareOpen ? (
+          <ShareSheet
+            onClose={() => setShareOpen(false)}
+            copyFriend={copyFriend}
+            copyWindow={copyWindow}
+            copyPacket={copyPacket}
+            copyShare={copyShare}
+            shareLabel={shareLabel}
+          />
+        ) : null}
+        <p className="mt-3 text-sm text-ink-soft">
+          {stationLabel(watch.originCode)} → {stationLabel(watch.destinationCode)}
+          {watch.bookedTrainNumber ? ` · ${watch.bookedTrainNumber}` : ""} ·{" "}
+          {formatDaysUntil(watch.desiredTravelDate, today)}
+          {drops ? ` · ${drops} cheaper` : ""} ·{" "}
+          <RelativeTime at={watch.lastCheckedAt} fallback={stamp} />
+        </p>
+        {notice ? (
+          <p className="board-toast no-print" role="status">
+            {notice}
+          </p>
+        ) : null}
+        {staleFromLink > 0 ? (
+          /* A shared link named rows this board does not have. Saying so is the
+           whole point: the alternative is a link that silently shows a
+           different board than the one that was described. */
+          <p className="board-note no-print" role="status">
+            {staleFromLink === 1
+              ? "One train from this link is not on the board any more — it sold out, or the fare was relisted."
+              : `${staleFromLink} trains from this link are not on the board any more — they sold out, or the fares were relisted.`}{" "}
+            Everything else in the link was applied.{" "}
+            <button type="button" className="underline" onClick={() => setStaleFromLink(0)}>
+              Dismiss
+            </button>
+          </p>
+        ) : null}
+        {manualCopy ? (
+          /* Both clipboard routes refused. Rather than a toast claiming success,
+           the text goes on screen where it can be selected by hand. */
+          <div
+            className="copy-fallback no-print"
+            role="alertdialog"
+            aria-label={manualCopy.message}
+          >
+            <p>
+              This browser blocked the clipboard. Select the text below and copy it yourself — the
+              board did not copy it for you.
+            </p>
+            <textarea
+              readOnly
+              rows={4}
+              value={manualCopy.text}
+              aria-label={manualCopy.message}
+              onFocus={(event) => event.currentTarget.select()}
+              ref={(node) => node?.select()}
+            />
+            <button type="button" className="underline" onClick={() => setManualCopy(null)}>
+              Done
+            </button>
+          </div>
+        ) : null}
+        {urgency.level !== "watch" || remaining ? (
+          <div
+            className={`mt-3 text-sm ${urgency.level === "now" ? "urgency-now px-3 py-2" : ""} ${urgency.level === "soon" ? "urgency-soon px-3 py-2" : ""}`}
+          >
+            {urgency.level !== "watch" ? <p>{urgency.copy}</p> : null}
+            {remaining ? (
+              <>
+                <p className="eyebrow mt-1">{remaining.label}</p>
+                {/* The gauge takes the colour of how much window is left, which
+                  is the thing it is measuring. */}
+                <div
+                  className={`fuse mt-2${urgency.level === "now" ? " is-now" : urgency.level === "soon" ? " is-soon" : ""}`}
+                  aria-hidden
+                >
+                  <span style={{ width: `${remaining.percent}%` }} />
+                </div>
+                {watch.status === "ACTIVE" ? (
+                  <div className="mt-3 flex flex-wrap gap-2 no-print">
+                    {(["24h", "48h", "72h"] as const).map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        className="btn btn-ghost"
+                        disabled={busy}
+                        onClick={() => extendMonitoring(preset)}
+                      >
+                        +{preset}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+          </div>
+        ) : null}
+        {stale ? (
+          <p className="mt-3 text-sm text-drop">
+            Board is stale: recheck for current listed fares.
+          </p>
+        ) : null}
+        {cycleStatus === "PARTIAL_SUCCESS" ? (
+          <p className="mt-3 text-sm text-drop">
+            Best found: {best ? formatUsdCompact(best.totalPartyPriceCents) : "—"}.{" "}
+            {datesFailed.map((date) => formatDisplayDate(date)).join(", ")} could not be refreshed.
+          </p>
+        ) : null}
+        {cycleStatus === "PROVIDER_ERROR" ? (
+          <p className="mt-3 text-sm text-danger">
+            Live fares are unavailable right now. Recheck in a minute.
+            {snapshots.find((snapshot) => snapshot.errorMessage)?.errorMessage
+              ? ` (${snapshots.find((snapshot) => snapshot.errorMessage)?.errorMessage})`
+              : null}
+          </p>
+        ) : null}
+        {actionError ? (
+          <p className="mt-3 text-sm text-danger" role="alert">
+            {actionError}
+          </p>
+        ) : null}
+        {watch.status === "COMPLETED" ? (
+          <div className="panel mt-3 p-4 no-print">
+            <p className="text-sm text-ink-soft">Monitoring ended.</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {(["24h", "48h", "72h"] as const).map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  className="btn btn-ghost"
+                  disabled={busy}
+                  onClick={() => extendMonitoring(preset)}
+                >
+                  Watch another {preset}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+        {missed ? <p className="mt-2 text-sm text-drop">{missed}</p> : null}
+        <div className={`verdict mt-4 px-4 py-3 verdict-${verdict.kind}`}>
+          <p className="verdict-label">{verdict.label}</p>
+          {best && best.savingsCents > 0 ? (
+            /* The saving is the answer to the question this panel exists to ask,
              so it is set as a figure and the qualifications sit beneath it.
              Five sentences at one weight is a paragraph, not a decision. */
-          <div className="verdict-figure">
-            <span className="micro">Save up to</span>
-            {/* Not Math.round(cents / 100), which this read for one commit and
+            <div className="verdict-figure">
+              <span className="micro">Save up to</span>
+              {/* Not Math.round(cents / 100), which this read for one commit and
                 which printed "Save up to $55" over an observed saving of
                 $54.50 — a figure rounded in our own favour is a figure we
                 invented. Money renders the exact observation. */}
-            <Money cents={best.savingsCents} className="readout-lg text-save" />
-            <span className="verdict-qual">
-              {pct != null ? `${pct}% off what you paid` : ""}
-              {feeCents > 0
-                ? netBest > 0
-                  ? ` · ${formatUsdCompact(netBest)} after your fee estimate`
-                  : " · a fee may wipe this out"
-                : ""}
-            </span>
+              <Money cents={best.savingsCents} className="readout-lg text-save" />
+              <span className="verdict-qual">
+                {pct != null ? `${pct}% off what you paid` : ""}
+                {feeCents > 0
+                  ? netBest > 0
+                    ? ` · ${formatUsdCompact(netBest)} after your fee estimate`
+                    : " · a fee may wipe this out"
+                  : ""}
+              </span>
+            </div>
+          ) : (
+            <p className="mt-1 text-sm opacity-80">{verdict.copy}</p>
+          )}
+          {ceiling ? <p className="mt-1 text-sm text-save">{ceiling}</p> : null}
+          <p className="mt-2 text-xs opacity-70">{changeRuleNote(watch.bookedFareFamily)}</p>
+          {hassle ? <p className="mt-2 text-sm text-drop">{hassle}</p> : null}
+          <div className="mt-3 no-print">
+            <p className="eyebrow">Estimated change fee</p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {([0, 10, 20, 50] as const).map((dollars) => {
+                const current = Number(feeDollars);
+                const on = dollars === 0 ? !feeDollars.trim() : current === dollars;
+                return (
+                  <button
+                    key={dollars}
+                    type="button"
+                    className={`chip ${on ? "chip-on" : ""}`}
+                    aria-pressed={on}
+                    onClick={() => persistFee(dollars === 0 ? "" : String(dollars))}
+                  >
+                    {dollars === 0 ? "No fee" : `$${dollars}`}
+                  </button>
+                );
+              })}
+              <label className="sr-only" htmlFor="fee-estimate">
+                Custom fee dollars
+              </label>
+              <input
+                id="fee-estimate"
+                value={feeDollars}
+                onChange={(event) => persistFee(event.target.value)}
+                inputMode="decimal"
+                placeholder="$"
+                className="field mt-0 max-w-[4.5rem]"
+                aria-label="Estimated change fee dollars"
+              />
+            </div>
+            {feeCopy ? <p className="mt-2 text-sm text-drop">{feeCopy}</p> : null}
+            <p className="mt-1 text-[11px] opacity-60">
+              Your estimate only · we never invent a fee
+            </p>
           </div>
-        ) : (
-          <p className="mt-1 text-sm opacity-80">{verdict.copy}</p>
-        )}
-        {ceiling ? <p className="mt-1 text-sm text-save">{ceiling}</p> : null}
-        <p className="mt-2 text-xs opacity-70">{changeRuleNote(watch.bookedFareFamily)}</p>
-        {hassle ? <p className="mt-2 text-sm text-drop">{hassle}</p> : null}
-        <div className="mt-3 no-print">
-          <p className="eyebrow">Estimated change fee</p>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            {([0, 10, 20, 50] as const).map((dollars) => {
-              const current = Number(feeDollars);
-              const on = dollars === 0 ? !feeDollars.trim() : current === dollars;
-              return (
-                <button
-                  key={dollars}
-                  type="button"
-                  className={`chip ${on ? "chip-on" : ""}`}
-                  aria-pressed={on}
-                  onClick={() => persistFee(dollars === 0 ? "" : String(dollars))}
-                >
-                  {dollars === 0 ? "No fee" : `$${dollars}`}
-                </button>
-              );
-            })}
-            <label className="sr-only" htmlFor="fee-estimate">
-              Custom fee dollars
-            </label>
-            <input
-              id="fee-estimate"
-              value={feeDollars}
-              onChange={(event) => persistFee(event.target.value)}
-              inputMode="decimal"
-              placeholder="$"
-              className="field mt-0 max-w-[4.5rem]"
-              aria-label="Estimated change fee dollars"
-            />
-          </div>
-          {feeCopy ? <p className="mt-2 text-sm text-drop">{feeCopy}</p> : null}
-          <p className="mt-1 text-[11px] opacity-60">Your estimate only · we never invent a fee</p>
         </div>
-      </div>
 
-      {moves.some((move) => move.kind === "drop") ? (
-        <section className="moves-strip mt-4 no-print" aria-label="Price drops">
-          <p className="eyebrow">What moved</p>
-          <ul className="mt-2 space-y-1 text-sm">
-            {moves
-              .filter((move) => move.kind === "drop")
-              .slice(0, 3)
-              .map((move) => (
-                <li key={move.key} className="move-drop">
-                  {moveLabel(move)}
-                </li>
-              ))}
-          </ul>
-        </section>
-      ) : null}
+        {moves.some((move) => move.kind === "drop") ? (
+          <section className="moves-strip mt-4 no-print" aria-label="Price drops">
+            <p className="eyebrow">What moved</p>
+            <ul className="mt-2 space-y-1 text-sm">
+              {moves
+                .filter((move) => move.kind === "drop")
+                .slice(0, 3)
+                .map((move) => (
+                  <li key={move.key} className="move-drop">
+                    {moveLabel(move)}
+                  </li>
+                ))}
+            </ul>
+          </section>
+        ) : null}
 
-      {/* One track per date, not a fixed three.
+        {/* One track per date, not a fixed three.
           sm:grid-cols-3 with a ±2 window is five cards in a three-column grid:
           a row of three, a row of two, and a hole where the reader's eye goes
           looking for a sixth date that does not exist. The window is at most
           five wide, so it fits on one line at every width above a phone. */}
-      <section
-        className="date-strip mt-6"
-        style={{ "--tracks": dates.length } as React.CSSProperties}
-      >
-        {dates.map((date) => {
-          const candidate = dateMap.get(date);
-          const desired = date === watch.desiredTravelDate;
-          const selected = dateFilter === date;
-          const beatsDay = Boolean(candidate && yours && beatsBooked(candidate, yours));
-          return (
-            <button
-              type="button"
-              key={date}
-              onClick={() => dispatch({ type: "SET_DATE", date: selected ? "all" : date })}
-              className={`date-card px-3 py-3 text-left ${desired || selected ? "is-on" : ""}`}
-            >
-              <p className="eyebrow">
-                {formatDisplayDate(date)}
-                {desired ? " · desired" : ""}
-                {selected ? " · on" : ""}
-              </p>
-              <p className="mt-1 text-[10px] uppercase tracking-[0.14em] opacity-70">
-                {dateBadge(dateOffsetDays(watch.desiredTravelDate, date))}
-              </p>
-              <p className="price serif text-2xl">
-                {candidate ? (
-                  <>
-                    from <Flap>{formatUsdCompact(candidate.totalPartyPriceCents)}</Flap>
-                  </>
-                ) : (
-                  "—"
-                )}
-              </p>
-              {beatsDay ? <p className="mt-1 text-xs text-save">Beats your train</p> : null}
-              {candidate && dateMap.get(watch.desiredTravelDate) && date !== watch.desiredTravelDate
-                ? (() => {
-                    const desiredPrice = dateMap.get(watch.desiredTravelDate)!.totalPartyPriceCents;
-                    const save = desiredPrice - candidate.totalPartyPriceCents;
-                    if (save > 0) {
-                      return (
-                        <p className="mt-1 text-xs text-save">{formatUsdCompact(save)} less</p>
-                      );
-                    }
-                    if (save < 0) {
-                      return (
-                        <p className="mt-1 text-xs opacity-70">{formatUsdCompact(-save)} more</p>
-                      );
-                    }
-                    return null;
-                  })()
-                : null}
-            </button>
-          );
-        })}
-      </section>
-      {/* One aside, three up, instead of nine consecutive full-width bands.
+        <section
+          className="date-strip mt-6"
+          style={{ "--tracks": dates.length } as React.CSSProperties}
+        >
+          {dates.map((date) => {
+            const candidate = dateMap.get(date);
+            const desired = date === watch.desiredTravelDate;
+            const selected = dateFilter === date;
+            const beatsDay = Boolean(candidate && yours && beatsBooked(candidate, yours));
+            return (
+              <button
+                type="button"
+                key={date}
+                onClick={() => dispatch({ type: "SET_DATE", date: selected ? "all" : date })}
+                className={`date-card px-3 py-3 text-left ${desired || selected ? "is-on" : ""}`}
+              >
+                <p className="eyebrow">
+                  {formatDisplayDate(date)}
+                  {desired ? " · desired" : ""}
+                  {selected ? " · on" : ""}
+                </p>
+                <p className="mt-1 text-[10px] uppercase tracking-[0.14em] opacity-70">
+                  {dateBadge(dateOffsetDays(watch.desiredTravelDate, date))}
+                </p>
+                <p className="price serif text-2xl">
+                  {candidate ? (
+                    <>
+                      from <Flap>{formatUsdCompact(candidate.totalPartyPriceCents)}</Flap>
+                    </>
+                  ) : (
+                    "—"
+                  )}
+                </p>
+                {beatsDay ? <p className="mt-1 text-xs text-save">Beats your train</p> : null}
+                {candidate &&
+                dateMap.get(watch.desiredTravelDate) &&
+                date !== watch.desiredTravelDate
+                  ? (() => {
+                      const desiredPrice = dateMap.get(
+                        watch.desiredTravelDate,
+                      )!.totalPartyPriceCents;
+                      const save = desiredPrice - candidate.totalPartyPriceCents;
+                      if (save > 0) {
+                        return (
+                          <p className="mt-1 text-xs text-save">{formatUsdCompact(save)} less</p>
+                        );
+                      }
+                      if (save < 0) {
+                        return (
+                          <p className="mt-1 text-xs opacity-70">{formatUsdCompact(-save)} more</p>
+                        );
+                      }
+                      return null;
+                    })()
+                  : null}
+              </button>
+            );
+          })}
+        </section>
+        {/* One aside, three up, instead of nine consecutive full-width bands.
           Measured: main#main is display:block and 20 of its 24 children were
           exactly 1120px at exactly x=160 — structurally a CMS rendering a
           list of blocks, which is what made the middle of the page read as
@@ -2095,180 +2125,180 @@ export function WatchDetail({
           `grid-auto-flow: row dense` is what makes this survive the fact
           that four of the seven children are conditionally rendered — any
           subset packs into full rows with no holes. */}
-      <div className="board-aside">
-        {ranked.length > 0 ? (
-          <p className="quiet-row">
-            <button type="button" className="no-print" onClick={() => void copyWindow()}>
-              Copy window
-            </button>
-          </p>
-        ) : null}
-
-        {ranked.length > 0 ? (
-          <div className="analysis">
-            <PriceLadder ladder={ladder} />
-          </div>
-        ) : null}
-
-        {sameTrain.length > 0 ? (
-          <section className="aside-wide mt-4">
-            <p className="eyebrow">Train {watch.bookedTrainNumber} across your window</p>
-            <div className="same-train mt-2">
-              {sameTrain.map(({ date, candidate }) => {
-                const desired = date === watch.desiredTravelDate;
-                return (
-                  <button
-                    type="button"
-                    key={date}
-                    className={`date-card same-train-cell px-3 py-3 ${desired ? "is-on" : ""}`}
-                    onClick={() => {
-                      if (candidate) jumpTo(candidate);
-                      else dispatch({ type: "SET_DATE", date });
-                    }}
-                  >
-                    <p className="eyebrow">
-                      {formatDisplayDate(date)}
-                      {desired ? " · yours" : ""}
-                    </p>
-                    <p className="price serif mt-1 text-2xl">
-                      {candidate ? formatUsdCompact(candidate.totalPartyPriceCents) : "—"}
-                    </p>
-                    {candidate ? (
-                      <p className="mt-1 text-xs opacity-70">
-                        <Flap>{formatClock(candidate.journey.departureAt)}</Flap>
-                      </p>
-                    ) : (
-                      <p className="mt-1 text-xs opacity-70">Not listed</p>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-        ) : null}
-
-        {ranked.length > 0 ? (
-          <section className="daypart-strip mt-4">
-            {(
-              [
-                ["Morning", "morning", buckets.morning],
-                ["Afternoon", "afternoon", buckets.afternoon],
-                ["Evening", "evening", buckets.evening],
-              ] as const
-            ).map(([label, key, candidate]) => (
-              <button
-                key={label}
-                type="button"
-                className={`date-card text-left ${bucket === key ? "is-on" : ""}`}
-                onClick={() => dispatch({ type: "TOGGLE_BUCKET", bucket: key })}
-              >
-                <p className="eyebrow">{label}</p>
-                <p className="price serif text-lg">
-                  {candidate ? (
-                    <Flap>{formatUsdCompact(candidate.totalPartyPriceCents)}</Flap>
-                  ) : (
-                    "—"
-                  )}
-                </p>
+        <div className="board-aside">
+          {ranked.length > 0 ? (
+            <p className="quiet-row">
+              <button type="button" className="no-print" onClick={() => void copyWindow()}>
+                Copy window
               </button>
-            ))}
-          </section>
-        ) : null}
-        {insight ? <p className="analysis aside-note mt-2 text-xs">{insight}</p> : null}
-        {fastest && best && candidateKey(fastest) !== candidateKey(best) ? (
-          <p className="analysis aside-note mt-2 text-xs">
-            Fastest cheaper · {trainLabel(fastest)} ·{" "}
-            {formatDurationMinutes(fastest.journey.durationMinutes)} ·{" "}
-            {formatUsdCompact(fastest.totalPartyPriceCents)}
-          </p>
-        ) : null}
+            </p>
+          ) : null}
 
-        {picks.length > 0 ? (
-          <section className="aside-cell mt-5">
-            <p className="eyebrow">Decision picks</p>
-            <div className="pick-grid mt-2">
-              {picks.map((pick) => (
+          {ranked.length > 0 ? (
+            <div className="analysis">
+              <PriceLadder ladder={ladder} />
+            </div>
+          ) : null}
+
+          {sameTrain.length > 0 ? (
+            <section className="aside-wide mt-4">
+              <p className="eyebrow">Train {watch.bookedTrainNumber} across your window</p>
+              <div className="same-train mt-2">
+                {sameTrain.map(({ date, candidate }) => {
+                  const desired = date === watch.desiredTravelDate;
+                  return (
+                    <button
+                      type="button"
+                      key={date}
+                      className={`date-card same-train-cell px-3 py-3 ${desired ? "is-on" : ""}`}
+                      onClick={() => {
+                        if (candidate) jumpTo(candidate);
+                        else dispatch({ type: "SET_DATE", date });
+                      }}
+                    >
+                      <p className="eyebrow">
+                        {formatDisplayDate(date)}
+                        {desired ? " · yours" : ""}
+                      </p>
+                      <p className="price serif mt-1 text-2xl">
+                        {candidate ? formatUsdCompact(candidate.totalPartyPriceCents) : "—"}
+                      </p>
+                      {candidate ? (
+                        <p className="mt-1 text-xs opacity-70">
+                          <Flap>{formatClock(candidate.journey.departureAt)}</Flap>
+                        </p>
+                      ) : (
+                        <p className="mt-1 text-xs opacity-70">Not listed</p>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
+
+          {ranked.length > 0 ? (
+            <section className="daypart-strip mt-4">
+              {(
+                [
+                  ["Morning", "morning", buckets.morning],
+                  ["Afternoon", "afternoon", buckets.afternoon],
+                  ["Evening", "evening", buckets.evening],
+                ] as const
+              ).map(([label, key, candidate]) => (
                 <button
-                  key={pick.kind}
+                  key={label}
                   type="button"
-                  className="date-card pick-card px-3 py-3"
-                  onClick={() => jumpTo(pick.candidate)}
+                  className={`date-card text-left ${bucket === key ? "is-on" : ""}`}
+                  onClick={() => dispatch({ type: "TOGGLE_BUCKET", bucket: key })}
                 >
-                  <p className="eyebrow">{pick.label}</p>
-                  <p className="price serif mt-1 text-2xl">
-                    {formatUsdCompact(pick.candidate.totalPartyPriceCents)}
-                  </p>
-                  <p className="mt-1 text-sm">{trainLabel(pick.candidate)}</p>
-                  <p className="text-xs opacity-70">
-                    {formatClock(pick.candidate.journey.departureAt)} →{" "}
-                    {formatClock(pick.candidate.journey.arrivalAt)}
+                  <p className="eyebrow">{label}</p>
+                  <p className="price serif text-lg">
+                    {candidate ? (
+                      <Flap>{formatUsdCompact(candidate.totalPartyPriceCents)}</Flap>
+                    ) : (
+                      "—"
+                    )}
                   </p>
                 </button>
               ))}
-            </div>
-          </section>
-        ) : null}
-
-        {neighbors.length > 0 ? (
-          <section className="mt-4 panel p-4">
-            <p className="eyebrow">Nearby departures</p>
-            <ul className="mt-3 space-y-2">
-              {neighbors.slice(0, 4).map((candidate) => (
-                <li key={candidateKey(candidate)}>
-                  <button
-                    type="button"
-                    className="w-full text-left"
-                    onClick={() => jumpTo(candidate)}
-                  >
-                    <span className="price serif text-xl">
-                      {formatUsdCompact(candidate.totalPartyPriceCents)}
-                    </span>
-                    <span className="ml-2 text-sm">
-                      {trainLabel(candidate)} · {formatClock(candidate.journey.departureAt)}
-                    </span>
-                    {candidate.savingsCents > 0 ? (
-                      <span className="ml-2 text-sm text-save">
-                        save {formatUsdCompact(candidate.savingsCents)}
-                      </span>
-                    ) : null}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-
-        {contrast ? (
-          <section className="analysis aside-cell panel mt-4 p-4 text-sm">
-            <p className="eyebrow">Acela vs Regional</p>
-            <p className="mt-2">
-              {trainLabel(contrast.acela)} is {formatUsdCompact(Math.abs(contrast.extraCents))}
-              {contrast.extraCents >= 0 ? " more" : " less"}
-              {contrast.fasterMinutes != null && contrast.fasterMinutes > 0
-                ? ` and ${formatDurationMinutes(contrast.fasterMinutes)} faster`
-                : contrast.fasterMinutes != null && contrast.fasterMinutes < 0
-                  ? ` and ${formatDurationMinutes(-contrast.fasterMinutes)} longer`
-                  : ""}{" "}
-              than {trainLabel(contrast.regional)}.
+            </section>
+          ) : null}
+          {insight ? <p className="analysis aside-note mt-2 text-xs">{insight}</p> : null}
+          {fastest && best && candidateKey(fastest) !== candidateKey(best) ? (
+            <p className="analysis aside-note mt-2 text-xs">
+              Fastest cheaper · {trainLabel(fastest)} ·{" "}
+              {formatDurationMinutes(fastest.journey.durationMinutes)} ·{" "}
+              {formatUsdCompact(fastest.totalPartyPriceCents)}
             </p>
-            <div className="quiet-row">
-              <button type="button" onClick={() => jumpTo(contrast.regional)}>
-                Regional {formatUsdCompact(contrast.regional.totalPartyPriceCents)}
-              </button>
-              <button type="button" onClick={() => jumpTo(contrast.acela)}>
-                Acela {formatUsdCompact(contrast.acela.totalPartyPriceCents)}
-              </button>
-            </div>
-          </section>
-        ) : null}
-      </div>
+          ) : null}
 
-      {best ? (
-        <section
-          className={`ticket mt-8 p-5 md:p-8 ticket-hero ${focusKey === candidateKey(best) ? "board-row-focus" : ""}`}
-          data-hero-opt={candidateKey(best)}
-        >
-          {/* Two groups, because there are two questions.
+          {picks.length > 0 ? (
+            <section className="aside-cell mt-5">
+              <p className="eyebrow">Decision picks</p>
+              <div className="pick-grid mt-2">
+                {picks.map((pick) => (
+                  <button
+                    key={pick.kind}
+                    type="button"
+                    className="date-card pick-card px-3 py-3"
+                    onClick={() => jumpTo(pick.candidate)}
+                  >
+                    <p className="eyebrow">{pick.label}</p>
+                    <p className="price serif mt-1 text-2xl">
+                      {formatUsdCompact(pick.candidate.totalPartyPriceCents)}
+                    </p>
+                    <p className="mt-1 text-sm">{trainLabel(pick.candidate)}</p>
+                    <p className="text-xs opacity-70">
+                      {formatClock(pick.candidate.journey.departureAt)} →{" "}
+                      {formatClock(pick.candidate.journey.arrivalAt)}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          {neighbors.length > 0 ? (
+            <section className="mt-4 panel p-4">
+              <p className="eyebrow">Nearby departures</p>
+              <ul className="mt-3 space-y-2">
+                {neighbors.slice(0, 4).map((candidate) => (
+                  <li key={candidateKey(candidate)}>
+                    <button
+                      type="button"
+                      className="w-full text-left"
+                      onClick={() => jumpTo(candidate)}
+                    >
+                      <span className="price serif text-xl">
+                        {formatUsdCompact(candidate.totalPartyPriceCents)}
+                      </span>
+                      <span className="ml-2 text-sm">
+                        {trainLabel(candidate)} · {formatClock(candidate.journey.departureAt)}
+                      </span>
+                      {candidate.savingsCents > 0 ? (
+                        <span className="ml-2 text-sm text-save">
+                          save {formatUsdCompact(candidate.savingsCents)}
+                        </span>
+                      ) : null}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          {contrast ? (
+            <section className="analysis aside-cell panel mt-4 p-4 text-sm">
+              <p className="eyebrow">Acela vs Regional</p>
+              <p className="mt-2">
+                {trainLabel(contrast.acela)} is {formatUsdCompact(Math.abs(contrast.extraCents))}
+                {contrast.extraCents >= 0 ? " more" : " less"}
+                {contrast.fasterMinutes != null && contrast.fasterMinutes > 0
+                  ? ` and ${formatDurationMinutes(contrast.fasterMinutes)} faster`
+                  : contrast.fasterMinutes != null && contrast.fasterMinutes < 0
+                    ? ` and ${formatDurationMinutes(-contrast.fasterMinutes)} longer`
+                    : ""}{" "}
+                than {trainLabel(contrast.regional)}.
+              </p>
+              <div className="quiet-row">
+                <button type="button" onClick={() => jumpTo(contrast.regional)}>
+                  Regional {formatUsdCompact(contrast.regional.totalPartyPriceCents)}
+                </button>
+                <button type="button" onClick={() => jumpTo(contrast.acela)}>
+                  Acela {formatUsdCompact(contrast.acela.totalPartyPriceCents)}
+                </button>
+              </div>
+            </section>
+          ) : null}
+        </div>
+
+        {best ? (
+          <section
+            className={`ticket mt-8 p-5 md:p-8 ticket-hero ${focusKey === candidateKey(best) ? "board-row-focus" : ""}`}
+            data-hero-opt={candidateKey(best)}
+          >
+            {/* Two groups, because there are two questions.
               The hero was fourteen children stacked in one 1054px column, and
               measured at 1440 every one of them was 1054px wide while several
               held 130 to 150px of content — a 130px fare in a 1054px row, a
@@ -2276,142 +2306,142 @@ export function WatchDetail({
               750px of void beside almost every line, and 646px of height to
               say two things. The answer is a figure; the itinerary is a
               record. They belong side by side, not stacked. */}
-          <div className="hero-answer">
-            <p className="eyebrow">Cheapest in your window</p>
-            <p className="price serif mt-2 text-6xl md:text-7xl">
-              <Flap className="flap-hero">{formatUsdCompact(best.totalPartyPriceCents)}</Flap>
-            </p>
-            {eachBest ? (
-              <p className="mt-1 text-sm text-ink-soft">{formatUsdCompact(eachBest)} / person</p>
-            ) : null}
-            {best.savingsCents > 0 ? (
-              <p className="mt-1 text-lg text-save">
-                SAVE {formatUsdCompact(best.savingsCents)}
-                {pct != null ? ` · ${pct}%` : ""}
-                {feeCents > 0 && netBest > 0 ? ` · ${formatUsdCompact(netBest)} after fee` : ""}
+            <div className="hero-answer">
+              <p className="eyebrow">Cheapest in your window</p>
+              <p className="price serif mt-2 text-6xl md:text-7xl">
+                <Flap className="flap-hero">{formatUsdCompact(best.totalPartyPriceCents)}</Flap>
               </p>
-            ) : null}
-            <SavingsMeter
-              bookedCents={watch.currentBookedPriceCents}
-              foundCents={best.totalPartyPriceCents}
-            />
-            <div className="hero-act">
-              <Handoff candidate={best} resolver={resolver} />
-            </div>
-          </div>
-          <div className="hero-trip">
-            <p className="text-lg">{trainLabel(best)}</p>
-            <div className="clock-pair mt-3">
-              <div>
-                <p className="eyebrow">Depart</p>
-                <p className="price serif text-4xl">
-                  <Flap>{formatClock(best.journey.departureAt)}</Flap>
+              {eachBest ? (
+                <p className="mt-1 text-sm text-ink-soft">{formatUsdCompact(eachBest)} / person</p>
+              ) : null}
+              {best.savingsCents > 0 ? (
+                <p className="mt-1 text-lg text-save">
+                  SAVE {formatUsdCompact(best.savingsCents)}
+                  {pct != null ? ` · ${pct}%` : ""}
+                  {feeCents > 0 && netBest > 0 ? ` · ${formatUsdCompact(netBest)} after fee` : ""}
                 </p>
+              ) : null}
+              <SavingsMeter
+                bookedCents={watch.currentBookedPriceCents}
+                foundCents={best.totalPartyPriceCents}
+              />
+              <div className="hero-act">
+                <Handoff candidate={best} resolver={resolver} />
               </div>
-              <p className="text-ink-soft">→</p>
-              <div>
-                <p className="eyebrow">Arrive</p>
-                <p className="price serif text-4xl">
-                  <Flap>{formatClock(best.journey.arrivalAt)}</Flap>
-                </p>
+            </div>
+            <div className="hero-trip">
+              <p className="text-lg">{trainLabel(best)}</p>
+              <div className="clock-pair mt-3">
+                <div>
+                  <p className="eyebrow">Depart</p>
+                  <p className="price serif text-4xl">
+                    <Flap>{formatClock(best.journey.departureAt)}</Flap>
+                  </p>
+                </div>
+                <p className="text-ink-soft">→</p>
+                <div>
+                  <p className="eyebrow">Arrive</p>
+                  <p className="price serif text-4xl">
+                    <Flap>{formatClock(best.journey.arrivalAt)}</Flap>
+                  </p>
+                </div>
+                {formatDurationMinutes(best.journey.durationMinutes) ? (
+                  <p className="text-sm text-ink-soft">
+                    {formatDisplayDate(best.journey.searchedTravelDate)} ·{" "}
+                    {formatDurationMinutes(best.journey.durationMinutes)}
+                  </p>
+                ) : (
+                  <p className="text-sm text-ink-soft">
+                    {formatDisplayDate(best.journey.searchedTravelDate)}
+                  </p>
+                )}
               </div>
-              {formatDurationMinutes(best.journey.durationMinutes) ? (
-                <p className="text-sm text-ink-soft">
-                  {formatDisplayDate(best.journey.searchedTravelDate)} ·{" "}
-                  {formatDurationMinutes(best.journey.durationMinutes)}
-                </p>
-              ) : (
-                <p className="text-sm text-ink-soft">
-                  {formatDisplayDate(best.journey.searchedTravelDate)}
-                </p>
-              )}
+              <p className="station-code mt-2 text-sm">
+                {best.journey.originCode} → {best.journey.destinationCode}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <span className="chip">{serviceTypeLabel(best.journey.serviceType)}</span>
+                {best.journey.transferCount > 0 ? (
+                  <ConnectionChip candidate={best} />
+                ) : (
+                  <span className="chip">Nonstop</span>
+                )}
+                {centsPerHour(best.totalPartyPriceCents, best.journey.durationMinutes) != null ? (
+                  <span className="chip">
+                    {formatUsdCompact(
+                      centsPerHour(best.totalPartyPriceCents, best.journey.durationMinutes)!,
+                    )}
+                    /hr
+                  </span>
+                ) : null}
+                {isOvernight(best.journey.departureAt, best.journey.arrivalAt) ? (
+                  <span className="chip">Overnight</span>
+                ) : null}
+                {isAcela(best) ? <span className="chip">Acela</span> : null}
+                {best.fare.availability === "LIMITED" ? (
+                  <span className="chip">Limited seats</span>
+                ) : null}
+                {yours && beatsBooked(best, yours) ? (
+                  <span className="chip chip-beats">Beats your train</span>
+                ) : null}
+                {yours && candidateIsSame(yours, best) ? (
+                  <span className="chip">Your train</span>
+                ) : null}
+                {preferred && candidateIsSame(preferred, best) ? (
+                  <span className="chip">Closest to preferred time</span>
+                ) : null}
+              </div>
+              <Legs candidate={best} />
+              <p className="mt-3">
+                Listed {travelClassLabel(best.fare.travelClass)} fare
+                {best.fare.fareFamilyRaw === "WANDERU_LISTED"
+                  ? " · confirm on Amtrak"
+                  : ` · ${fareFamilyLabel(best.fare.fareFamily)}`}
+              </p>
+              <p className="text-sm text-ink-soft">{dateBadge(best.dateOffsetDays)}</p>
             </div>
-            <p className="station-code mt-2 text-sm">
-              {best.journey.originCode} → {best.journey.destinationCode}
-            </p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <span className="chip">{serviceTypeLabel(best.journey.serviceType)}</span>
-              {best.journey.transferCount > 0 ? (
-                <ConnectionChip candidate={best} />
-              ) : (
-                <span className="chip">Nonstop</span>
-              )}
-              {centsPerHour(best.totalPartyPriceCents, best.journey.durationMinutes) != null ? (
-                <span className="chip">
-                  {formatUsdCompact(
-                    centsPerHour(best.totalPartyPriceCents, best.journey.durationMinutes)!,
-                  )}
-                  /hr
-                </span>
-              ) : null}
-              {isOvernight(best.journey.departureAt, best.journey.arrivalAt) ? (
-                <span className="chip">Overnight</span>
-              ) : null}
-              {isAcela(best) ? <span className="chip">Acela</span> : null}
-              {best.fare.availability === "LIMITED" ? (
-                <span className="chip">Limited seats</span>
-              ) : null}
-              {yours && beatsBooked(best, yours) ? (
-                <span className="chip chip-beats">Beats your train</span>
-              ) : null}
-              {yours && candidateIsSame(yours, best) ? (
-                <span className="chip">Your train</span>
-              ) : null}
-              {preferred && candidateIsSame(preferred, best) ? (
-                <span className="chip">Closest to preferred time</span>
-              ) : null}
+            <div className="quiet-row no-print">
+              <button
+                type="button"
+                onClick={() => {
+                  setRebookPrice(String(best.totalPartyPriceCents / 100));
+                  setRebookTrain(best.journey.trainNumber ?? "");
+                  setRebookOpen(true);
+                  window.setTimeout(() => {
+                    document.getElementById("rebook")?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "center",
+                    });
+                    rebookRef.current?.focus();
+                  }, 80);
+                }}
+              >
+                Use this price in I rebooked
+              </button>
+              <button type="button" onClick={() => downloadIcs(best)}>
+                Add to calendar
+              </button>
+              <button type="button" onClick={() => void copyItinerary(best)}>
+                Copy itinerary
+              </button>
+              <button type="button" onClick={() => void copyFields(best)}>
+                Copy Amtrak fields
+              </button>
+              <button type="button" onClick={() => handleTogglePin(candidateKey(best))}>
+                {pins.includes(candidateKey(best)) ? "Unpin" : "Pin this train"}
+              </button>
             </div>
-            <Legs candidate={best} />
-            <p className="mt-3">
-              Listed {travelClassLabel(best.fare.travelClass)} fare
-              {best.fare.fareFamilyRaw === "WANDERU_LISTED"
-                ? " · confirm on Amtrak"
-                : ` · ${fareFamilyLabel(best.fare.fareFamily)}`}
+          </section>
+        ) : (
+          <section className="panel mt-8 p-6">
+            <h2 className="serif text-2xl">No trains on the board yet.</h2>
+            <p className="mt-2 text-sm text-ink-soft">
+              Check now to search live inventory for this window.
             </p>
-            <p className="text-sm text-ink-soft">{dateBadge(best.dateOffsetDays)}</p>
-          </div>
-          <div className="quiet-row no-print">
-            <button
-              type="button"
-              onClick={() => {
-                setRebookPrice(String(best.totalPartyPriceCents / 100));
-                setRebookTrain(best.journey.trainNumber ?? "");
-                setRebookOpen(true);
-                window.setTimeout(() => {
-                  document.getElementById("rebook")?.scrollIntoView({
-                    behavior: "smooth",
-                    block: "center",
-                  });
-                  rebookRef.current?.focus();
-                }, 80);
-              }}
-            >
-              Use this price in I rebooked
-            </button>
-            <button type="button" onClick={() => downloadIcs(best)}>
-              Add to calendar
-            </button>
-            <button type="button" onClick={() => void copyItinerary(best)}>
-              Copy itinerary
-            </button>
-            <button type="button" onClick={() => void copyFields(best)}>
-              Copy Amtrak fields
-            </button>
-            <button type="button" onClick={() => handleTogglePin(candidateKey(best))}>
-              {pins.includes(candidateKey(best)) ? "Unpin" : "Pin this train"}
-            </button>
-          </div>
-        </section>
-      ) : (
-        <section className="panel mt-8 p-6">
-          <h2 className="serif text-2xl">No trains on the board yet.</h2>
-          <p className="mt-2 text-sm text-ink-soft">
-            Check now to search live inventory for this window.
-          </p>
-        </section>
-      )}
+          </section>
+        )}
 
-      {/* Above the board, not behind "More analysis".
+        {/* Above the board, not behind "More analysis".
           "Should I switch now or wait" is the question the product exists to
           answer, and it was the one thing it never said. Hiding it one click
           down would be filing the answer under further reading.
@@ -2420,16 +2450,17 @@ export function WatchDetail({
           benchmark, which changes only when they press "I rebooked", so for
           almost every watch it was a single point under a heading that said
           "Price history". This is the fares we actually observed. */}
-      <div className="mt-8 no-print">
-        <FareHistory
-          observations={observations}
-          bookedCents={watch.currentBookedPriceCents}
-          bestCents={best?.totalPartyPriceCents ?? null}
-          changeFeeCents={feeCents}
-          hoursToDeparture={hoursToDeparture}
-          corridor={corridor}
-          timezone={watch.timezone}
-        />
+        <div className="mt-8 no-print">
+          <FareHistory
+            observations={observations}
+            bookedCents={watch.currentBookedPriceCents}
+            bestCents={best?.totalPartyPriceCents ?? null}
+            changeFeeCents={feeCents}
+            hoursToDeparture={hoursToDeparture}
+            corridor={corridor}
+            timezone={watch.timezone}
+          />
+        </div>
       </div>
 
       <section id="board" className="mt-8">

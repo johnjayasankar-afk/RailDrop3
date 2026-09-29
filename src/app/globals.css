@@ -5681,7 +5681,25 @@ body::after {
 /* The hero fare. The headline number on the page was still inside a box, so
    the largest thing on the screen read as a widget. The depart and arrive
    clocks beside it stay in flaps on purpose — there the split-flap frame is
-   the point, and a departure board is exactly what they are quoting. */
+   the point, and a departure board is exactly what they are quoting.
+   
+   Taking the fare out of its flap left it carrying the flap's ink.
+   --board-ink is #f0f7f3 in BOTH themes, because it is the ink of a
+   departure board and a departure board is dark in both — correct on a
+   board surface, and a near-white number on a near-white card the moment
+   the surface underneath it went away. Measured on the rendered page: the
+   darkest pixel in "$91" was rgb(240,247,243) on rgb(255,255,255), about
+   1.05:1. The biggest number on the most important screen in the product,
+   invisible in daylight.
+   
+   Worse than a contrast bug, given what this product claims. The OBSERVED
+   fare disappeared while the DERIVED "SAVE $37 · 29%" beneath it stayed
+   bold and legible — so the conclusion survived without the number it rests
+   on, which is the one thing RailDrop is not allowed to do.
+   
+   `.date-card .flap` had already hit this and already fixed it; its comment
+   says "Only the fare itself was legible, because it sets its own colour."
+   The hero fare was the single case where that sentence was false. */
 .ticket-hero .price .flap,
 .flap-hero {
   padding: 0;
@@ -5690,12 +5708,12 @@ body::after {
   box-shadow: none;
   border-radius: 0;
   font-family: var(--font-body);
-  font-weight: 400;
+  font-weight: var(--w-display);
   letter-spacing: var(--track-hero);
   font-size: inherit;
   line-height: 0.95;
   font-variant-numeric: tabular-nums slashed-zero;
-  color: var(--board-ink);
+  color: var(--ink);
 }
 
 .ticket-hero .price {
@@ -6236,6 +6254,14 @@ body::after {
 .ticket-hero .clock-pair .flap {
   --flap-face: var(--board-deep);
   background: var(--flap-face);
+  /* Board ink, because unlike the fare beside them these DID keep their
+     board surface. The rule above covers `.ticket-hero .price .flap`, and
+     the clocks are marked up as prices too — so moving the fare to page ink
+     turned 9:20 AM and 1:47 PM into black-on-black tiles. Two objects, one
+     selector, opposite surfaces: the fare is printed on the card and the
+     clocks are lit on a recessed tile, and each needs the ink of the thing
+     it is actually sitting on. */
+  color: var(--board-ink);
   padding: var(--sp-1) var(--sp-2);
   border-radius: var(--r-well);
   box-shadow:
@@ -7109,32 +7135,28 @@ time,
    place on the surface that shows your booked day is the expensive one and
    the cheap fare is on a different date. That is the decisive caveat of the
    whole product and it stays in the main track at full width. */
+/* The board runs wider than every other page, and only the board. It was
+   3968px deep in one 1120px column with ~290px of unused page either side,
+   so the width to spend was already there. */
 @media (min-width: 72rem) {
-  main:has(> .board-aside) {
+  main:has(> .board-top),
+  .board-gutter {
+    max-width: 84rem;
+  }
+
+  .board-top {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 21rem;
     column-gap: var(--sp-10);
     align-items: start;
-    /* Wider than the 72rem every other page uses, and only here.
-       
-       The first attempt kept max-w-6xl and the board got TALLER, not
-       shorter: 1152px minus a 21rem rail minus the gap leaves 776px, and the
-       timetable row declares more fixed width than that, so every train name
-       wrapped to four lines. A margin column has to come from somewhere, and
-       taking it out of the one element on the page that is genuinely a table
-       is the wrong place to take it from.
-       
-       This is also the surface that had ~290px of unused page either side
-       while being 3968px deep, so the width was already there to spend. */
-    max-width: 84rem;
   }
 
-  main:has(> .board-aside) > * {
+  .board-top > * {
     grid-column: 1;
     min-width: 0;
   }
 
-  main:has(> .board-aside) > .board-aside {
+  .board-top > .board-aside {
     grid-column: 2;
     /* From the first row to past the last child; there are eighteen. */
     grid-row: 1 / span 30;
@@ -7145,27 +7167,18 @@ time,
 
   /* Inside a 21rem column the daypart cards stack; they were three-up
      because they had 1120px, not because three-up is what they want. */
-  main:has(> .board-aside) .daypart-strip {
+  .board-top .daypart-strip {
     grid-template-columns: minmax(0, 1fr);
   }
 
   /* The picks were drawn for a 550px cell and clipped at 336px. In a real
      margin they are a list, not a row. */
-  main:has(> .board-aside) .aside-cell {
+  .board-top .aside-cell {
     width: 100%;
   }
 
-  main:has(> .board-aside) .pick-grid {
+  .board-top .pick-grid {
     grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-/* Anything that sits outside <main> on the board has to follow it out to the
-   wider measure, or it hangs off a different left edge than everything above
-   it. */
-@media (min-width: 72rem) {
-  .board-gutter {
-    max-width: 84rem;
   }
 }
 
