@@ -98,6 +98,33 @@ function normalizeTrip(
   );
   if (!originOk || !destOk) return null;
 
+  /* Which stations this fare is actually between.
+   *
+   * The journey used to be stamped with `request.originCode` and
+   * `request.destinationCode` unconditionally, which is fine for a strict
+   * match — the trip's own station id had to be in the requested station's id
+   * list to get here — and wrong for a relaxed one.
+   *
+   * A relaxed match accepts on city and state, so "Boston, MA" admits Back Bay
+   * as well as South Station. And relaxation only ever changes the answer for
+   * a station we HAVE mapped: an unmapped code falls through to city and state
+   * on the strict path too. So every journey the relaxed retry adds is, by
+   * construction, one whose station id did not match the one requested — a
+   * different station, labelled as yours.
+   *
+   * Nothing downstream re-checks it. It reaches the board, the alert email,
+   * the calendar export and the Amtrak handoff link, which would send someone
+   * to a search that does not contain the fare they clicked on.
+   *
+   * So the journey carries the station it is actually from, and if that cannot
+   * be resolved under a relaxed match the trip is dropped rather than
+   * published under a station we only assumed. */
+  const resolvedOrigin =
+    codeFromWanderuId(trip.depart_id) ?? codeFromWanderuId(travelLegs[0]?.depart_id);
+  const resolvedDestination =
+    codeFromWanderuId(trip.arrive_id) ?? codeFromWanderuId(travelLegs.at(-1)?.arrive_id);
+  if (options.relaxStationMatch && (!resolvedOrigin || !resolvedDestination)) return null;
+
   const dollars = trip.pricing?.USD?.price ?? trip.price;
   const perTraveler = dollarsToCents(dollars ?? NaN);
   if (perTraveler == null) return null;
@@ -174,8 +201,8 @@ function normalizeTrip(
     serviceName,
     trainNumber,
     serviceType,
-    originCode: request.originCode,
-    destinationCode: request.destinationCode,
+    originCode: resolvedOrigin ?? request.originCode,
+    destinationCode: resolvedDestination ?? request.destinationCode,
     departureAt,
     arrivalAt,
     durationMinutes:
@@ -187,8 +214,8 @@ function normalizeTrip(
       ? legs
       : [
           {
-            originCode: request.originCode,
-            destinationCode: request.destinationCode,
+            originCode: resolvedOrigin ?? request.originCode,
+            destinationCode: resolvedDestination ?? request.destinationCode,
             departureAt,
             arrivalAt,
             serviceName,
