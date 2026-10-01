@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { previewFares } from "@/lib/watches/preview-fares";
+import { previewFares } from "@/lib/fares/preview-fares";
 import { FixtureFareProvider } from "@/lib/providers/fixture-fare-provider";
 import type { FareProvider } from "@/lib/providers/fare-provider";
 import type { FareSearchRequest, FareSearchResult, JourneyOption } from "@/lib/domain/types";

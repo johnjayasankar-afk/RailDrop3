@@ -1,5 +1,5 @@
 import { getFareProvider } from "@/lib/services";
-import { previewFares, type DateProgress, type FarePreview } from "@/lib/watches/preview-fares";
+import { previewFares, type DateProgress, type FarePreview } from "@/lib/fares/preview-fares";
 import { ProviderNotConfiguredError } from "@/lib/providers/fare-provider";
 import { errorDetail, errorMessage } from "@/lib/errors";
 import { logger } from "@/lib/logger";

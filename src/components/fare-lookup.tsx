@@ -11,22 +11,29 @@ import { centsPerHour } from "@/lib/domain/board-tools";
 import { formatDurationMinutes } from "@/lib/domain/calendar";
 import { FareProvenance } from "@/components/fare-provenance";
 import { Money } from "@/components/money";
-import type { DateProgress, FarePreview } from "@/lib/watches/preview-fares";
+import type { DateProgress, FarePreview } from "@/lib/fares/preview-fares";
 import { sharedSearchHref, type SharedSearch } from "@/lib/domain/share-search";
 import { cheapestByBucket } from "@/lib/domain/board-insights";
 import type { TimeBucket } from "@/lib/domain/board-tools";
 import type { RankedCandidate } from "@/lib/domain/types";
 
-/* What does this cost, right now.
+/* The product.
  *
- * The app could already answer this — /api/fares needs no database and no
- * account — but the only way to reach the answer was to try to save a watch
- * and have it fail. The most direct question the product can answer was
- * reachable only through a failure path.
+ * You type a route and a date; a real browser reads Amtrak's listed
+ * inventory for every date in the window and this renders all of it — the
+ * cheapest fare, where it sits in the distribution, which day and which
+ * part of the day is cheapest, and what each train works out to per hour.
  *
- * Nothing here is saved and nothing is watched, and the page says so twice:
- * once before you search and once beside the results. A list of fares that
- * looks like a watch is the one thing this must not be mistaken for.
+ * Nothing is saved anywhere. There is no account, no session and no
+ * database: the route and the date live in the address bar while you are
+ * looking at them and vanish when you close the tab, and the amount typed
+ * into "what you paid" is subtracted in this browser and never sent. The
+ * page says so, because a page full of fares that looks like it is tracking
+ * something is the one thing this must not be mistaken for.
+ *
+ * Every figure here is a fare a provider was observed listing, or
+ * arithmetic on fares a provider was observed listing. There is no
+ * forecast, no average over history, and no advice about when to book.
  */
 
 type State =
@@ -188,7 +195,7 @@ export function FareLookup({ today, initial }: { today: string; initial?: Shared
           {state.status === "searching" ? "Reading the live board…" : "Check the fare"}
         </button>
         <p className="lookup-caveat">
-          Nothing is saved and nothing is watched. Listed fares only — confirm on Amtrak.
+          Nothing is saved anywhere. Listed fares only — confirm on Amtrak before you book.
         </p>
         {/* The link carries the route and the date and never a fare. A price in
             a URL is one nobody observed by the time it is read, and a forged

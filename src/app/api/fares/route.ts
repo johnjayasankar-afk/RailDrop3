@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getFareProvider } from "@/lib/services";
-import { previewFares } from "@/lib/watches/preview-fares";
+import { previewFares } from "@/lib/fares/preview-fares";
 import { ProviderNotConfiguredError } from "@/lib/providers/fare-provider";
 import { errorDetail, errorMessage, isTransportFailure } from "@/lib/errors";
 import { logger } from "@/lib/logger";

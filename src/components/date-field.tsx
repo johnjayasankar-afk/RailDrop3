@@ -9,7 +9,7 @@ import { addUtcDays, compareIsoDates, formatDisplayDateLong } from "@/lib/domain
  * It replaces <input type="date">, whose calendar is the browser's: a different
  * shape in every one of them, light-only in several regardless of the page's
  * theme, and — the reason it had to go — unable to show the one thing that
- * matters when choosing a date here. A watch searches a window, not a day, so
+ * matters when choosing a date here. A search covers a window, not a day, so
  * the flexibility setting is drawn on the calendar: pick the 9th with ±1 and
  * the 8th and 10th light up as the days that will actually be searched.
  *
