@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { getRepository } from "@/lib/services";
 import { stationQuerySchema } from "@/lib/validation/watch";
 import { STATIONS } from "@/lib/stations/catalog";
 import { stationCoverage } from "@/lib/stations/coverage";
@@ -43,19 +42,15 @@ export async function GET(request: Request) {
   const local = STATIONS.filter((station) =>
     `${station.code} ${station.name} ${station.city} ${station.state}`.toLowerCase().includes(q),
   ).slice(0, 8);
-  if (local.length > 0) {
-    return NextResponse.json(
-      { stations: withCoverage(local) },
-      // The catalog ships with the build, so it cannot go stale between them.
-      { headers: { "Cache-Control": "public, max-age=3600" } },
-    );
-  }
-
-  try {
-    const stations = await getRepository().searchStations(parsed.q);
-    if (stations.length > 0) return NextResponse.json({ stations: withCoverage(stations) });
-  } catch {
-    // A database we cannot reach must not break a picker the catalog can serve.
-  }
-  return NextResponse.json({ stations: [] });
+  /* The catalog is the whole answer now.
+   *
+   * There used to be a database fallback for queries the catalog could not
+   * match, wrapped in a try/catch that swallowed any failure — so on the
+   * overwhelming majority of searches it did nothing, and on the rest it
+   * was best-effort. 194 stations ship with the build, which means this
+   * picker cannot go stale between deploys and cannot be down. */
+  return NextResponse.json(
+    { stations: withCoverage(local) },
+    { headers: { "Cache-Control": "public, max-age=3600" } },
+  );
 }

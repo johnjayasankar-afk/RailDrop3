@@ -446,17 +446,6 @@ h2.serif {
   box-shadow: 0 10px 22px -12px rgb(var(--shade-rgb) / 0.32);
 }
 
-.btn-ink {
-  border: 1px solid var(--ink);
-  background: transparent;
-  color: var(--ink);
-}
-
-.btn-ink:hover:not(:disabled) {
-  background: var(--ink);
-  color: #ffffff;
-}
-
 .choice {
   display: inline-flex;
   align-items: center;
@@ -529,42 +518,6 @@ input[type="radio"] {
   }
 }
 
-.scan-dot {
-  width: 0.45rem;
-  height: 0.45rem;
-  border-radius: var(--r-pill);
-  background: var(--mint-3);
-  box-shadow: 0 0 0 0.22rem color-mix(in srgb, var(--mint-3) 20%, transparent);
-  animation: pulse 1.4s ease-in-out infinite;
-}
-
-.scan-line {
-  height: 2px;
-  overflow: hidden;
-  border-radius: var(--r-hair);
-  background: var(--line);
-}
-
-.scan-line span {
-  display: block;
-  height: 100%;
-  width: 40%;
-  background: linear-gradient(90deg, transparent, var(--forest-2), var(--mint-3), transparent);
-  animation: scan 1.6s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 0.3;
-    transform: scale(0.85);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
 @keyframes scan {
   0% {
     transform: translateX(-120%);
@@ -634,38 +587,6 @@ input[type="radio"] {
   color: var(--ink-soft);
 }
 
-.quiet-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-1-5) var(--sp-4);
-  margin-top: 0.85rem;
-  font-size: var(--step--2);
-}
-
-.quiet-row button,
-.quiet-row a {
-  text-decoration: underline;
-  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
-  text-underline-offset: 3px;
-  color: var(--ink-soft);
-}
-
-.stack-grid {
-  display: grid;
-  gap: var(--sp-3);
-  margin-top: 1.25rem;
-}
-
-@media (min-width: 768px) {
-  .stack-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-.stack-grid > * {
-  margin-top: 0;
-}
-
 .chip {
   display: inline-flex;
   align-items: center;
@@ -717,35 +638,12 @@ div.chip {
   color: var(--ink-soft);
 }
 
-.chip-on {
-  border-color: var(--forest-3);
-  background: var(--forest-3);
-  color: var(--board-ink);
-}
-
-.chip-save {
-  border-color: color-mix(in srgb, var(--forest-2) 40%, transparent);
-  background: var(--mint-bg);
-  color: var(--mint-t);
-}
-
 /* Board / verdict surfaces: chips must stay readable on dark backgrounds */
 .verdict .chip,
-.live-compare .chip,
-.date-card .chip,
-.trip-rail .chip {
+.date-card .chip {
   border-color: color-mix(in srgb, var(--board-ink) 26%, transparent);
   color: var(--board-ink);
   background: transparent;
-}
-
-.verdict .chip-on,
-.live-compare .chip-on,
-.date-card .chip-on,
-.trip-rail .chip-on {
-  border-color: var(--mint-2);
-  background: color-mix(in srgb, var(--mint-2) 16%, transparent);
-  color: var(--mint);
 }
 
 .verdict .field {
@@ -765,51 +663,6 @@ div.chip {
   border-radius: var(--r-pill);
   background: color-mix(in srgb, var(--line) 80%, transparent);
   overflow: hidden;
-}
-
-.meter-booked,
-.meter-found,
-.meter-even {
-  position: absolute;
-  left: 0;
-  top: 0;
-  height: 100%;
-  border-radius: inherit;
-}
-
-.meter-booked {
-  background: color-mix(in srgb, var(--ink) 16%, var(--line));
-}
-
-.meter-found {
-  background: linear-gradient(90deg, var(--mint-3), var(--forest-2));
-  animation: meter-fill 520ms var(--ease);
-}
-
-.meter-even {
-  background: var(--ink);
-}
-
-@keyframes meter-fill {
-  from {
-    transform: scaleX(0.35);
-    transform-origin: left;
-  }
-  to {
-    transform: scaleX(1);
-    transform-origin: left;
-  }
-}
-
-.ticket-hover {
-  transition:
-    transform var(--t-base) var(--ease),
-    box-shadow var(--t-base) var(--ease);
-}
-
-.ticket-hover:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--sh-3);
 }
 
 .reveal {
@@ -837,7 +690,6 @@ div.chip {
    this with a bg-[#2a241e] utility, but .skeleton sets `background` shorthand,
    so that class never applied. The surface decides instead. */
 .depart-strip .skeleton,
-.trip-rail .skeleton,
 .timetable .skeleton {
   background: linear-gradient(
     90deg,
@@ -846,14 +698,6 @@ div.chip {
     var(--board-face)
   );
   background-size: 200% 100%;
-}
-
-.board-row:hover {
-  background: color-mix(in srgb, var(--paper) 60%, white);
-}
-
-.board-row-on {
-  background: color-mix(in srgb, var(--mint-2) 14%, var(--paper-elevated));
 }
 
 kbd {
@@ -873,27 +717,10 @@ kbd {
   color: var(--ink-soft);
 }
 
-.compare-grid {
-  display: grid;
-  gap: var(--sp-4);
-}
-
 .sparkline {
   margin-top: 0.75rem;
   width: 10.5rem;
   color: var(--forest-2);
-}
-
-.spark-area {
-  fill: color-mix(in srgb, var(--mint-3) 18%, transparent);
-}
-
-.spark-line {
-  stroke: var(--forest-2);
-}
-
-.spark-now {
-  fill: var(--rail);
 }
 
 .faq details {
@@ -954,48 +781,12 @@ kbd {
   }
 }
 
-.dock-scroll-room {
-  height: var(--dock-room);
-  pointer-events: none;
-}
-
-.action-dock {
-  position: sticky;
-  bottom: max(0.75rem, env(safe-area-inset-bottom));
-  z-index: 10;
-  overflow: visible;
-  margin-top: 1.75rem;
-  padding: 0;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  /* Same reason as .site-header: the dock was a white strip at the foot of a
-     dark board. */
-  /* Opaque. At 92% the content underneath showed through the blur as a smear
-     of half-legible digits — depth is not worth a price you cannot read. The
-     blur stays for the edge, where it falls over the page background. */
-  background: var(--paper-elevated);
-  -webkit-backdrop-filter: blur(14px) saturate(1.4);
-  backdrop-filter: blur(14px) saturate(1.4);
-  box-shadow: 0 -12px 40px -8px rgb(var(--shade-rgb) / 0.18);
-}
-
 /* The dock is pinned to the bottom of the viewport, so it floats over whatever
    content happens to be down there. Its readouts are text, not controls, and
    they were swallowing taps meant for the chips underneath — on a 390px screen
    that is a real miss, not a theoretical one: a mobile test could not tap
    "I rebooked" because the word "Save" was on top of it. Only the dock's own
    controls take pointer events now. */
-.action-dock .live-compare,
-.action-dock .live-col {
-  pointer-events: none;
-}
-
-.action-dock .live-compare button,
-.action-dock .live-compare a,
-.action-dock .live-compare input,
-.action-dock .live-compare select {
-  pointer-events: auto;
-}
 
 /* One row, scrolled sideways if it does not fit.
  *
@@ -1007,50 +798,6 @@ kbd {
  *
  * Nothing is lost by not wrapping: every control in here is also in the command
  * palette, which lists it with its shortcut. */
-.settings-danger {
-  border-top: 1px solid var(--line);
-  padding-top: var(--sp-4);
-}
-
-.dock-btns {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: var(--sp-2);
-  padding: var(--sp-3) var(--sp-3);
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scrollbar-width: none;
-}
-
-.dock-btns::-webkit-scrollbar {
-  display: none;
-}
-
-.dock-btns > * {
-  flex: 0 0 auto;
-}
-
-.live-compare {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--sp-2-5) var(--sp-3-5);
-  background: var(--board);
-  color: var(--board-ink);
-  padding: var(--sp-3-5) var(--sp-4);
-}
-
-.live-compare .live-col .price {
-  line-height: 1.15;
-  margin-top: 0.15rem;
-  color: var(--board-ink);
-  font-variant-numeric: tabular-nums;
-}
-
-.live-compare .eyebrow {
-  color: var(--board-mute);
-  opacity: 1;
-}
 
 /* The dock's collapsed state, on a phone only.
  *
@@ -1062,136 +809,9 @@ kbd {
  *
  * Hidden above 768px, where there is room for the whole thing and the toggle
  * would be a control that does nothing visible. */
-.dock-compare-toggle {
-  display: none;
-  width: 100%;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-3);
-  padding: var(--sp-3) var(--sp-4);
-  background: var(--board);
-  color: var(--board-ink);
-  border: 0;
-  border-bottom: 1px solid var(--board-face);
-  text-align: left;
-  cursor: pointer;
-  touch-action: manipulation;
-}
-
-.dock-compare-toggle:first-child {
-  border-top-left-radius: calc(var(--radius) - 1px);
-  border-top-right-radius: calc(var(--radius) - 1px);
-}
-
-.dock-compare-toggle:hover {
-  background: var(--board-face);
-}
-
-.dock-compare-toggle .dock-compare-summary {
-  min-width: 0;
-  font-size: var(--step--1);
-  opacity: 0.92;
-}
-
-.dock-compare-toggle .dock-compare-action {
-  flex-shrink: 0;
-  font-family: var(--font-code);
-  font-size: var(--step--2);
-  letter-spacing: var(--track-label);
-  text-transform: uppercase;
-  color: var(--mint-2);
-}
-
-@media (max-width: 767px) {
-  .dock-compare-toggle {
-    display: flex;
-  }
-
-  .action-dock:not(.is-expanded) .dock-body {
-    display: none;
-  }
-
-  /* Expanded, it is allowed to be tall — but it scrolls rather than covering
-     the page, and it never grows past half the screen. */
-  .action-dock.is-expanded .dock-body {
-    max-height: 52vh;
-    overflow-y: auto;
-    overscroll-behavior-y: contain;
-  }
-}
-
-@media print {
-  .dock-compare-toggle {
-    display: none;
-  }
-}
-
-@media (max-width: 639px) {
-  .live-compare {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .live-compare .live-col:nth-child(3) {
-    grid-column: 1 / -1;
-  }
-
-  .live-compare .price.serif.text-2xl {
-    font-size: var(--step-1);
-  }
-}
-
-.live-compare.is-beats {
-  box-shadow: inset 0 2px 0 var(--gold);
-}
-
-.live-compare .live-actions {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--sp-2-5) var(--sp-4);
-  min-width: 0;
-}
-
-.live-compare .live-more {
-  width: 100%;
-}
-
-@media (max-width: 639px) {
-  .live-compare .live-more-toggle {
-    margin-left: auto;
-  }
-}
-
-.live-compare .live-col {
-  min-width: 0;
-}
-
-.live-compare .quiet-row button,
-.live-compare .quiet-row a {
-  color: var(--board-ink);
-}
-
-.live-compare .live-actions .btn {
-  width: auto;
-}
-
-.live-compare .text-save {
-  color: var(--mint-2);
-}
 
 .depart-strip .text-save {
   color: var(--mint-2);
-}
-
-.live-compare .text-drop {
-  color: var(--amber);
-}
-
-.live-hint {
-  padding: var(--sp-3) var(--sp-4) 0;
-  font-size: var(--step--2);
-  color: var(--ink-soft);
 }
 
 .date-card {
@@ -1232,45 +852,6 @@ kbd {
 
 .date-card .text-save {
   color: var(--mint-2);
-}
-
-.board-clock {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-1-5);
-}
-
-.board-row.is-departed {
-  opacity: 1;
-  color: color-mix(in srgb, var(--ink) 68%, transparent);
-  background: color-mix(in srgb, var(--ink) 3.5%, transparent);
-}
-
-.timetable .board-row.is-departed {
-  color: color-mix(in srgb, var(--board-ink) 62%, transparent);
-  background: color-mix(in srgb, var(--board-ink) 4%, transparent);
-}
-
-.board-row.is-departed .flap,
-.board-row.is-departed .price {
-  opacity: 0.85;
-}
-
-@media (min-width: 768px) {
-  .live-compare {
-    grid-template-columns: 1fr 1fr 1fr minmax(7.5rem, auto);
-    align-items: start;
-  }
-
-  .live-compare .live-actions {
-    grid-column: auto;
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .live-compare .live-actions .btn {
-    width: 100%;
-  }
 }
 
 .route-ribbon {
@@ -1324,28 +905,6 @@ kbd {
   background: var(--forest-2);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--forest-2) 16%, transparent);
   animation: train-run 3.6s var(--ease) infinite;
-}
-
-.board-index {
-  font-family: var(--font-code);
-  font-size: var(--step--3);
-  letter-spacing: var(--track-label);
-  color: var(--ink-soft);
-}
-
-.your-train {
-  box-shadow: inset 3px 0 0 var(--rail);
-}
-
-.clock-pair {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--sp-2-5) var(--sp-4);
-}
-
-.clock-pair .price {
-  line-height: 1;
 }
 
 .flap {
@@ -1544,27 +1103,6 @@ kbd {
   }
 }
 
-.flap-hero {
-  font-size: 0.72em;
-  padding: 0.08em 0.18em;
-  vertical-align: baseline;
-}
-
-.duration-bar {
-  height: 3px;
-  width: 6.5rem;
-  margin-top: 0.35rem;
-  border-radius: var(--r-hair);
-  background: var(--line);
-}
-
-.duration-bar > span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--ink);
-}
-
 .fuse {
   height: 4px;
   overflow: hidden;
@@ -1594,114 +1132,6 @@ kbd {
 
 .fuse.is-now > span {
   background: var(--drop);
-}
-
-.urgency-now {
-  border: 1px solid color-mix(in srgb, var(--drop) 40%, transparent);
-  border-radius: var(--radius-sm);
-  background: var(--amber-bg);
-}
-
-.urgency-soon {
-  border: 1px solid color-mix(in srgb, var(--amber) 60%, transparent);
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--amber-bg) 55%, white);
-}
-
-.moves-strip {
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--mint-bg) 55%, white);
-  padding: var(--sp-3-5) var(--sp-4);
-  box-shadow: inset 3px 0 0 var(--save);
-}
-
-.moves-strip .move-drop {
-  font-variant-numeric: tabular-nums;
-}
-
-.attention-edge {
-  box-shadow:
-    inset 3px 0 0 var(--amber),
-    var(--sh-1);
-}
-
-.attention-edge.is-urgent {
-  box-shadow:
-    inset 3px 0 0 var(--drop),
-    var(--sh-1);
-}
-
-.dock-danger {
-  color: var(--danger);
-  border-color: color-mix(in srgb, var(--danger) 45%, var(--line));
-}
-
-.dock-danger:hover {
-  border-color: var(--danger);
-  background: var(--rose-bg);
-}
-
-.move-drop {
-  color: var(--save);
-}
-
-.move-rise {
-  color: var(--drop);
-}
-
-.pick-grid {
-  display: grid;
-  gap: var(--sp-2);
-}
-
-@media (min-width: 640px) {
-  .pick-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (min-width: 1024px) {
-  .pick-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-}
-
-.chip-tight {
-  border-color: color-mix(in srgb, var(--drop) 50%, transparent);
-  background: var(--amber-bg);
-  color: var(--drop);
-}
-
-.chip-long {
-  color: var(--ink-soft);
-}
-
-.pick-card {
-  width: 100%;
-  cursor: pointer;
-  text-align: left;
-  transition:
-    transform var(--t-base) var(--ease),
-    border-color var(--t-base) var(--ease-out);
-}
-
-.pick-card:hover {
-  border-color: var(--gold);
-  transform: translateY(-1px);
-}
-
-.friend-text {
-  border-left: 3px solid var(--mint-3);
-  border-radius: 0 var(--r-card) var(--r-card) 0;
-  background: color-mix(in srgb, var(--paper) 55%, white);
-  padding: var(--sp-3-5) var(--sp-4);
-  line-height: 1.45;
-  overflow-wrap: anywhere;
-}
-
-.board-row-pin {
-  box-shadow: inset 3px 0 0 var(--gold);
 }
 
 .sample-head {
@@ -1748,296 +1178,16 @@ kbd {
   }
 }
 
-.board-mobile-label {
-  font-family: var(--font-code);
-  font-size: var(--step--3);
-  letter-spacing: var(--track-label);
-  text-transform: uppercase;
-  color: var(--ink-soft);
-  margin-bottom: 0.2rem;
-}
-
-.board-row.board-grid {
-  display: grid;
-  grid-template-areas:
-    "idx dep price"
-    "idx arr save"
-    "trn trn trn"
-    "meta meta meta"
-    "dur dur dur"
-    "act act act";
-  grid-template-columns: 2.4rem minmax(0, 1fr) auto;
-  gap: var(--sp-2) var(--sp-3-5);
-  align-items: start;
-  padding: var(--sp-4);
-}
-
-.board-cell-index {
-  grid-area: idx;
-}
-
-.board-cell-depart {
-  grid-area: dep;
-}
-
-.board-cell-arrive {
-  grid-area: arr;
-}
-
-.board-cell-train {
-  grid-area: trn;
-}
-
-.board-cell-dur {
-  grid-area: dur;
-}
-
-.board-cell-price {
-  grid-area: price;
-}
-
-.board-cell-save {
-  grid-area: save;
-}
-
-.board-cell-actions {
-  grid-area: act;
-  min-width: 0;
-}
-
-.board-cell-actions .btn {
-  width: 100%;
-  padding-left: var(--sp-3);
-  padding-right: var(--sp-3);
-}
-
-.board-head {
-  display: none;
-}
-
-@media (min-width: 1024px) {
-  .board-mobile-label {
-    display: none;
-  }
-
-  /* One declaration, two containers, two results.
-   *
-   * `minmax(7.5rem, auto)` resolves against each container's own content: the
-   * header's last cell holds the word "Book" and measures 120px, a row's holds
-   * a "Book on Amtrak" button and measures 232px. The 1.4fr TRAIN track
-   * absorbed the 111.6px difference, so the header resolved TRAIN at 437.2px
-   * and every row at 325.6px.
-   *
-   * Measured at 1440: the Price header sat at x=965 and the row's Save cell at
-   * x=946. The table was labelling the wrong column — Price over the saving,
-   * Save over the booking button — in a product whose promise is that it never
-   * shows a number it cannot defend.
-   *
-   * A fixed last track removes the dependency on content. 42.3rem of fixed
-   * tracks plus seven 0.75rem gaps is 760.8px, so at 1440 TRAIN resolves to
-   * 325.2px — what the rows already were, which is why nothing in a row moves
-   * and the header snaps onto it. */
-  .board-head,
-  .board-row.board-grid {
-    display: grid;
-    grid-template-columns: 2.8rem 5.6rem 5.6rem minmax(0, 1fr) 4.2rem 5rem 4.6rem 14.5rem;
-    gap: var(--sp-2-5) var(--sp-3);
-    align-items: start;
-  }
-
-  .board-head {
-    grid-template-areas: "idx dep arr trn dur price save act";
-  }
-
-  /* A second line the meta can span.
-   *
-   * A row was 156px tall for one train because the chips, the legs and the
-   * Pin / Compare / Hide links were nested inside the train cell and stacked
-   * under it in three tiers — while the region to the right of the train name
-   * on the row's second and third lines was empty. `idx` and `act` are named
-   * in both lines, so they span with no extra rule. */
-  .board-row.board-grid {
-    grid-template-areas:
-      "idx dep  arr  trn  dur  price save act"
-      "idx meta meta meta meta meta  meta act";
-    gap: var(--sp-1) var(--sp-3);
-    padding: var(--sp-2-5) var(--sp-4);
-  }
-
-  .board-cell-actions {
-    align-self: center;
-  }
-
-  /* A longer label must not widen the track again. */
-  .board-cell-actions {
-    min-width: 0;
-  }
-
-  .board-head {
-    padding: var(--sp-2-5) var(--sp-4);
-    font-family: var(--font-code);
-    font-size: var(--step--3);
-    letter-spacing: var(--track-label);
-    text-transform: uppercase;
-    color: var(--ink-soft);
-    border-bottom: 1px solid var(--line);
-    align-items: end;
-  }
-
-  .board-row.board-grid {
-    padding: var(--sp-4);
-  }
-
-  .board-head {
-    position: sticky;
-    top: calc(3.5rem + var(--trip-rail-h, 3.25rem) + env(safe-area-inset-top));
-    z-index: 6;
-    background: var(--board-deep);
-    color: var(--board-mute);
-    backdrop-filter: blur(8px);
-    border-bottom-color: var(--board-face);
-  }
-}
-
 @media (min-width: 640px) {
-  .compare-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-
   .route-track {
     width: 8rem;
   }
-}
-
-.same-train {
-  display: grid;
-  gap: var(--sp-2);
-}
-
-@media (min-width: 640px) {
-  .same-train {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-.same-train-cell {
-  text-align: left;
-  cursor: pointer;
 }
 
 .ladder {
   position: relative;
   height: 3.1rem;
   margin-bottom: 0.15rem;
-}
-
-.ladder-rail {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 62%;
-  height: 2px;
-  border-radius: var(--r-hair);
-  background: var(--line);
-}
-
-.ladder-dot {
-  position: absolute;
-  top: 62%;
-  width: 8px;
-  height: 8px;
-  border-radius: var(--r-pill);
-  background: var(--ink);
-  transform: translate(-50%, -50%);
-}
-
-.ladder-dot.is-save {
-  background: var(--save);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--forest-2) 14%, transparent);
-}
-
-.ladder-you {
-  position: absolute;
-  top: 0;
-  transform: translateX(-50%);
-  font-family: var(--font-code);
-  font-size: var(--step--3);
-  letter-spacing: var(--track-label);
-  text-transform: uppercase;
-  color: var(--rail);
-}
-
-.scan-pulse {
-  display: flex;
-  gap: var(--sp-1);
-  align-items: center;
-}
-
-.scan-pulse i {
-  display: block;
-  width: 0.45rem;
-  height: 0.45rem;
-  border-radius: var(--r-pill);
-  background: var(--line-2);
-}
-
-.scan-pulse .tone-ok {
-  background: var(--mint-3);
-}
-
-.scan-pulse .tone-warn {
-  background: var(--amber);
-}
-
-.scan-pulse .tone-bad {
-  background: var(--danger);
-}
-
-.scan-pulse .tone-run {
-  background: var(--forest-2);
-  animation: pulse 1.4s ease-in-out infinite;
-}
-
-.help-sheet {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding: var(--sp-4);
-  background: rgb(var(--shade-rgb) / 0.42);
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
-}
-
-.help-card {
-  width: min(28rem, 100%);
-  border: 1px solid var(--board-face);
-  border-radius: var(--r-shell);
-  background: var(--board);
-  color: var(--board-ink);
-  padding: var(--sp-5) var(--sp-5);
-  box-shadow:
-    inset 0 2px 0 color-mix(in srgb, var(--mint-2) 50%, transparent),
-    0 30px 64px -20px rgb(var(--shade-rgb) / 0.55);
-}
-
-.help-grid {
-  display: grid;
-  gap: var(--sp-1-5) 0;
-}
-
-.help-grid li {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: var(--sp-3);
-  align-items: baseline;
-}
-
-.board-row-focus {
-  outline: 2px solid var(--gold);
-  outline-offset: -2px;
 }
 
 .depart-strip {
@@ -2052,8 +1202,7 @@ kbd {
 }
 
 /* a strip that heads a card is part of the card */
-.ticket > .depart-strip:first-child,
-.help-card > .depart-strip:first-child {
+.ticket > .depart-strip:first-child {
   border-radius: 0;
 }
 
@@ -2065,20 +1214,6 @@ kbd {
 .depart-strip + .ticket {
   border-top-left-radius: 0;
   border-top-right-radius: 0;
-}
-
-.depart-strip-cta {
-  margin-left: 0;
-  width: 100%;
-  text-align: left;
-}
-
-@media (min-width: 640px) {
-  .depart-strip-cta {
-    margin-left: auto;
-    width: auto;
-    text-align: right;
-  }
 }
 
 .depart-strip .flap {
@@ -2112,18 +1247,6 @@ a.depart-strip:hover {
   color: var(--mint-2);
 }
 
-.verdict-switch {
-  box-shadow: inset 0 2px 0 var(--gold);
-}
-
-.verdict-look {
-  box-shadow: inset 0 2px 0 var(--drop);
-}
-
-.verdict-keep {
-  box-shadow: inset 0 2px 0 var(--board-mute);
-}
-
 .depart-strip-rule {
   width: 2.5rem;
   height: 1px;
@@ -2140,52 +1263,6 @@ a.depart-strip:hover {
   border-left: 3px solid var(--mint-3);
   border-radius: var(--radius-sm);
   background: var(--paper-elevated);
-}
-
-.chip-beats {
-  border-color: color-mix(in srgb, var(--rail) 45%, transparent);
-  color: var(--rail);
-}
-
-.stay-dock {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--sp-1-5);
-}
-
-.stay-dock .chip,
-.stay-dock button.chip {
-  color: var(--ink);
-  background: var(--paper-elevated);
-}
-
-.stay-dock .chip-on {
-  border-color: var(--forest-3);
-  background: var(--forest-3);
-  color: var(--board-ink);
-}
-
-.filter-stack {
-  display: grid;
-  gap: var(--sp-2);
-}
-
-.filter-block {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--sp-1-5) var(--sp-2);
-  min-width: 0;
-}
-
-.filter-label {
-  min-width: 2.8rem;
-  font-family: var(--font-code);
-  font-size: var(--step--3);
-  letter-spacing: var(--track-label);
-  text-transform: uppercase;
-  color: var(--ink-soft);
 }
 
 /* ── The trip rail: a telemetry head, not a row of chips ─────────────────────
@@ -2208,33 +1285,6 @@ a.depart-strip:hover {
    The order is the order of the question a traveler is actually asking: where,
    when, what I paid, what it costs now, the difference, the call. */
 
-.trip-rail {
-  position: sticky;
-  top: calc(3.5rem + env(safe-area-inset-top));
-  z-index: 18;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: stretch;
-  gap: var(--sp-2) var(--sp-5);
-  margin-top: 1rem;
-  border-radius: var(--r-card);
-  background: var(--board);
-  color: var(--board-ink);
-  padding: var(--sp-2-5) var(--sp-4) var(--sp-2-5);
-  min-width: 0;
-  box-shadow: 0 12px 30px -18px rgb(var(--shade-rgb) / 0.6);
-}
-
-.hud-cell {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: var(--sp-1);
-  padding-top: var(--sp-1-5);
-  min-width: 0;
-}
-
 /* Every value sat on its own baseline, because the cells stack label-then-value
    from the top and the three type sizes here are 14.7px, 16.8px and 20.8px —
    measured, the figures sat up to 4.6px apart along a bar whose whole job is to
@@ -2247,169 +1297,29 @@ a.depart-strip:hover {
    unsupported the values are bottom-aligned and about a pixel apart, which is
    the fallback you want — better than where they started, worse than nothing
    only if you measure it. */
-@supports (text-box: trim-both cap alphabetic) {
-  .hud-cell > :last-child {
-    text-box: trim-both cap alphabetic;
-  }
-}
 
 /* Each cell's own scale mark. A shared vertical divider between cells breaks
    the moment the bar wraps; a rule that belongs to the cell never does. */
-.hud-cell::before {
-  content: "";
-  position: absolute;
-  inset-inline: 0;
-  top: 0;
-  height: 1px;
-  background: color-mix(in srgb, var(--board-ink) 26%, transparent);
-}
-
-.hud-label {
-  font-family: var(--font-code);
-  font-size: var(--step--3);
-  font-weight: 500;
-  letter-spacing: var(--track-caps);
-  text-transform: uppercase;
-  opacity: 0.6;
-  white-space: nowrap;
-}
-
-.hud-value {
-  display: inline-flex;
-  align-items: baseline;
-  gap: var(--sp-1-5);
-  font-size: var(--step-0);
-  line-height: 1;
-  white-space: nowrap;
-}
 
 /* Station codes are identifiers, not words: mono, tracked out, so BOS and NYP
    scan as a pair of labels rather than two short syllables. */
-.hud-code {
-  font-family: var(--font-code);
-  font-size: var(--step-0);
-  font-weight: 500;
-  letter-spacing: var(--track-code);
-}
 
 /* The track between them, drawn rather than typed. An arrow glyph inherits the
    text face and sits on the baseline; a rule with a chevron sits on the optical
    centre and reads as distance. */
-.hud-arrow {
-  position: relative;
-  align-self: center;
-  width: 1.25rem;
-  height: 1px;
-  background: currentColor;
-  opacity: 0.45;
-  flex: none;
-}
-
-.hud-arrow::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  top: -2px;
-  width: 4px;
-  height: 4px;
-  border-top: 1px solid currentColor;
-  border-right: 1px solid currentColor;
-  transform: rotate(45deg);
-}
-
-.hud-flex {
-  font-family: var(--font-code);
-  font-size: var(--step--2);
-  font-style: normal;
-  letter-spacing: var(--track-code);
-  opacity: 0.62;
-}
-
-.hud-money {
-  gap: 0.04em;
-  font-size: var(--step-1);
-  font-weight: 600;
-  letter-spacing: var(--track-display);
-}
 
 /* The traveler's own benchmark is context, not the answer. Same family, same
    alignment, lighter — so the eye can compare the two figures without being
    told which one to read first. */
-.hud-money.is-benchmark {
-  font-size: var(--step-0);
-  font-weight: 500;
-  opacity: 0.6;
-}
-
-.hud-delta {
-  font-family: var(--font-sans);
-  font-size: var(--step-0);
-  font-weight: 600;
-  letter-spacing: var(--track-display);
-  font-variant-numeric: tabular-nums slashed-zero;
-  line-height: 1;
-}
-
-.hud-delta.is-down {
-  color: var(--mint-2);
-}
-
-.hud-none {
-  /* Was opacity 0.45, which measures 4.10:1 on the rail — under AA, on the
-     one mark that carries the product's central claim. This em dash is not
-     a blank: it is RailDrop saying "nobody listed a fare, and we are not
-     going to invent one." That is information, and dimming information to
-     45% because it happens to be short is the same instinct that produces a
-     fabricated zero in the first place.
-     
-     The sweep had never seen it. It only renders when the board comes back
-     with no trains, and every previous run happened to produce some. */
-  color: var(--board-mute);
-  font-variant-numeric: tabular-nums;
-}
 
 /* The call is the one cell that is a conclusion rather than a measurement, so
    it is the one cell whose rule is coloured and whose value carries a lamp. */
-.hud-call::before {
-  height: 2px;
-  background: var(--lamp, var(--mint-3));
-}
-
-.hud-callname {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-1-5);
-  font-size: var(--step-0);
-  font-weight: 600;
-  letter-spacing: var(--track-tight);
-  line-height: 1.15;
-}
-
-.hud-lamp {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: var(--r-pill);
-  background: var(--lamp, var(--mint-3));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lamp, var(--mint-3)) 20%, transparent);
-  flex: none;
-}
 
 /* --save, --drop and --board-mute rather than literal colours: the board
    remaps its accents on dark surfaces (--gold becomes mint there, --drop
    becomes amber), so a lamp that names a colour is a lamp that will be the
    wrong colour on one surface or the other. This one asked for --gold and got
    mint, which made "look closer" and "switch now" the same signal. */
-.hud-call[data-call="switch"] {
-  --lamp: var(--save);
-}
-
-.hud-call[data-call="look"] {
-  --lamp: var(--drop);
-}
-
-.hud-call[data-call="keep"] {
-  --lamp: var(--board-mute);
-}
 
 /* The rail condenses as you scroll into the board.
  *
@@ -2435,120 +1345,13 @@ a.depart-strip:hover {
  * reduced-motion it also stays, because a bar that changes size while you
  * scroll is exactly the kind of motion that setting is asking us not to make.
  * Zen mode is already the condensed reading view, so it opts out too. */
-@supports (animation-timeline: scroll(root block)) {
-  @media (prefers-reduced-motion: no-preference) {
-    .trip-rail:not(.is-zen) .hud-label {
-      /* An explicit start height, because `auto` does not interpolate: with
-         the natural height the label held full size to the halfway point and
-         then snapped to nothing. Stated in em and paired with the matching
-         line-height so it is the same box the browser would have made, at
-         whatever text size the reader has chosen. */
-      height: 1.5em;
-      line-height: 1.5;
-      overflow: hidden;
-      animation: hud-stow linear both;
-      animation-timeline: scroll(root block);
-      animation-range: 110px 300px;
-    }
-
-    .trip-rail:not(.is-zen) {
-      animation: rail-close linear both;
-      animation-timeline: scroll(root block);
-      animation-range: 110px 300px;
-    }
-  }
-}
-
-@keyframes hud-stow {
-  to {
-    height: 0;
-    opacity: 0;
-    transform: translateY(0.35rem);
-  }
-}
-
-@keyframes rail-close {
-  to {
-    padding-top: var(--sp-2);
-    padding-bottom: var(--sp-2);
-    row-gap: var(--sp-1-5);
-  }
-}
 
 /* A scan line, and only while something is actually in flight. The class is set
    by the component that owns the request, so the bar cannot claim to be working
    when it is idle. */
-.trip-rail::after {
-  content: "";
-  position: absolute;
-  inset-inline: 1px;
-  bottom: 0;
-  height: 2px;
-  border-radius: 0 0 var(--r-card) var(--r-card);
-  background: linear-gradient(
-    90deg,
-    transparent,
-    var(--mint-3) 45%,
-    var(--mint-3) 55%,
-    transparent
-  );
-  background-size: 45% 100%;
-  background-repeat: no-repeat;
-  animation: rail-scan 1.6s linear infinite;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.trip-rail.is-scanning::after {
-  opacity: 0.9;
-}
-
-@keyframes rail-scan {
-  from {
-    background-position: -45% 0;
-  }
-  to {
-    background-position: 145% 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .trip-rail::after {
-    animation: none;
-    background: var(--mint-3);
-    background-size: 100% 100%;
-  }
-
-  .trip-rail.is-scanning::after {
-    opacity: 0.5;
-  }
-}
-
-@media (max-width: 767px) {
-  .trip-rail {
-    gap: var(--sp-2) var(--sp-4);
-  }
-
-  .hud-money {
-    font-size: var(--step-1);
-  }
-
-  .trip-rail-tools {
-    width: 100%;
-    margin-left: 0;
-    padding-top: var(--sp-1-5);
-    gap: var(--sp-3-5);
-    border-top: 1px solid color-mix(in srgb, var(--board-ink) 16%, transparent);
-  }
-}
 
 /* Below this the benchmark is the cell to lose: the delta already states the
    difference, and the ticket panel further down restates what was paid. */
-@media (max-width: 479px) {
-  .trip-rail-meta {
-    display: none;
-  }
-}
 
 /* Dimmed with a token, not with opacity.
  *
@@ -2563,43 +1366,8 @@ a.depart-strip:hover {
   color: var(--ink-soft);
 }
 
-.verdict .eyebrow,
-.trip-rail .eyebrow {
+.verdict .eyebrow {
   color: var(--board-mute);
-}
-
-.trip-rail.is-zen {
-  box-shadow: inset 0 2px 0 var(--gold);
-}
-
-.trip-rail .flap {
-  background: var(--board-face);
-  color: var(--board-ink);
-  font-size: var(--step--1);
-}
-
-.trip-rail-tools {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--sp-3);
-  margin-left: auto;
-  font-family: var(--font-code);
-  font-size: var(--step--3);
-  letter-spacing: var(--track-code);
-  text-transform: uppercase;
-}
-
-.trip-rail-tools button,
-.trip-rail-tools a {
-  /* Preflight sets text-transform: none on button, so the three buttons in
-     this row rendered title case beside an uppercase link — "BOARD Zen Share
-     Commands", in one row, for as long as the row has existed. */
-  text-transform: inherit;
-  text-decoration: underline;
-  text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
-  text-underline-offset: 3px;
-  color: inherit;
 }
 
 /* What a panel, a toast and a list row were actually asking for.
@@ -2615,43 +1383,6 @@ a.depart-strip:hover {
  * keyframe that no longer exists, which is silently no animation at all — so
  * this is a repair and a replacement at once. A surface arriving should rise
  * and resolve. Only a character cell should turn. */
-@keyframes surface-in {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-.share-sheet {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-2) var(--sp-3-5);
-  margin-top: 0.55rem;
-  padding: var(--sp-3) var(--sp-3-5);
-  border-radius: var(--r-card);
-  background: var(--board);
-  color: var(--board-ink);
-  box-shadow: inset 0 2px 0 var(--gold);
-  animation: surface-in 220ms var(--ease-out) both;
-}
-
-.share-sheet button {
-  font-family: var(--font-code);
-  font-size: var(--step--2);
-  letter-spacing: var(--track-code);
-  text-transform: uppercase;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.ticket.ticket-hero {
-  position: relative;
-  overflow: hidden;
-}
 
 /* The hero's lit edge, on ::after because ::before was never visible.
  *
@@ -2660,21 +1391,6 @@ a.depart-strip:hover {
  * rule overrode only background and height, so the bar was transparent AND
  * stacked behind its own opaque parent. It has been dead CSS through every
  * round of polish — authored, shipped, and never once drawn. */
-.ticket.ticket-hero::after {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 2px;
-  z-index: 3;
-  opacity: 1;
-  pointer-events: none;
-  background: linear-gradient(
-    90deg,
-    var(--mint-3),
-    color-mix(in srgb, var(--mint-3) 28%, transparent) 40%,
-    transparent 72%
-  );
-}
 
 .panel,
 .ticket,
@@ -2685,33 +1401,6 @@ a.depart-strip:hover {
     box-shadow var(--t-base) var(--ease);
 }
 
-@media (hover: hover) {
-  .ticket.ticket-hover:hover,
-  .panel.pick-card:hover {
-    transform: translateY(-1px);
-  }
-}
-
-.trip-rail a {
-  color: inherit;
-}
-
-.board-toast {
-  position: fixed;
-  right: max(1rem, env(safe-area-inset-right));
-  bottom: max(6.5rem, calc(5.5rem + env(safe-area-inset-bottom)));
-  z-index: 16;
-  max-width: min(22rem, calc(100vw - 2rem));
-  border-radius: var(--r-card);
-  background: var(--board);
-  color: var(--board-ink);
-  padding: var(--sp-3) var(--sp-4);
-  box-shadow:
-    inset 0 2px 0 var(--gold),
-    0 18px 40px -16px rgb(var(--shade-rgb) / 0.5);
-  animation: surface-in 200ms var(--ease-out) both;
-}
-
 .ticket .timetable {
   border: 0;
   border-radius: 0;
@@ -2720,26 +1409,6 @@ a.depart-strip:hover {
 
 .timetable .border-line {
   border-color: var(--board-face);
-}
-
-.timetable .board-row {
-  border-color: var(--board-face);
-}
-
-.timetable .board-row:hover {
-  background: color-mix(in srgb, var(--board-face) 70%, var(--board-deep));
-}
-
-.timetable .board-row-on {
-  background: color-mix(in srgb, var(--mint-2) 12%, var(--board-deep));
-}
-
-.timetable .board-row-focus {
-  outline-color: var(--gold);
-}
-
-.timetable .your-train {
-  box-shadow: inset 3px 0 0 #d9848f;
 }
 
 .timetable .flap {
@@ -2756,19 +1425,6 @@ a.depart-strip:hover {
   border-color: #2f4a3c;
   color: var(--board-ink);
   background: var(--board-face);
-}
-
-.timetable .chip-beats {
-  border-color: var(--gold);
-  color: var(--gold);
-}
-
-.timetable .duration-bar {
-  background: var(--board-face);
-}
-
-.timetable .duration-bar > span {
-  background: var(--gold);
 }
 
 .timetable .legs {
@@ -2788,20 +1444,10 @@ a.depart-strip:hover {
   box-shadow: none;
 }
 
-.board-row:hover .btn-primary,
-.board-row:focus-within .btn-primary {
-  background-color: var(--mint-2);
-  background-image: none;
-  color: var(--forest-3);
-  border-color: transparent;
-}
-
 .timetable .underline {
   color: var(--board-ink);
 }
 
-.timetable .board-index,
-.timetable .board-mobile-label,
 .timetable .text-ink-soft {
   color: var(--board-mute);
 }
@@ -2867,7 +1513,6 @@ a.depart-strip:hover {
 
 #board,
 #rebook,
-.board-row,
 [id^="opt-"] {
   scroll-margin-top: calc(3.5rem + var(--trip-rail-h, 3.25rem) + env(safe-area-inset-top) + 0.5rem);
 }
@@ -2894,40 +1539,21 @@ a.depart-strip:hover {
     0 10px 22px -10px rgb(var(--shade-rgb) / 0.7);
 }
 
-.help-card kbd {
-  background: var(--board-face);
-  border-color: #2f4a3c;
-  color: var(--board-ink);
-}
-
-.help-card .text-ink-soft {
-  color: var(--board-mute);
-}
-
 /* Board surfaces: accents switch to their light-on-dark values, and buttons
    that were drawn for porcelain are redrawn for the board. */
 .timetable,
 .verdict,
 .date-card,
-.trip-rail,
-.live-compare,
 .depart-strip,
 .census,
-.help-card,
-.board-toast,
-.share-sheet,
-.station-list,
-.dock-compare-toggle {
+.station-list {
   --gold: var(--mint-2);
   --save: var(--mint-2);
   --drop: var(--amber);
   --danger: #f3a293;
 }
 
-.help-card .btn-ghost,
 .verdict .btn-ghost,
-.live-compare .btn-ghost,
-.trip-rail .btn-ghost,
 .date-card .btn-ghost,
 .census .btn-ghost,
 .depart-strip .btn-ghost {
@@ -2937,27 +1563,11 @@ a.depart-strip:hover {
   box-shadow: none;
 }
 
-.help-card .btn-primary,
 .verdict .btn-primary,
-.live-compare .btn-primary,
-.trip-rail .btn-primary,
 .date-card .btn-primary {
   background: var(--mint-2);
   color: var(--forest-3);
   box-shadow: none;
-}
-
-.help-card .dock-danger,
-.verdict .dock-danger,
-.live-compare .dock-danger {
-  color: var(--danger);
-  border-color: color-mix(in srgb, var(--danger) 50%, transparent);
-}
-
-.help-card .dock-danger:hover,
-.verdict .dock-danger:hover,
-.live-compare .dock-danger:hover {
-  background: color-mix(in srgb, var(--danger) 16%, transparent);
 }
 
 @media print {
@@ -2977,16 +1587,10 @@ a.depart-strip:hover {
     display: none;
   }
 
-  .action-dock {
-    position: static;
-    border: 0;
-  }
-
   .timetable,
   .date-card,
   .depart-strip,
-  .verdict,
-  .trip-rail {
+  .verdict {
     background: white !important;
     color: black !important;
     box-shadow: none !important;
@@ -2995,21 +1599,12 @@ a.depart-strip:hover {
 
 @media (prefers-reduced-motion: reduce) {
   .reveal,
-  .ticket-hover,
-  .ticket-hover:hover,
   .skeleton,
-  .scan-dot,
-  .scan-line span,
   .route-track::after,
   .rail-mark i:nth-child(2),
-  .board-toast,
-  .meter-found,
   .fuse > span,
   .btn,
-  .btn:hover:not(:disabled),
-  .share-sheet,
-  .pick-card,
-  .pick-card:hover {
+  .btn:hover:not(:disabled) {
     animation: none !important;
     transform: none !important;
     transition: none !important;
@@ -3053,52 +1648,10 @@ a.depart-strip:hover {
 /* A shared link named rows this board no longer has.
    Same inset-rule idiom as .coverage-note — an aside in the margin, not an
    alert. Nothing is wrong; part of the link is simply older than the fares. */
-.board-note {
-  margin-top: 0.6rem;
-  font-size: var(--step--1);
-  line-height: 1.5;
-  color: var(--ink-soft);
-  padding-left: var(--sp-2-5);
-  box-shadow: inset 2px 0 0 var(--gold);
-}
-
-@media (max-width: 767px) {
-  .trip-rail-shortcuts {
-    display: none;
-  }
-}
 
 /* Shown only when both clipboard routes refused the text.
    The product does not claim a copy that did not happen, so the text has to
    go somewhere the reader can select it. */
-.copy-fallback {
-  margin-top: 0.75rem;
-  border: 1px solid var(--line-2);
-  border-radius: var(--radius-sm);
-  background: var(--paper-elevated);
-  padding: var(--sp-3-5) var(--sp-4);
-  font-size: var(--step--1);
-  line-height: 1.5;
-  box-shadow: var(--sh-2);
-}
-
-.copy-fallback textarea {
-  margin-top: 0.5rem;
-  width: 100%;
-  resize: vertical;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: var(--paper);
-  padding: var(--sp-2) var(--sp-2-5);
-  font-family: var(--font-code), ui-monospace, monospace;
-  font-size: var(--step--2);
-  color: var(--ink);
-}
-
-.copy-fallback button {
-  margin-top: 0.5rem;
-  color: var(--ink-soft);
-}
 
 /* The methodology page reads as prose, not as an interface. */
 .method-prose {
@@ -3125,18 +1678,6 @@ a.depart-strip:hover {
    generic translucent rectangle every app has. The animation is staggered per
    row by an index set inline, and the whole thing snaps in reduced motion.
    ───────────────────────────────────────────────────────────────────────────── */
-.palette-scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: max(3.5rem, 8vh) var(--sp-4) var(--sp-4);
-  background: rgb(var(--shade-rgb) / 0.5);
-  -webkit-backdrop-filter: blur(7px);
-  backdrop-filter: blur(7px);
-}
 
 .palette {
   display: flex;
@@ -3165,148 +1706,9 @@ a.depart-strip:hover {
   }
 }
 
-.palette-field {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: var(--sp-2-5);
-  border-bottom: 1px solid var(--board-face);
-  padding: var(--sp-3-5) var(--sp-4);
-}
-
-.palette-prompt {
-  font-family: var(--font-code);
-  font-size: var(--step--1);
-  color: var(--gold);
-}
-
-.palette-input {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  background: transparent;
-  color: var(--board-ink);
-  font-family: var(--font-code);
-  font-size: var(--step-0);
-  letter-spacing: var(--track-tight);
-  outline: none;
-}
-
-.palette-input::placeholder {
-  color: var(--board-mute);
-}
-
 /* The global kbd rule fills white — correct on paper, and mint text on white
    is about 1.4:1, which is not a contrast ratio so much as an absence of one.
    Every kbd on a board-dark surface has to state its own background. */
-.palette-esc,
-.palette-key,
-.palette-foot kbd,
-.rail-kbd {
-  background: color-mix(in srgb, var(--board-ink) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--board-ink) 26%, transparent);
-  border-bottom-width: 1px;
-}
-
-.palette-esc,
-.palette-key {
-  flex-shrink: 0;
-  border-radius: var(--r-well);
-  padding: var(--sp-0-5) var(--sp-1-5);
-  font-family: var(--font-code);
-  font-size: var(--step--2);
-  line-height: 1.5;
-  letter-spacing: var(--track-code);
-  color: var(--board-ink);
-}
-
-.palette-list {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: var(--sp-1-5) 0;
-}
-
-.palette-group {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  background: var(--board);
-  padding: var(--sp-2) var(--sp-4) var(--sp-1);
-  font-family: var(--font-code);
-  font-size: var(--step--3);
-  letter-spacing: var(--track-caps);
-  text-transform: uppercase;
-  color: var(--gold);
-}
-
-.palette-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-3);
-  padding: var(--sp-2) var(--sp-4);
-  cursor: pointer;
-  transform-origin: top center;
-  animation: surface-in 170ms var(--ease-out) both;
-}
-
-.palette-row.is-active {
-  background: color-mix(in srgb, var(--mint-2) 14%, transparent);
-  box-shadow: inset 2px 0 0 var(--gold);
-}
-
-.palette-row.is-active .palette-key {
-  border-color: var(--mint-2);
-  background: color-mix(in srgb, var(--mint-2) 16%, transparent);
-  color: var(--mint-2);
-}
-
-.palette-row.is-off {
-  cursor: not-allowed;
-  opacity: 0.45;
-}
-
-.palette-label {
-  min-width: 0;
-  font-size: var(--step--1);
-}
-
-.palette-hit {
-  background: transparent;
-  color: var(--mint-2);
-  font-weight: 600;
-}
-
-.palette-why {
-  color: var(--board-mute);
-  font-size: var(--step--1);
-}
-
-.palette-empty {
-  padding: var(--sp-4) var(--sp-4);
-  color: var(--board-mute);
-  font-size: var(--step--1);
-  line-height: 1.5;
-}
-
-.palette-foot {
-  flex-shrink: 0;
-  border-top: 1px solid var(--board-face);
-  padding: var(--sp-2-5) var(--sp-4);
-  color: var(--board-mute);
-  font-size: var(--step--2);
-  line-height: 1.5;
-}
-
-.palette-foot kbd {
-  border-radius: var(--r-well);
-  padding: 0 var(--sp-1);
-  font-family: var(--font-code);
-  font-size: var(--step--2);
-  color: var(--board-ink);
-}
 
 /* The palette re-themes the accents the same way the board and toast do, so
    --drop and --save stay legible on a dark surface. */
@@ -3317,22 +1719,12 @@ a.depart-strip:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .palette,
-  .palette-row {
+  .palette {
     animation: none !important;
   }
 }
 
 /* The ⌘K hint on the trip rail. Quiet: it is a label, not a button of its own. */
-.rail-kbd {
-  margin-left: 0.3rem;
-  border-radius: var(--r-well);
-  padding: 0 var(--sp-1);
-  font-family: var(--font-code);
-  font-size: var(--step--3);
-  letter-spacing: var(--track-code);
-  opacity: 0.85;
-}
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Price history and the wait-or-book call.
@@ -3343,215 +1735,9 @@ a.depart-strip:hover {
   --fh-rule: color-mix(in srgb, var(--ink) 14%, transparent);
 }
 
-.fh-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--sp-3);
-}
-
-.fh-checks {
-  font-family: var(--font-code);
-  font-size: var(--step--2);
-  letter-spacing: var(--track-label);
-  text-transform: uppercase;
-  color: var(--ink-soft);
-}
-
-.fh-call {
-  margin-top: 0.75rem;
-  border-radius: var(--r-card);
-  padding: var(--sp-3) var(--sp-3-5);
-  background: color-mix(in srgb, var(--ink) 4%, transparent);
-  box-shadow: inset 3px 0 0 var(--ink-soft);
-}
-
-.fh-call.is-book {
-  background: color-mix(in srgb, var(--save) 10%, transparent);
-  box-shadow: inset 3px 0 0 var(--save);
-}
-
-.fh-call.is-watch {
-  background: color-mix(in srgb, var(--drop) 10%, transparent);
-  box-shadow: inset 3px 0 0 var(--drop);
-}
-
-.fh-call-label {
-  font-family: var(--font-code);
-  font-size: var(--step--2);
-  font-weight: 600;
-  letter-spacing: var(--track-label);
-  text-transform: uppercase;
-}
-
-.fh-call.is-book .fh-call-label {
-  color: var(--save);
-}
-
-.fh-call.is-watch .fh-call-label {
-  color: var(--drop);
-}
-
-.fh-call-reason {
-  margin-top: 0.35rem;
-  font-size: var(--step-0);
-  line-height: 1.5;
-}
-
-.fh-call-basis {
-  margin-top: 0.45rem;
-  font-size: var(--step--2);
-  line-height: 1.5;
-  color: var(--ink-soft);
-}
-
 /* How sure it is, said out loud rather than hidden in a tooltip. */
-.fh-confidence {
-  font-family: var(--font-code);
-  font-size: var(--step--3);
-  letter-spacing: var(--track-label);
-  text-transform: uppercase;
-  border: 1px solid currentColor;
-  border-radius: var(--r-pill);
-  padding: var(--sp-0-5) var(--sp-1-5);
-}
-
-.fh-confidence-low {
-  color: var(--drop);
-}
-
-.fh-confidence-moderate {
-  color: var(--ink-soft);
-}
-
-.fh-confidence-high {
-  color: var(--save);
-}
-
-.fh-figure {
-  margin: 1rem 0 0;
-}
-
-.fh-chart {
-  display: block;
-  width: 100%;
-  height: 120px;
-  overflow: visible;
-}
-
-.fh-line {
-  fill: none;
-  stroke: var(--save);
-  stroke-width: 2;
-  stroke-linejoin: round;
-  stroke-linecap: round;
-  vector-effect: non-scaling-stroke;
-}
-
-.fh-area {
-  stroke: none;
-}
-
-.fh-dot {
-  fill: var(--save);
-}
-
-.fh-dot-low {
-  fill: var(--gold);
-  stroke: var(--paper);
-  stroke-width: 1.5;
-  vector-effect: non-scaling-stroke;
-}
-
-.fh-benchmark {
-  stroke: var(--rail);
-  stroke-width: 1;
-  stroke-dasharray: 4 4;
-  vector-effect: non-scaling-stroke;
-}
-
-.fh-benchmark-tag {
-  fill: var(--rail);
-  font-family: var(--font-code);
-  font-size: var(--step--3);
-  letter-spacing: var(--track-code);
-}
 
 /* The value axis sits beside the plot, not under it. */
-.fh-figure {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: stretch;
-  gap: var(--sp-2);
-}
-
-.fh-axis {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: var(--sp-0-5) 0;
-  font-family: var(--font-code);
-  font-size: var(--step--3);
-  font-variant-numeric: tabular-nums;
-  color: var(--ink-soft);
-  order: -1;
-}
-
-.fh-plot {
-  min-width: 0;
-}
-
-.fh-stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--sp-2);
-  margin-top: 0.9rem;
-  border-top: 1px solid var(--fh-rule);
-  padding-top: var(--sp-3);
-}
-
-.fh-stats dt {
-  font-family: var(--font-code);
-  font-size: var(--step--3);
-  letter-spacing: var(--track-label);
-  text-transform: uppercase;
-  color: var(--ink-soft);
-}
-
-.fh-stats dd {
-  margin: 0.15rem 0 0;
-  font-family: var(--font-serif, var(--font-body));
-  font-size: var(--step-1);
-  font-variant-numeric: tabular-nums;
-}
-
-.fh-note,
-.fh-empty {
-  margin-top: 0.6rem;
-  font-size: var(--step--1);
-  line-height: 1.55;
-  color: var(--ink-soft);
-}
-
-.fh-footnote {
-  margin-top: 0.8rem;
-  border-top: 1px solid var(--fh-rule);
-  padding-top: var(--sp-2-5);
-  font-size: var(--step--2);
-  line-height: 1.5;
-  color: var(--ink-soft);
-}
-
-@media (max-width: 639px) {
-  .fh-stats {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--sp-1-5);
-  }
-
-  .fh-stats dd {
-    font-size: var(--step-0);
-  }
-}
 
 /* The colour-scheme switch. Three states, because "follow the device" is a real
    answer and a two-way switch silently takes it away. */
@@ -3596,116 +1782,10 @@ a.depart-strip:hover {
    like something: flaps caught mid-fold under a stamp. Six different facts used
    to share one line of grey text.
    ───────────────────────────────────────────────────────────────────────────── */
-.board-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--sp-2-5);
-  border-radius: var(--radius-sm);
-  background: var(--board);
-  color: var(--board-ink);
-  padding: var(--sp-8) var(--sp-5) var(--sp-8);
-  text-align: center;
-  box-shadow: inset 0 2px 0 var(--gold);
-}
-
-.board-empty-flaps {
-  display: flex;
-  gap: var(--sp-1-5);
-  margin-bottom: 0.2rem;
-  /* The children rotate in X, and without this that is an orthographic
-     projection — -58deg becomes scaleY(0.53), a squash rather than a fold.
-     Third place in this file where a rotateX had no perspective above it. */
-  perspective: 160px;
-}
-
-.board-empty-flaps span {
-  display: block;
-  width: 1.5rem;
-  height: 1.05rem;
-  border-radius: var(--r-hair);
-  background: linear-gradient(
-    180deg,
-    var(--board-face) 0%,
-    var(--board-face) 48%,
-    var(--board-deep) 50%,
-    var(--board-deep) 100%
-  );
-  transform-origin: center top;
-  /* Mid-fold, and held there. Nothing is arriving, so nothing finishes turning. */
-  animation: empty-flap 2.8s var(--ease) infinite;
-}
-
-.board-empty-flaps span:nth-child(2) {
-  animation-delay: 0.14s;
-}
-
-.board-empty-flaps span:nth-child(3) {
-  animation-delay: 0.28s;
-}
-
-@keyframes empty-flap {
-  0%,
-  62%,
-  100% {
-    transform: rotateX(0deg);
-    opacity: 0.85;
-  }
-  74% {
-    transform: rotateX(-58deg);
-    opacity: 0.55;
-  }
-}
-
-.board-empty-stamp {
-  font-family: var(--font-code);
-  font-size: var(--step--2);
-  font-weight: 600;
-  letter-spacing: var(--track-caps);
-  text-transform: uppercase;
-  color: var(--mint-2);
-}
 
 /* Ours to own: amber, and the gold rule becomes amber with it. */
-.board-empty.is-fault {
-  box-shadow: inset 0 2px 0 var(--amber);
-}
-
-.board-empty.is-fault .board-empty-stamp {
-  color: var(--amber);
-}
-
-.board-empty.is-scanning .board-empty-stamp {
-  color: var(--board-mute);
-}
-
-.board-empty-body {
-  max-width: 44ch;
-  font-size: var(--step--1);
-  line-height: 1.6;
-  color: var(--board-mute);
-}
-
-.board-empty-action {
-  margin-top: 0.5rem;
-}
 
 /* The board re-themes its accents the way the toast and the palette do. */
-.board-empty {
-  --line-2: color-mix(in srgb, var(--board-ink) 26%, transparent);
-  --paper-elevated: transparent;
-  --ink: var(--board-ink);
-}
-
-.board-empty .btn-ghost {
-  color: var(--board-ink);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .board-empty-flaps span {
-    animation: none;
-  }
-}
 
 /* ─────────────────────────────────────────────────────────────────────────────
    What this route costs.
@@ -3713,98 +1793,10 @@ a.depart-strip:hover {
    every watch. A range of numbers in a sentence is a range of numbers; a mark
    on a line is a position, which is the thing being said.
    ───────────────────────────────────────────────────────────────────────────── */
-.fh-corridor {
-  margin-top: 1rem;
-  border-top: 1px solid var(--fh-rule);
-  padding-top: var(--sp-3-5);
-}
-
-.fh-corridor-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--sp-3);
-}
-
-.fh-corridor-pct {
-  font-family: var(--font-code);
-  font-size: var(--step--3);
-  letter-spacing: var(--track-code);
-  color: var(--ink-soft);
-  font-variant-numeric: tabular-nums;
-}
-
-.fh-range {
-  position: relative;
-  height: 1.3rem;
-  margin-top: 0.7rem;
-  border-radius: var(--r-pill);
-  background: color-mix(in srgb, var(--ink) 8%, transparent);
-}
 
 /* The middle half of everything we have seen. */
-.fh-range-band {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  border-radius: var(--r-pill);
-  background: color-mix(in srgb, var(--save) 26%, transparent);
-}
-
-.fh-range-median {
-  position: absolute;
-  top: -2px;
-  bottom: -2px;
-  width: 2px;
-  background: var(--ink-soft);
-  transform: translateX(-1px);
-}
 
 /* Their fare. The one mark that is about them. */
-.fh-range-you {
-  position: absolute;
-  top: 50%;
-  width: 0.85rem;
-  height: 0.85rem;
-  border-radius: var(--r-pill);
-  border: 2.5px solid var(--paper-elevated);
-  background: var(--ink);
-  transform: translate(-50%, -50%);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
-}
-
-.fh-corridor.is-well-above .fh-range-you,
-.fh-corridor.is-above .fh-range-you {
-  background: var(--drop);
-}
-
-.fh-corridor.is-well-below .fh-range-you,
-.fh-corridor.is-below .fh-range-you {
-  background: var(--save);
-}
-
-.fh-range-scale {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 0.25rem;
-  font-family: var(--font-code);
-  font-size: var(--step--3);
-  font-variant-numeric: tabular-nums;
-  color: var(--ink-soft);
-}
-
-.fh-corridor-verdict {
-  margin-top: 0.6rem;
-  font-size: var(--step--1);
-  line-height: 1.55;
-}
-
-.fh-corridor-basis {
-  margin-top: 0.4rem;
-  font-size: var(--step--2);
-  line-height: 1.5;
-  color: var(--ink-soft);
-}
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Fares we found but could not save.
@@ -3818,73 +1810,6 @@ a.depart-strip:hover {
   background: var(--paper-elevated);
   padding: var(--sp-4) var(--sp-4);
   box-shadow: inset 3px 0 0 var(--drop);
-}
-
-.unsaved-stamp {
-  font-family: var(--font-code);
-  font-size: var(--step--3);
-  font-weight: 600;
-  letter-spacing: var(--track-caps);
-  text-transform: uppercase;
-  color: var(--drop);
-}
-
-.unsaved-lead {
-  margin-top: 0.4rem;
-  font-size: var(--step--1);
-  line-height: 1.55;
-}
-
-.unsaved-list {
-  margin-top: 0.8rem;
-  border-top: 1px solid var(--line);
-}
-
-.unsaved-list li {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: baseline;
-  gap: var(--sp-3);
-  border-bottom: 1px solid var(--line);
-  padding: var(--sp-2) 0;
-}
-
-.unsaved-price {
-  font-family: var(--font-serif, var(--font-body));
-  font-size: var(--step-1);
-  font-variant-numeric: tabular-nums;
-}
-
-.unsaved-when {
-  font-family: var(--font-code);
-  font-size: var(--step--2);
-  color: var(--ink-soft);
-}
-
-.unsaved-train {
-  font-size: var(--step--1);
-  color: var(--ink-soft);
-  text-align: right;
-}
-
-.unsaved-empty,
-.unsaved-note,
-.unsaved-foot {
-  margin-top: 0.7rem;
-  font-size: var(--step--2);
-  line-height: 1.5;
-  color: var(--ink-soft);
-}
-
-@media (max-width: 480px) {
-  .unsaved-list li {
-    grid-template-columns: auto 1fr;
-  }
-
-  .unsaved-train {
-    grid-column: 1 / -1;
-    text-align: left;
-  }
 }
 
 /* ── Assistant ──────────────────────────────────────────────────────────────
@@ -3909,180 +1834,6 @@ a.depart-strip:hover {
   background-position: 0 0;
 }
 
-.assistant-head {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  flex-wrap: wrap;
-}
-
-.assistant-dot {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: var(--r-pill);
-  background: var(--forest-2);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--forest-2) 18%, transparent);
-  flex: none;
-}
-
-.assistant-title {
-  font-size: var(--step-0);
-  font-weight: 600;
-  letter-spacing: var(--track-tight);
-  margin: 0;
-}
-
-.assistant-note {
-  margin-left: auto;
-  font-size: var(--step--2);
-  letter-spacing: var(--track-code);
-  color: var(--ink-soft);
-}
-
-.assistant-suggests {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-2);
-  margin: 0.9rem 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.assistant-chip {
-  border: 1px solid var(--line-2);
-  border-radius: var(--r-pill);
-  background: var(--paper);
-  color: var(--ink);
-  padding: var(--sp-1-5) var(--sp-3);
-  font-size: var(--step--1);
-  text-align: left;
-  cursor: pointer;
-  transition:
-    border-color var(--t-base) var(--ease),
-    background var(--t-base) var(--ease),
-    transform var(--t-base) var(--ease);
-}
-
-.assistant-chip:hover {
-  border-color: var(--forest-2);
-  background: color-mix(in srgb, var(--forest-2) 7%, var(--paper));
-}
-
-.assistant-chip:active {
-  transform: translateY(1px);
-}
-
-.assistant-thread {
-  margin: 0.9rem 0 0;
-  padding: 0;
-  list-style: none;
-  display: grid;
-  gap: var(--sp-3);
-  max-height: 22rem;
-  overflow-y: auto;
-  /* Scrolled content must not collide with the rounded edge. */
-  padding-right: var(--sp-1);
-}
-
-.assistant-turn {
-  font-size: var(--step-0);
-  line-height: 1.55;
-}
-
-.assistant-turn p {
-  margin: 0;
-  /* A pasted station list or a long word must wrap, not widen the panel. */
-  overflow-wrap: anywhere;
-}
-
-.assistant-turn.is-user {
-  justify-self: end;
-  max-width: 85%;
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--forest-2) 10%, var(--paper));
-  padding: var(--sp-2) var(--sp-3);
-}
-
-.assistant-turn.is-assistant {
-  border-left: 2px solid var(--forest-2);
-  padding-left: var(--sp-3);
-}
-
-.assistant-turn.is-assistant.is-blocked {
-  border-left-color: var(--drop);
-}
-
-.assistant-blocked-tag {
-  margin: 0 0 0.3rem;
-  font-size: var(--step--2);
-  text-transform: uppercase;
-  letter-spacing: var(--track-caps);
-  color: var(--drop);
-}
-
-.assistant-status {
-  margin: 0.7rem 0 0;
-  min-height: 1.1rem;
-  font-size: var(--step--1);
-  color: var(--ink-soft);
-}
-
-.assistant-error {
-  margin: 0.5rem 0 0;
-  font-size: var(--step--1);
-  color: var(--danger);
-}
-
-.assistant-form {
-  display: flex;
-  gap: var(--sp-2);
-  margin-top: 0.5rem;
-}
-
-.assistant-input {
-  flex: 1 1 auto;
-  min-width: 0;
-  border: 1px solid var(--line-2);
-  border-radius: var(--radius-sm);
-  background: var(--paper);
-  color: var(--ink);
-  padding: var(--sp-2-5) var(--sp-3);
-  font-size: var(--step-0);
-  transition: border-color var(--t-base) var(--ease);
-}
-
-.assistant-input:focus {
-  outline: none;
-  border-color: var(--forest-2);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--forest-2) 16%, transparent);
-}
-
-.assistant-send {
-  flex: none;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  background: var(--primary-grad);
-  color: #fff;
-  padding: var(--sp-2-5) var(--sp-4);
-  font-size: var(--step--1);
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity var(--t-base) var(--ease);
-}
-
-.assistant-send:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .assistant-chip,
-  .assistant-input,
-  .assistant-send {
-    transition: none;
-  }
-}
-
 /* ── The dock stops covering the board on desktop ──────────────────────────
    The dock is sticky to the foot of the viewport, so its height is a slice of
    the screen taken away from the board for as long as you are on the page. At
@@ -4100,21 +1851,6 @@ a.depart-strip:hover {
 
    Below 768px it stays exactly as it was, collapsed by default, with the
    summary line as the tap target. */
-@media (min-width: 768px) {
-  .action-dock {
-    position: static;
-    box-shadow: var(--sh-2);
-  }
-
-  /* Room only exists to let content scroll clear of a floating dock. */
-  .dock-scroll-room {
-    display: none;
-  }
-
-  .live-compare {
-    padding: var(--sp-3) var(--sp-4);
-  }
-}
 
 /* ── Date field ────────────────────────────────────────────────────────────
    Replaces <input type="date">, whose calendar is the browser's: a different
@@ -4417,25 +2153,11 @@ a.depart-strip:hover {
 
 /* A panel that can be acted on lifts a little under the pointer. Transform
    rather than margin, so it never reflows the row it sits in. */
-.ticket-hover,
-.date-card,
-.assistant-chip {
+.date-card {
   transition:
     transform var(--t-base) var(--ease-out),
     box-shadow var(--t-base) var(--ease-out),
     border-color var(--t-base) var(--ease-out);
-}
-
-.ticket-hover:hover {
-  transform: translateY(-2px);
-  box-shadow:
-    inset 0 1px 0 var(--edge-hi),
-    var(--sh-3);
-}
-
-.ticket-hover:active {
-  transform: translateY(0);
-  transition-duration: var(--t-fast);
 }
 
 /* ── One focus ring, everywhere ──────────────────────────────────────────────
@@ -4450,10 +2172,7 @@ a.depart-strip:hover {
 }
 
 /* On the dark board the forest ring disappears into the surface. */
-.board-row:focus-visible,
-.action-dock :focus-visible,
-.depart-strip:focus-visible,
-.live-compare :focus-visible {
+.depart-strip:focus-visible {
   outline-color: var(--mint-2);
 }
 
@@ -4464,7 +2183,6 @@ a.depart-strip:hover {
 
 .price,
 .datefield-day,
-.metric-value,
 [class*="price"],
 [class*="Price"] {
   font-variant-numeric: tabular-nums;
@@ -4573,14 +2291,11 @@ a.depart-strip:hover {
     animation: none;
   }
 
-  .ticket-hover,
   .date-card,
-  .assistant-chip,
   .btn {
     transition-property: box-shadow, border-color, background-color;
   }
 
-  .ticket-hover:hover,
   .btn:active:not(:disabled) {
     transform: none;
   }
@@ -5431,14 +3146,6 @@ body::after {
     var(--sh-1);
 }
 
-.metric-value {
-  margin: 0.3rem 0 0;
-  font-size: var(--step-2);
-  line-height: 1;
-  letter-spacing: var(--track-display);
-  font-variant-numeric: tabular-nums slashed-zero;
-}
-
 /* ═══════════════════════════════════════════════════════════════════════════
    THE BOARD
    ───────────────────────────────────────────────────────────────────────────
@@ -5521,24 +3228,20 @@ body::after {
  * The prices here never change in place; a new board is a new render. So there
  * is nothing to animate: the outgoing leaf has nothing to fall onto, and the
  * incoming one sits where it lands. */
-.date-card .flap-mech::after,
-.ticket-hero .flap-hero .flap-mech::after {
+.date-card .flap-mech::after {
   display: none;
 }
 
-.date-card .flap-leaf-out,
-.ticket-hero .flap-hero .flap-leaf-out {
+.date-card .flap-leaf-out {
   display: none;
 }
 
-.date-card .flap-leaf,
-.ticket-hero .flap-hero .flap-leaf {
+.date-card .flap-leaf {
   animation: none;
   background: transparent;
 }
 
-.date-card .flap-leaf::before,
-.ticket-hero .flap-hero .flap-leaf::before {
+.date-card .flap-leaf::before {
   display: none;
 }
 
@@ -5629,7 +3332,6 @@ body::after {
   line-height: 1.05;
 }
 
-.verdict .verdict-headline,
 .verdict > p:first-of-type {
   font-size: var(--step-1);
   letter-spacing: var(--track-display);
@@ -5650,41 +3352,8 @@ body::after {
 }
 
 /* The verdict, led by its number. */
-.verdict-label {
-  font-size: var(--step-2);
-  line-height: 1.04;
-  letter-spacing: var(--track-display);
-  margin: 0;
-}
-
-.verdict-figure {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  grid-template-areas:
-    "micro micro"
-    "figure qual";
-  align-items: baseline;
-  gap: var(--sp-0-5) var(--sp-3);
-  margin-top: 0.55rem;
-}
-
-.verdict-figure > .micro {
-  grid-area: micro;
-}
-
-.verdict-figure > .readout {
-  grid-area: figure;
-}
-
-.verdict-qual {
-  grid-area: qual;
-  font-size: var(--step--1);
-  color: var(--ink-soft);
-  line-height: 1.4;
-}
 
 /* Inside the dark verdict panel the soft ink token disappears. */
-.verdict .verdict-qual,
 .verdict .micro {
   color: var(--board-mute);
 }
@@ -5711,26 +3380,6 @@ body::after {
    `.date-card .flap` had already hit this and already fixed it; its comment
    says "Only the fare itself was legible, because it sets its own colour."
    The hero fare was the single case where that sentence was false. */
-.ticket-hero .price .flap,
-.flap-hero {
-  padding: 0;
-  --flap-face: transparent;
-  background: transparent;
-  box-shadow: none;
-  border-radius: 0;
-  font-family: var(--font-body);
-  font-weight: var(--w-display);
-  letter-spacing: var(--track-hero);
-  font-size: inherit;
-  line-height: 0.95;
-  font-variant-numeric: tabular-nums slashed-zero;
-  color: var(--ink);
-}
-
-.ticket-hero .price {
-  line-height: 0.95;
-  margin-top: 0.5rem;
-}
 
 /* ═══════════════════════════════════════════════════════════════════════════
    MATERIAL — a light source, and surfaces that answer to it
@@ -5854,9 +3503,7 @@ body::after {
 .assistant,
 .unsaved,
 .verdict,
-.census,
-.help-card,
-.share-sheet {
+.census {
   background-image: var(--plate-face);
   border-radius: var(--r-plate);
   box-shadow:
@@ -5868,8 +3515,6 @@ body::after {
 /* ── A key: stands off the plate, and goes down when pressed ─────────────── */
 
 .date-card,
-.ticket-hover,
-.assistant-chip,
 .btn,
 .chip {
   background-image: var(--key-face);
@@ -5885,8 +3530,6 @@ body::after {
 }
 
 .date-card:hover,
-.ticket-hover:hover,
-.assistant-chip:hover,
 .btn:hover:not(:disabled) {
   box-shadow:
     inset 0 1px 0 var(--lit-top),
@@ -5897,7 +3540,6 @@ body::after {
 /* Pressed is down, and down is a real inversion — the lit edge moves to the
    bottom, because that is what happens when a key sinks below its surround. */
 .date-card:active,
-.ticket-hover:active,
 .btn:active:not(:disabled),
 .chip:active {
   transform: translateY(1px);
@@ -5912,7 +3554,6 @@ body::after {
    invented: tests/unit/css-dead-selectors.test.ts caught `.readout-well` and
    `.provenance-body`, neither of which any component renders. */
 .timetable,
-.fh-plot,
 .prov {
   background-image: var(--well-face);
   border-radius: var(--r-well);
@@ -5928,7 +3569,6 @@ body::after {
    board is now plainly darker and plainly cooler than any plate. */
 
 .timetable,
-.trip-rail,
 .depart-strip {
   --board-step: color-mix(in srgb, var(--board-deep) 92%, #000);
 }
@@ -5943,28 +3583,12 @@ body::after {
    fixed three with a gap at the end. Below 640px it wraps to two, because
    five tracks on a phone is five columns of nothing. */
 
-.date-strip {
-  display: grid;
-  grid-template-columns: repeat(var(--tracks, 3), minmax(0, 1fr));
-  gap: var(--sp-2);
-}
-
-@media (max-width: 860px) {
-  .date-strip {
-    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  }
-}
-
 /* Shorter. Each card carried a label, a relative day, a fare and a delta in
    180px of height for one number, so five of them were a screen and a half
    of the page before the timetable started. */
 .date-card .price {
   margin-top: 0.15rem;
   line-height: 1.05;
-}
-
-.date-strip .date-card {
-  padding: var(--sp-2-5) var(--sp-3) var(--sp-2-5);
 }
 
 /* ── The verdict, across its width ───────────────────────────────────────
@@ -5992,48 +3616,11 @@ body::after {
     row-gap: var(--sp-1);
   }
 
-  .verdict > .verdict-label {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  .verdict > .verdict-figure {
-    grid-column: 1;
-    grid-row: 2;
-    /* Centred in the column rather than pinned to its top: the right-hand
-       column is three or four times taller, so aligning the figure to the
-       top left 200px of nothing under the one number the panel exists to
-       show. */
-    align-self: center;
-    margin-top: 0;
-  }
-
   /* The decision column is a column, so it gets the rule that says so. */
-  .verdict > .verdict-figure::before {
-    content: "";
-    position: absolute;
-    inset-block: 0;
-    right: -1.375rem;
-    width: 1px;
-    background: linear-gradient(
-      180deg,
-      transparent,
-      color-mix(in srgb, var(--board-ink) 16%, transparent) 20%,
-      color-mix(in srgb, var(--board-ink) 16%, transparent) 80%,
-      transparent
-    );
-  }
-
-  .verdict > .verdict-figure {
-    position: relative;
-  }
 
   /* Everything else — the caveats, the fare-family note, the fee control —
      flows down the second column in source order, which is the order a
      reader needs them in. */
-  .verdict > *:not(.verdict-label):not(.verdict-figure) {
-    grid-column: 2;
-  }
 
   .verdict > .no-print {
     margin-top: 0.6rem;
@@ -6045,110 +3632,19 @@ body::after {
    it had just drawn repeated in a caption underneath. The ends are labelled
    on the scale now and the caption is gone. */
 
-.ladder-panel {
-  padding: var(--sp-3-5) var(--sp-4) var(--sp-4);
-}
-
-.ladder-line {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--sp-3-5);
-  margin-top: 0.7rem;
-}
-
-.ladder-end {
-  font-variant-numeric: tabular-nums slashed-zero;
-  font-size: var(--step--1);
-  letter-spacing: var(--track-display);
-  color: var(--ink-soft);
-  white-space: nowrap;
-}
-
 .ladder {
   position: relative;
   display: block;
   height: 1.6rem;
 }
 
-.ladder-rail {
-  position: absolute;
-  inset-inline: 0;
-  top: 50%;
-  height: 2px;
-  border-radius: var(--r-hair);
-  /* A scale, not a bar: brighter where the cheap end is. */
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--save) 45%, transparent),
-    var(--line) 55%
-  );
-}
-
-.ladder-dot {
-  position: absolute;
-  top: 50%;
-  width: 7px;
-  height: 7px;
-  border-radius: var(--r-pill);
-  background: var(--ink-soft);
-  transform: translate(-50%, -50%);
-}
-
-.ladder-dot.is-save {
-  width: 8px;
-  height: 8px;
-  background: var(--save);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--save) 18%, transparent);
-}
-
 /* The traveler's own mark: a full-height tick with its label beneath, so it
    reads as a position on the scale rather than a floating word. */
-.ladder-you {
-  position: absolute;
-  top: 0;
-  bottom: -0.15rem;
-  transform: translateX(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--sp-0-5);
-  pointer-events: none;
-}
-
-.ladder-you i {
-  display: block;
-  width: 2px;
-  height: 1.05rem;
-  border-radius: var(--r-hair);
-  background: var(--ink);
-}
-
-.ladder-you em {
-  transform: translateX(var(--label-shift, 0));
-  font-family: var(--font-code);
-  font-size: var(--step--3);
-  font-style: normal;
-  letter-spacing: var(--track-label);
-  text-transform: uppercase;
-  color: var(--ink-soft);
-  white-space: nowrap;
-}
 
 /* ── Single-figure panels are strips, not cards ──────────────────────────
    Morning / Afternoon / Evening were three full-width boxes holding one
    number each, one of them an em dash. Same disease as the date grid: a big
    rounded rectangle is what this app reaches for whatever it is holding. */
-
-.daypart-strip {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--sp-2);
-}
-
-.daypart-strip .date-card {
-  padding: var(--sp-2) var(--sp-3) var(--sp-2-5);
-}
 
 /* ── Board surfaces are dark in both themes, so they get their own face ───
    The plate and key faces are written for a surface that is light in light
@@ -6168,16 +3664,10 @@ body::after {
 
 /* .date-card is NOT in this list: unboxing the fare made it a paper surface,
    and giving it the board face is what sent me looking for the bug above. */
-.trip-rail,
-.live-compare,
 .depart-strip,
 .census,
-.help-card,
-.board-toast,
-.share-sheet,
 .station-list,
-.verdict,
-.dock-compare-toggle {
+.verdict {
   --face-board: linear-gradient(
     180deg,
     color-mix(in srgb, var(--board-ink) 6%, transparent),
@@ -6191,8 +3681,7 @@ body::after {
 }
 
 /* The chips inside a board surface are on the board, not on the page. */
-.verdict .chip,
-.trip-rail .chip {
+.verdict .chip {
   background-image: none;
 }
 
@@ -6239,8 +3728,7 @@ body::after {
    Composited at the top edge, where the glyphs are tallest: 5.51:1 against a
    4.5 floor, and it only gets darker downward. */
 .btn-primary,
-.nav-watch,
-.ticket-hero .btn-primary {
+.nav-watch {
   --key-face: linear-gradient(
     180deg,
     color-mix(in srgb, #fff 14%, transparent),
@@ -6262,24 +3750,6 @@ body::after {
 /* The hero clocks are the one place the split-flap frame means something —
    a departure board is exactly what they are quoting — so they get a
    recessed tile rather than either a stray rectangle or nothing at all. */
-.ticket-hero .clock-pair .flap {
-  --flap-face: var(--board-deep);
-  background: var(--flap-face);
-  /* Board ink, because unlike the fare beside them these DID keep their
-     board surface. The rule above covers `.ticket-hero .price .flap`, and
-     the clocks are marked up as prices too — so moving the fare to page ink
-     turned 9:20 AM and 1:47 PM into black-on-black tiles. Two objects, one
-     selector, opposite surfaces: the fare is printed on the card and the
-     clocks are lit on a recessed tile, and each needs the ink of the thing
-     it is actually sitting on. */
-  color: var(--board-ink);
-  padding: var(--sp-1) var(--sp-2);
-  border-radius: var(--r-well);
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--board-face) 90%, transparent),
-    inset 0 2px 0 color-mix(in srgb, var(--gold) 40%, transparent),
-    inset 0 -7px 11px -8px #000;
-}
 
 /* ── The mouse gets something back ───────────────────────────────────────
    Tailwind v4's preflight sets `button { cursor: default }` — a deliberate
@@ -6457,34 +3927,9 @@ select.field {
    .field is inert the same way — this class is unlayered so it actually
    applies. */
 
-.money-wrap {
-  position: relative;
-  display: block;
-  margin-top: 0.35rem;
-}
-
-.money-wrap::before {
-  content: "$";
-  position: absolute;
-  left: 0.8rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--ink-soft);
-  pointer-events: none;
-  font-variant-numeric: tabular-nums;
-}
-
-.field-money {
-  margin-top: 0;
-  padding-left: var(--sp-7);
-}
-
 /* ── Four plates that never got repointed to the role scale ──────────────── */
 
-.action-dock,
-.trip-rail,
-.depart-strip,
-.board-toast {
+.depart-strip {
   border-radius: var(--r-plate);
 }
 
@@ -6509,10 +3954,6 @@ input[type="time"].field {
   max-width: 11rem;
 }
 
-.field-money {
-  max-width: 14rem;
-}
-
 input[type="email"].field {
   max-width: 24rem;
 }
@@ -6528,37 +3969,17 @@ select.field {
    line between the two codes. On a wide panel that is three lines of vertical
    travel to say BOS to NYP. */
 
-@media (min-width: 720px) {
-  .route-fields {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-    align-items: end;
-    gap: var(--sp-3);
-  }
-
-  /* The swap control sits on the shared baseline of the two fields rather
-     than above them, so it reads as the hinge between the pair. */
-  .route-fields > .route-swap {
-    margin: 0 0 0.15rem;
-    min-width: 0;
-  }
-}
-
 /* The board's chips keep the same split, since the group rule for board
    surfaces comes later and would otherwise win. */
 .verdict button.chip:hover,
-.live-compare button.chip:hover,
 .date-card button.chip:hover,
-.trip-rail button.chip:hover,
 .timetable button.chip:hover {
   border-color: color-mix(in srgb, var(--board-ink) 55%, transparent);
   background: color-mix(in srgb, var(--board-ink) 10%, transparent);
 }
 
 .verdict span.chip,
-.live-compare span.chip,
 .date-card span.chip,
-.trip-rail span.chip,
 .timetable span.chip {
   border-color: transparent;
   background: color-mix(in srgb, var(--board-ink) 12%, transparent);
@@ -6566,15 +3987,6 @@ select.field {
 }
 
 /* The hero's action is the one solid, emitting thing on the page. */
-.ticket-hero .btn-primary {
-  background-color: var(--mint-2);
-  background-image: var(--key-face);
-  color: var(--forest-3);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.45),
-    0 1px 0 rgba(0, 0, 0, 0.5),
-    0 10px 22px -12px color-mix(in srgb, var(--mint-2) 60%, transparent);
-}
 
 /* ── The aside ───────────────────────────────────────────────────────────
    Nine consecutive 1120px bands sat between the date strip and the hero,
@@ -6592,53 +4004,7 @@ select.field {
    column of sentence fragments. Only the two things that are genuinely
    card-shaped take a column, and they sit beside each other. */
 
-.board-aside {
-  display: grid;
-  gap: var(--sp-3);
-  margin-top: 1rem;
-}
-
-@media (min-width: 1024px) {
-  .board-aside {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--sp-3-5) 20px;
-    align-items: start;
-  }
-
-  /* Full width unless a child says otherwise. */
-  .board-aside > * {
-    grid-column: 1 / -1;
-    margin-top: 0;
-    min-width: 0;
-  }
-
-  /* min-width: 0 is load-bearing on the cells — without it a long train name
-     overflows its track and trips the audit's overlapping-text check. */
-  .board-aside > .aside-cell {
-    grid-column: span 1;
-    min-width: 0;
-  }
-
-  /* The short observations read as one group rather than as three bands. */
-  .board-aside > .aside-note {
-    color: var(--ink-soft);
-    font-size: var(--step--1);
-  }
-}
-
 /* Unscoped, so the cell exists at every width. */
-.board-cell-meta {
-  grid-area: meta;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--sp-1-5) var(--sp-3);
-  min-width: 0;
-}
-
-.board-cell-meta .legs {
-  margin: 0;
-}
 
 /* ═══════════════════════════════════════════════════════════════════════════
    MOTION — one vocabulary, and things that leave
@@ -6695,22 +4061,16 @@ select.field {
    through their own leave state, which is a change to five components rather
    than to this stylesheet, and it is not done. */
 
-.share-sheet,
-.board-toast,
 .station-list,
-.datefield-pop,
-.help-card {
+.datefield-pop {
   transition:
     opacity var(--t-base) var(--ease-out),
     transform var(--t-base) var(--ease-out);
 }
 
 @starting-style {
-  .share-sheet,
-  .board-toast,
   .station-list,
-  .datefield-pop,
-  .help-card {
+  .datefield-pop {
     opacity: 0;
     transform: translateY(-0.4rem);
   }
@@ -6748,9 +4108,7 @@ select.field {
    timetable, which is near-black with pale text, painted a mint wash under
    text that then had nothing to contrast with. A dark surface needs its own. */
 .timetable ::selection,
-.trip-rail ::selection,
 .verdict ::selection,
-.ticket-hero ::selection,
 .date-card ::selection {
   background: color-mix(in srgb, var(--mint-3) 55%, transparent);
   color: var(--board-ink);
@@ -6786,11 +4144,7 @@ select.field {
 /* Tabular figures never reflow mid-update.
    The board clock and the elapsed counter re-render every second; without
    this the row jitters as glyph widths change under it. */
-.readout,
-.hud-value,
-.ladder-end,
-.board-cell-price,
-.board-cell-save {
+.readout {
   font-variant-numeric: tabular-nums slashed-zero;
 }
 
@@ -6894,11 +4248,7 @@ h2.serif,
    an O and a 0 are never confused on a real one. */
 .price,
 .readout,
-.metric-value,
 .spec-value,
-.hud-money,
-.hud-value,
-.hud-delta,
 .flap,
 time,
 .station-code {
@@ -6911,10 +4261,7 @@ time,
 .micro,
 .kicker,
 .eyebrow,
-.hud-label,
-.filter-label,
-.sample-head,
-.board-head {
+.sample-head {
   font-weight: var(--w-label);
 }
 
@@ -7093,41 +4440,9 @@ time,
    nonstop, Coach, one day earlier" is the RECORD that supports it. Stacking
    them makes the record look like more conclusion. Beside each other, the
    left column is what you act on and the right is what you check. */
-@media (min-width: 60rem) {
-  .ticket-hero {
-    display: grid;
-    grid-template-columns: minmax(0, 19rem) minmax(0, 1fr);
-    column-gap: var(--sp-10);
-    align-items: start;
-  }
-
-  /* The action row spans both, because it acts on the whole thing. */
-  .ticket-hero > .quiet-row {
-    grid-column: 1 / -1;
-  }
-}
-
-.hero-answer {
-  min-width: 0;
-}
-
-.hero-trip {
-  min-width: 0;
-}
 
 /* Below the split the two groups are simply stacked, and the record needs a
    rule to say it is a different kind of statement from the figure above it. */
-@media (max-width: 59.999rem) {
-  .hero-trip {
-    margin-top: var(--sp-5);
-    padding-top: var(--sp-5);
-    border-top: 1px solid var(--line);
-  }
-}
-
-.hero-act {
-  margin-top: var(--sp-5);
-}
 
 /* ── The board finally uses its second axis ─────────────────────────────────
    Measured at 1440: <main> is 1152px wide and every one of its eighteen
@@ -7154,76 +4469,6 @@ time,
 /* The board runs wider than every other page, and only the board. It was
    3968px deep in one 1120px column with ~290px of unused page either side,
    so the width to spend was already there. */
-@media (min-width: 72rem) {
-  main:has(> .board-top),
-  .board-gutter {
-    max-width: 84rem;
-  }
-
-  .board-top {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 21rem;
-    column-gap: var(--sp-10);
-    align-items: start;
-  }
-
-  .board-top > * {
-    grid-column: 1;
-    min-width: 0;
-  }
-
-  .board-top > .board-aside {
-    grid-column: 2;
-    /* From the first row to past the last child; there are eighteen. */
-    grid-row: 1 / span 30;
-    position: sticky;
-    top: var(--sp-16);
-    margin-top: 0;
-  }
-
-  /* Inside a 21rem column the daypart cards stack; they were three-up
-     because they had 1120px, not because three-up is what they want. */
-  .board-top .daypart-strip {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  /* The aside itself splits into two columns at 1024px — which was right
-     when it was a full-width band and is exactly wrong now that it IS the
-     margin. Two tracks inside a 336px rail is what was clipping the
-     decision picks at half width; the `.aside-cell` and `.pick-grid`
-     overrides below could not take effect underneath it. */
-  .board-top > .board-aside {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  /* The picks were drawn for a 550px cell and clipped at 336px. In a real
-     margin they are a list, not a row. */
-  .board-top .aside-cell {
-    width: 100%;
-  }
-
-  .board-top .pick-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  /* The ladder is 1.6rem tall and holds a 1.05rem tick with its "YOU PAID"
-     label stacked underneath — about 29px of content in a 25.6px box, with
-     the track and its dots centred at 12.8px. At 1120px the label had
-     enough horizontal room to miss everything; in a 336px rail the dots
-     bunch up and the label lands straight on them.
-     
-     Taller box, track raised to 38%: the tick still straddles the scale and
-     the label gets a row of its own beneath the dots rather than through
-     them. */
-  .board-top .ladder {
-    height: 2.6rem;
-  }
-
-  .board-top .ladder-rail,
-  .board-top .ladder-dot {
-    top: 38%;
-  }
-}
 
 /* ── /fares: three choices that would not fit on one line ───────────────────
    The flexibility group is three radios — This day, ±1 day, ±2 days — in a
@@ -7295,72 +4540,18 @@ time,
    None of them is sequential. They are four reference cards and reference
    cards want to be seen at once. The heading block spans; the cards find
    their own rows two at a time. */
-.settings-main {
-  display: grid;
-  gap: var(--sp-6);
-  align-content: start;
-  /* Cards size to their content. Without this a two-line note stretches to
-     the height of the four-step connector beside it, and the empty half of
-     it reads as something that failed to render. */
-  align-items: start;
-}
 
 /* The heading owns its own rhythm; the grid gap only separates it from the
    cards. */
-.settings-lede {
-  margin-top: var(--sp-2);
-}
-
-.settings-cards {
-  display: grid;
-  gap: var(--sp-6);
-}
-
-@media (min-width: 60rem) {
-  /* Two tracks, sized to their own content.
-     
-     I tried a balancing column box here first, on the reviewer's suggestion
-     that a grid pairs a tall card with a short one and leaves a void. It
-     does — but the connector card is nearly as tall as the other three
-     together and cannot be split, so the balancer put one card in column
-     one and three in column two and left a 400px hole instead of a 110px
-     one. Measured, not reasoned about; the grid was better.
-     
-     It is also the wrong thing to optimise: the connector only renders in
-     local mode, so production has three cards, not four. `align-items:
-     start` is what matters — it stops a two-line note being stretched to
-     the height of a four-step form, which is the void that actually reads
-     as a rendering fault. */
-  .settings-cards {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: start;
-  }
-}
 
 /* The grid owns the rhythm now, so the margin utilities each section carried
    for the stacked layout would double it. */
-.settings-main > * {
-  margin-top: 0;
-}
 
 /* ── One field does not need a page it hangs from the top of ────────────────
    Sign in is an email input and a button: 416px of content above 300px of
    nothing, pinned to the top of the viewport. An auth screen is the one
    place where centring in the viewport is not a decoration — there is
    nothing else to align to. */
-@media (min-width: 48rem) and (min-height: 40rem) {
-  .auth-main {
-    /* Gated to the widths this was designed for. The 14rem is a guess at the
-       header, the footer and the local-mode banner, and on a phone that
-       banner wraps to two lines — so the guess ran long and pushed the
-       footer half off the bottom. Centring an auth screen is worth doing
-       where there is room to centre it and not worth guessing for. */
-    min-height: calc(100svh - 14rem);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-  }
-}
 
 /* ── Below 720px the swap stopped being a hinge ─────────────────────────────
    Above 720px the route row is origin / swap / destination on one shared
@@ -7371,19 +4562,6 @@ time,
 
    On a phone it is centred and shortened: the same hinge, drawn small,
    between the pair it acts on rather than beside them. */
-@media (max-width: 719.98px) {
-  .route-fields > .route-swap {
-    display: flex;
-    margin-inline: auto;
-    /* No negative top margin. The first version pulled the swap up by 4px to
-       tighten it against the origin field, and at 375px that was enough to
-       collide it with the "Origin station" label — 384px of overlap, caught
-       by the overlap audit, which is the whole reason that audit exists. */
-    margin-block: var(--sp-1);
-    width: auto;
-    min-width: 6rem;
-  }
-}
 
 /* ── A three-way choice, three equal tracks ─────────────────────────────────
    The same repair /fares needed: "Exact date", "±1 day · recommended" and
@@ -7392,40 +4570,12 @@ time,
    options. Here the middle label is much the longest, so the tracks are
    content-sized and the group wraps as a unit rather than orphaning its
    first item. */
-.choice-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-1-5);
-  border: 0;
-  padding: 0;
-  /* `margin: 0` resets the browser's fieldset margin, which is what the
-     group wants — but it also removed the gap to whatever follows, and on a
-     phone "Preferred departure time" ended up sitting on the last pill. The
-     group owns its own trailing space rather than borrowing the default. */
-  margin: 0 0 var(--sp-2);
-}
-
-.choice-row legend {
-  width: 100%;
-}
-
-.choice-row .choice {
-  margin: 0;
-  flex: 0 1 auto;
-  justify-content: center;
-  white-space: nowrap;
-}
 
 /* Below 30rem three of these cannot share a line: the container is about
    318px and "±1 day · recommended" alone is 200. Letting them flow produces
    one full-width option above two half ones, which presents a three-way
    choice as one-then-two and makes the first look like the default. One per
    row is three equal rows, which is what three equal options are. */
-@media (max-width: 30rem) {
-  .choice-row .choice {
-    flex: 1 1 100%;
-  }
-}
 
 /* ── Observed, entered, unobserved ──────────────────────────────────────────
    The product's rule made visible instead of asserted. See money.tsx for the
@@ -7465,13 +4615,6 @@ time,
 
    Capped by content, not by taste. A max-width, so they still shrink on a
    phone. */
-.field-code {
-  max-width: 11rem;
-}
-
-.field-mid {
-  max-width: 24rem;
-}
 
 .datefield {
   max-width: 20rem;
@@ -7501,23 +4644,6 @@ time,
    edge is added TO the plate's lighting instead of erasing it, which is what
    the original rule did even where it did win — a marked card would have
    lost its top highlight and its lift and gone flat. */
-.panel.attention-edge,
-.ticket.attention-edge {
-  box-shadow:
-    inset 3px 0 0 var(--amber),
-    inset 0 1px 0 var(--lit-top),
-    inset 0 -1px 0 var(--lit-bottom),
-    var(--lift-plate);
-}
-
-.panel.attention-edge.is-urgent,
-.ticket.attention-edge.is-urgent {
-  box-shadow:
-    inset 3px 0 0 var(--drop),
-    inset 0 1px 0 var(--lit-top),
-    inset 0 -1px 0 var(--lit-bottom),
-    var(--lift-plate);
-}
 
 /* ── The front door is a price ──────────────────────────────────────────────
    The hero used to offer two commitments — watch a booked trip, or sign in —
@@ -7694,28 +4820,3 @@ time,
    a real control — and it carries the route and date they just searched,
    rather than asking them to type it again. Dashed and unfilled: a prompt
    inside the results, not a card competing with them. */
-.lookup-next {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-4);
-  margin-top: var(--sp-6);
-  padding: var(--sp-4) var(--sp-5);
-  border: 1px dashed var(--line-2);
-  border-radius: var(--r-card);
-}
-
-.lookup-next-say {
-  font-size: var(--step-0);
-  font-weight: var(--w-medium);
-  color: var(--ink);
-}
-
-.lookup-next-sub {
-  margin-top: var(--sp-1);
-  font-size: var(--step--1);
-  line-height: 1.5;
-  color: var(--ink-soft);
-  max-width: 46ch;
-}

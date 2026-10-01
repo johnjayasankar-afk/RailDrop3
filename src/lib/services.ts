@@ -1,59 +1,29 @@
 import { getConfig } from "@/lib/config";
-import path from "node:path";
-import { MemoryRepository } from "@/lib/db/memory-store";
-import { createPersistedMemoryRepository } from "@/lib/db/local-persist";
-import type { RailDropRepository } from "@/lib/db/repository";
-import { SupabaseRepository } from "@/lib/db/supabase-repository";
-import { withDatabaseRetry } from "@/lib/db/retrying-repository";
-import { RecordingMailer, ResendMailer } from "@/lib/notifications/resend-mailer";
-import type { Mailer } from "@/lib/notifications/send-alert";
 import type { FareProvider } from "@/lib/providers/fare-provider";
-import { ParseFareProvider } from "@/lib/providers/parse-fare-provider";
-import { FixtureFareProvider } from "@/lib/providers/fixture-fare-provider";
 import { WanderuBrowserProvider } from "@/lib/providers/wanderu-browser-provider";
+import { ParseFareProvider } from "@/lib/providers/parse-fare-provider";
 import { FallbackFareProvider } from "@/lib/providers/fallback-fare-provider";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { logger } from "@/lib/logger";
+import { FixtureFareProvider } from "@/lib/providers/fixture-fare-provider";
 
-const globalStore = globalThis as unknown as {
-  __raildropMemory?: MemoryRepository;
-  __raildropSaidLocal?: boolean;
-  __raildropMailer?: RecordingMailer;
+/* One service, because the product has one dependency.
+ *
+ * This file used to hand out three: a repository, a mailer and a fare
+ * provider. Two of them are gone with the watch feature — there is nothing
+ * to persist and nobody to email — and their absence is the point rather
+ * than a loss. A tool that reads live fares needs a thing that reads live
+ * fares.
+ */
+
+const globalStore = globalThis as typeof globalThis & {
   __raildropFareProvider?: FareProvider;
 };
 
-export function getRepository(): RailDropRepository {
-  const config = getConfig();
-  if (config.isOffline) {
-    if (config.localByDefault && !globalStore.__raildropSaidLocal) {
-      globalStore.__raildropSaidLocal = true;
-      // Once, loudly. Falling back is better than refusing to start, but a
-      // developer who thinks they are writing to Supabase must not find out
-      // from a missing row.
-      logger.warn("config.local_by_default", {
-        reason: "No NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY in this environment",
-        using: ".data/raildrop-local.json",
-        note: "Set them in .env.local to use Supabase, or RAILDROP_LOCAL=1 to keep this on purpose.",
-      });
-    }
-    globalStore.__raildropMemory ??=
-      config.isLocal && !config.isE2E
-        ? createPersistedMemoryRepository(path.join(process.cwd(), ".data/raildrop-local.json"))
-        : new MemoryRepository();
-    return globalStore.__raildropMemory;
-  }
-  /* Wrapped, because one lost TCP handshake should not lose a trip.
-     Reads retry on anything the diagnosis says is worth retrying; writes
-     retry only on connect-phase failures, which provably never reached the
-     server and therefore cannot have been applied twice. */
-  return withDatabaseRetry(new SupabaseRepository(createAdminClient()));
-}
-
 /**
  * Live fares only — never invent Amtrak prices.
- * Default: Wanderu (works local + Vercel without a Parse key).
- * Optional Parse: set FARE_PROVIDER=parse, or leave a PARSE_API_KEY and Wanderu will
- * fall back to Parse only when Wanderu returns PROVIDER_ERROR.
+ *
+ * Default: Wanderu, which works locally and on Vercel with no key.
+ * Optional Parse: set FARE_PROVIDER=parse, or leave a PARSE_API_KEY and
+ * Wanderu falls back to Parse only when Wanderu returns PROVIDER_ERROR.
  */
 export function getFareProvider(): FareProvider {
   if (globalStore.__raildropFareProvider) return globalStore.__raildropFareProvider;
@@ -71,21 +41,4 @@ export function getFareProvider(): FareProvider {
   const parse = config.parseApiKey ? new ParseFareProvider() : null;
   globalStore.__raildropFareProvider = new FallbackFareProvider(wanderu, parse);
   return globalStore.__raildropFareProvider;
-}
-
-export function getMailer(): Mailer {
-  const config = getConfig();
-  if (config.isOffline) {
-    globalStore.__raildropMailer ??= new RecordingMailer();
-    return globalStore.__raildropMailer;
-  }
-  return new ResendMailer();
-}
-
-export function getMemoryRepositoryForTests(): MemoryRepository {
-  const config = getConfig();
-  if (!config.isOffline) {
-    throw new Error("Offline memory repository is only available in local or E2E mode");
-  }
-  return getRepository() as MemoryRepository;
 }

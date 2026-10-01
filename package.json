@@ -25,10 +25,7 @@
     "dev:preview": "PORT=3211 npm run dev:local"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.129.0",
     "@sparticuz/chromium": "^149.0.0",
-    "@supabase/ssr": "^0.12.5",
-    "@supabase/supabase-js": "^2.114.0",
     "date-fns": "^4.4.0",
     "next": "16.3.4",
     "playwright": "^1.62.1",
@@ -36,15 +33,12 @@
     "puppeteer-core": "^24.22.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "resend": "^6.26.0",
-    "zod": "^4.5.4",
-    "pg": "^8.23.0"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
-    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitest/coverage-v8": "^4.1.11",

@@ -15,9 +15,9 @@ export default function NotFoundPage() {
       <div className="mt-4 max-w-xs">
         <RouteRibbon origin="BOS" destination="NYP" compact />
       </div>
-      <p className="mt-3 text-ink-soft">The watch may have been deleted, or the link is stale.</p>
-      <Link href="/dashboard" className="btn btn-primary mt-8">
-        Back to your watches
+      <p className="mt-3 text-ink-soft">The link is stale, or that route never existed here.</p>
+      <Link href="/fares" className="btn btn-primary mt-8">
+        Check a fare
       </Link>
     </main>
   );

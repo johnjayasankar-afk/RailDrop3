@@ -1,26 +1,23 @@
 import { ZodError } from "zod";
-import { diagnoseDatabase, looksLikeTransport } from "@/lib/db/diagnosis";
 
 /* What a person is told when something fails, and what the logs get instead.
  *
  * These are different strings and conflating them is how "TypeError: fetch
- * failed" ended up rendered in red under a Start watching button. That is the
- * text Node's undici produces when a hostname does not resolve; supabase-js
- * catches it and puts `String(err)` into `error.message`, and this module used
- * to pass anything it did not recognise straight through to the UI.
+ * failed" ended up rendered in red under a button. That is the text Node's
+ * undici produces when a host does not answer; a client catches it and puts
+ * `String(err)` into `error.message`, and this module used to pass anything
+ * it did not recognise straight through to the UI.
  *
  * A reader cannot act on "fetch failed". They can act on "we could not reach
- * the database, nothing was saved, try again". The operator needs the opposite:
- * the raw string, in the log, with the hostname still in it. So `errorMessage`
- * is for people and `errorDetail` is for logs, and every route uses both.
+ * the fare board". The operator needs the opposite: the raw string, in the
+ * log, with the hostname still in it. So `errorMessage` is for people and
+ * `errorDetail` is for logs, and every route uses both.
+ *
+ * This file used to carry a six-way database diagnosis as well — a deleted
+ * project, a paused one, a missing schema, a rejected key. There is no
+ * database now. What is left is the one distinction that still matters: did
+ * the request reach the fare provider at all?
  */
-
-/** Transport-level failure: the request never reached anything. */
-/* The unresolved/refused/timeout split moved to src/lib/db/diagnosis.ts, which
-   is where the decision that depends on it now lives. TRANSPORT_SIGNS stays
-   here because isTransportFailure answers a coarser question — did this ever
-   reach the database — which route status codes and page guards both need
-   without caring which way it failed. */
 
 const TRANSPORT_SIGNS = [
   "fetch failed",
@@ -30,27 +27,40 @@ const TRANSPORT_SIGNS = [
   "eai_again",
   "econnrefused",
   "econnreset",
-  "etimedout",
   "epipe",
   "socket hang up",
-  "getaddrinfo",
+  "terminated",
+  "etimedout",
+  "timeout",
+  "timed out",
+  "und_err",
   "unable to get local issuer",
   "self-signed certificate",
-  "terminated",
 ];
 
-/**
- * Set on the Error `toAppError` produces, so the classification survives being
- * rewritten into something readable.
- *
- * Without it the translation destroyed the evidence: createWatchAndScan wrapped
- * the failure into "We could not reach the database", the route then asked "is
- * this a transport failure?", that sentence contains none of the signs, and an
- * outage answered 400 Bad Request — telling every client that the caller had
- * sent something wrong.
- */
-const TRANSPORT = Symbol.for("raildrop.transportFailure");
+const TRANSPORT = Symbol.for("raildrop.transportError");
+const TRANSLATED = Symbol.for("raildrop.translatedError");
+const SOURCE = Symbol.for("raildrop.originalError");
 
+function rawMessage(error: unknown): string {
+  if (!error) return "";
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  if (typeof error === "object") {
+    if ("message" in error) return String((error as { message: unknown }).message ?? "");
+    // String({}) is "[object Object]", which in a log is a mystery wearing
+    // the costume of a diagnosis. The shape is what is useful here.
+    try {
+      const shape = JSON.stringify(error);
+      return shape && shape !== "{}" ? shape.slice(0, 500) : "";
+    } catch {
+      return "";
+    }
+  }
+  return String(error);
+}
+
+/** Transport-level failure: the request never reached anything. */
 export function isTransportFailure(error: unknown): boolean {
   if (
     typeof error === "object" &&
@@ -61,23 +71,13 @@ export function isTransportFailure(error: unknown): boolean {
   }
   const raw = rawMessage(error).toLowerCase();
   if (raw && TRANSPORT_SIGNS.some((sign) => raw.includes(sign))) return true;
-  // undici keeps the errno on the cause, and some clients rethrow with only a
-  // generic message on top.
+  // undici keeps the errno on the cause, and some clients rethrow with only
+  // a generic message on top.
   if (typeof error === "object" && error && "cause" in error) {
     const cause = rawMessage((error as { cause: unknown }).cause).toLowerCase();
     return Boolean(cause) && TRANSPORT_SIGNS.some((sign) => cause.includes(sign));
   }
   return false;
-}
-
-/** Tag a rewritten error so the classification travels with it. */
-function markTransport(error: Error, original: unknown): Error {
-  Object.defineProperty(error, TRANSPORT, { value: true, enumerable: false });
-  // Keep the original reachable for the log.
-  if (!("cause" in error) || error.cause === undefined) {
-    Object.defineProperty(error, "cause", { value: original, enumerable: false });
-  }
-  return error;
 }
 
 /** The untouched text, for logs. Never rendered to a reader. */
@@ -89,112 +89,11 @@ export function errorDetail(error: unknown): string {
     typeof error === "object" && error && "cause" in error
       ? rawMessage((error as { cause: unknown }).cause)
       : "",
-    /* supabase-js does not use `cause`. It rejects with a plain object and puts
-     * the same information in `details`, so this function — whose whole job is
-     * to keep the hostname in the log — was dropping it for the one client that
-     * actually reads the database. A real outage logged
-     * `page.records_unreachable ... detail: "TypeError: fetch failed"` and named
-     * no host, which is the mystery log line the split exists to prevent. */
-    typeof error === "object" && error && "details" in error
-      ? String((error as { details: unknown }).details ?? "")
-      : "",
   ]
     // A stack trace in a log line is noise; the hostname and errno lead it.
     .map((part) => part.replace(/\s+/g, " ").trim().slice(0, 300))
     .filter((part) => part && !raw.includes(part));
   return extra.length > 0 ? `${raw} (${extra.join("; ")})` : raw;
-}
-
-function rawMessage(error: unknown): string {
-  if (!error) return "";
-  if (error instanceof Error) return error.message;
-  if (typeof error === "string") return error;
-  if (typeof error === "object") {
-    if ("message" in error) return String((error as { message: unknown }).message ?? "");
-    // String({}) is "[object Object]", which in a log is a mystery wearing the
-    // costume of a diagnosis. The shape is what is useful here.
-    try {
-      const shape = JSON.stringify(error);
-      return shape && shape !== "{}" ? shape.slice(0, 500) : "";
-    } catch {
-      return "";
-    }
-  }
-  return String(error);
-}
-
-/**
- * Set on an Error this function has already produced.
- *
- * Translating twice was destroying the diagnosis. createWatchAndScan wraps a
- * failure with toAppError, which correctly read ECONNREFUSED out of the
- * Supabase error's `details` and produced "the database is not accepting
- * connections — on our hosting that usually means it has been paused". The
- * route then called errorMessage() on that Error, which called toAppError
- * again — and the second pass had only the sentence to work from, which
- * contains no errno, so it fell through to "we could not tell whether it is a
- * passing glitch" and told the reader to try again.
- *
- * Both messages are in the same log line, which is what gave it away: `detail`
- * held the right answer and `message` held the wrong one.
- */
-const TRANSLATED = Symbol.for("raildrop.translatedError");
-
-/** Normalize Supabase / Zod / unknown failures into a user-facing Error. */
-export function toAppError(error: unknown): Error {
-  if (
-    error instanceof Error &&
-    (error as unknown as Record<symbol, unknown>)[TRANSLATED] === true
-  ) {
-    return error;
-  }
-  if (error instanceof ZodError) {
-    const detail = error.issues.map((issue) => issue.message).join("; ");
-    return markTranslated(new Error(detail || "Invalid watch details"), error);
-  }
-  if (error instanceof Error) {
-    const rewritten = markTranslated(
-      new Error(friendlyDbMessage(error.message, "", errorDetail(error))),
-      error,
-    );
-    return isTransportFailure(error) ? markTransport(rewritten, error) : rewritten;
-  }
-  if (typeof error === "object" && error && "message" in error) {
-    const message = String((error as { message: unknown }).message ?? "");
-    const code =
-      "code" in error && (error as { code: unknown }).code != null
-        ? String((error as { code: unknown }).code)
-        : "";
-    const rewritten = markTranslated(
-      new Error(friendlyDbMessage(message, code, errorDetail(error))),
-      error,
-    );
-    return isTransportFailure(error) ? markTransport(rewritten, error) : rewritten;
-  }
-  return markTranslated(new Error("Could not create watch"), error);
-}
-
-/** Stamp an Error as already translated, so a second pass leaves it alone. */
-const SOURCE = Symbol.for("raildrop.originalError");
-
-/* Keep the untranslated failure on every rewrite, not just on transport ones.
- *
- * markTransport already did this, and that asymmetry was the bug. Once a
- * message has been replaced by a sentence for a human, the errno, the
- * SQLSTATE and the hostname are gone — so any later caller that needs to
- * DECIDE something has nothing left to read but the prose. The route was
- * reduced to `message.includes("Database needs")` to pick a status code,
- * which is a string match against a sentence I am free to reword, and which
- * silently misclassified the two faults it did not happen to name.
- *
- * A translated error now carries its source, and `databaseDiagnosis` unwraps
- * to it. Diagnose the cause, never the copy. */
-function markTranslated(error: Error, original?: unknown): Error {
-  Object.defineProperty(error, TRANSLATED, { value: true, enumerable: false });
-  if (original !== undefined) {
-    Object.defineProperty(error, SOURCE, { value: original, enumerable: false });
-  }
-  return error;
 }
 
 /** The failure as it arrived, before any rewriting. */
@@ -206,58 +105,43 @@ export function originalError(error: unknown): unknown {
   return error;
 }
 
-/* One classifier, in src/lib/db/diagnosis.ts.
- *
- * This function used to hold the whole decision, and it had two branches for
- * transport: a hostname that does not resolve, and everything else, where
- * "everything else" ended "try again in a minute". A paused Supabase project
- * — the free tier's default after a week of quiet — keeps its DNS record and
- * refuses the connection, so it landed in "everything else" and told people
- * to wait for something that only comes back when a person restores it.
- *
- * `diagnoseDatabase` separates six causes and, more importantly, carries
- * `retryWorks`, so no branch can promise recovery by accident. /api/health
- * reads the same classifier, which is the other reason it moved: the page a
- * reader sees and the endpoint an operator curls now cannot disagree about
- * what is wrong.
- */
-function friendlyDbMessage(message: string, code = "", diagnostic = message): string {
-  const carrier = { message, code, details: diagnostic };
-  const { fault, message: friendly } = diagnoseDatabase(carrier);
-  /* A message we could not place is left alone rather than replaced.
-   *
-   * Validation failures arrive here too — "Enter the actual total you paid" is
-   * not a database fault — and a house sentence about the database would be a
-   * worse answer than the accurate one the caller already wrote. */
-  if (fault === "unknown" && !looksLikeTransport(carrier)) {
-    return message || "Could not create watch";
+function mark(error: Error, original: unknown, transport: boolean): Error {
+  Object.defineProperty(error, TRANSLATED, { value: true, enumerable: false });
+  Object.defineProperty(error, SOURCE, { value: original, enumerable: false });
+  if (transport) {
+    Object.defineProperty(error, TRANSPORT, { value: true, enumerable: false });
   }
-  return friendly;
+  return error;
 }
 
-/** The full diagnosis, for callers that want the remedy as well as the sentence. */
-export function databaseDiagnosis(error: unknown, configured = true) {
-  // The source, not the sentence: a translated error's message has had the
-  // errno and the SQLSTATE replaced by prose, and prose does not classify.
-  return diagnoseDatabase(originalError(error), { configured });
-}
+const UNREACHED =
+  "We could not reach the fare board, so there is nothing to show for this search. " +
+  "No price here is ever a guess, so we would rather show you none than one we did not see. " +
+  "Trying again in a moment usually works.";
 
 /**
- * Whether this failure belongs to the database rather than to the request.
+ * Normalize a failure into something a reader can act on.
  *
- * The distinction decides a status code, and the status code decides what the
- * form does: a 4xx says "your request was wrong, edit it and resend", which
- * for an unreachable database or an unapplied schema is false and cruel —
- * nothing the traveller could change about the request would have worked.
- *
- * Transport is the obvious half. The other half is the Postgres conditions —
- * a missing table, a rejected key, row-level security — which are equally
- * not the reader's fault and were being answered with 400.
+ * Translating twice used to destroy the diagnosis, so a translated error is
+ * returned unchanged and keeps its source for anyone who needs to classify
+ * it afterwards. Diagnose the cause, never the copy.
  */
-export function isDatabaseFault(error: unknown): boolean {
-  const source = originalError(error);
-  const { fault } = diagnoseDatabase(source);
-  return fault !== "unknown" || looksLikeTransport(source) || isTransportFailure(error);
+export function toAppError(error: unknown): Error {
+  if (
+    error instanceof Error &&
+    (error as unknown as Record<symbol, unknown>)[TRANSLATED] === true
+  ) {
+    return error;
+  }
+  if (error instanceof ZodError) {
+    const detail = error.issues.map((issue) => issue.message).join("; ");
+    return mark(new Error(detail || "Check the route and date and try again"), error, false);
+  }
+  if (isTransportFailure(error)) {
+    return mark(new Error(UNREACHED), error, true);
+  }
+  const raw = rawMessage(error);
+  return mark(new Error(raw || "Something went wrong reading the fare board"), error, false);
 }
 
 export function errorMessage(error: unknown): string {

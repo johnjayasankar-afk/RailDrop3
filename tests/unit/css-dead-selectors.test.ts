@@ -91,9 +91,13 @@ describe("globals.css does not style classes nothing renders", () => {
 
   it("finds the app's own component classes", () => {
     // A regex that matches nothing passes every assertion below it.
-    expect(classes.size).toBeGreaterThan(150);
+    /* Was 150, when the stylesheet also dressed a dashboard, a board, a
+       command palette and seven authenticated routes. Those are gone and
+       390 rules went with them; the floor tracks what the app is now, and
+       the two named classes are ones the surviving surfaces emit. */
+    expect(classes.size).toBeGreaterThan(80);
     expect(classes.has("flap-leaf")).toBe(true);
-    expect(classes.has("hud-label")).toBe(true);
+    expect(classes.has("lookup-day")).toBe(true);
   });
 
   it("has no selector for a class no component emits", () => {

@@ -150,8 +150,8 @@ export default async function HowItWorksPage() {
         </Section>
 
         <div className="mt-12 flex flex-wrap items-center gap-3">
-          <Link href="/api/auth/guest?next=%2Fwatches%2Fnew" className="btn btn-primary">
-            Watch a booked trip
+          <Link href="/fares" className="btn btn-primary">
+            Check a fare
           </Link>
           <Link href="/" className="btn btn-ghost">
             Back to the front

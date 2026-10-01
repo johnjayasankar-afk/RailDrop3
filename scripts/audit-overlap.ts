@@ -40,56 +40,44 @@ const WIDTHS = [375, 768, 1280];
 /** Declared at module scope so the report can say how many of these were
  *  actually reached; the browser side receives it as an argument. */
 const TYPE_PRIMITIVES = [
-  ".readout-mark",
+  /* Scoped to a declared list of type primitives that sit on solid fills.
+     A generic sweep over everything reported 114 failures once and every
+     one was the checker misreading a colour space — a gate that cries wolf
+     is a gate people learn to skip.
+
+     Trimmed when the watch surfaces were deleted: twenty-five of these
+     named classes no component emits any more, and an unreachable selector
+     reads exactly like a passing one. */
   ".readout",
+  ".readout-mark",
   ".micro",
-  ".hud-label",
-  ".hud-delta",
-  ".hud-callname",
-  ".verdict-qual",
-  /* The date row. Unboxing the fare turned this card from a board
-     surface into a paper one and left board ink on it, so in light mode
-     its labels were white on white — and the sweep did not look, because
-     the card was not on this list. */
-  ".date-card .eyebrow",
-  ".date-card > :first-child",
-  ".ladder-end",
-  ".unsaved-lead",
-  ".unsaved-foot",
-  /* Controls. The material layer left .btn-primary with a transparent
-     background and white text on porcelain — 1.05:1, invisible — and
-     this sweep did not look, because it only watched type. A button is
-     the surface where a contrast failure costs the most. */
+  ".kicker",
+  ".lookup-title",
+  ".lookup-lede",
+  ".lookup-verdict",
+  ".lookup-day-label",
+  ".lookup-day-flag",
+  ".lookup-row-train",
+  ".lookup-row-when",
+  ".lookup-paid-out",
+  ".lookup-caveat",
+  ".lookup-note",
+  ".spec-value",
+  ".spec-copy",
+  ".step-lede",
+  ".closer-say",
+  ".faq summary",
+  ".method-prose p",
+  ".hero-field .micro",
+  ".sample-head",
+  ".price",
+  /* Controls. The material layer once left .btn-primary with a transparent
+     background and white text on porcelain — 1.05:1, invisible — and this
+     sweep did not look, because it only watched type. */
   ".btn",
   ".btn-primary",
   ".btn-ghost",
-  ".chip",
-  /* Widened before the redesign, on the principle that a gate you extend
-     after you change the colours is a gate that ratifies whatever you
-     did. These are the type primitives a reader actually reads: the
-     headings, the lede, the prose, the FAQ, the figures on the board. */
-  ".lookup-title",
-  ".lookup-lede",
-  ".kicker",
-  ".eyebrow",
-  ".spec-value",
-  ".metric-value",
-  ".board-note",
-  ".faq summary",
-  ".method-prose p",
-  ".hud-value",
-  ".hud-money",
-  ".verdict > p",
-  ".fh-stats dd",
-  ".fh-call-reason",
-  ".coverage-note",
-  ".sample-head",
-  ".board-head",
-  ".filter-label",
-  ".ticket .price",
-  ".assistant-note",
-  ".lookup-caveat",
-  ".prov-note",
+  ".choice",
 ];
 const TYPE_PRIMITIVE_COUNT = TYPE_PRIMITIVES.length;
 
@@ -378,67 +366,44 @@ async function main(): Promise<void> {
   });
   const page = await context.newPage();
 
-  // A guest session, so the authenticated pages render something.
-  await page.goto(`${BASE}/api/auth/guest?next=/dashboard`, { waitUntil: "domcontentloaded" });
-  /* Compile /watches/[id] BEFORE the watch exists.
-   *
-   * In dev the first request to a route builds its module graph from scratch,
-   * which hands the in-memory repository a brand new empty Map — so a watch
-   * created seconds earlier is gone by the time the page renders it. The board
-   * page is the LAST path in the sweep, so its first visit was always its
-   * compile, and this audit spent every run reporting on "That page is not on
-   * this timetable" while claiming to have checked the fare board. A clean
-   * result from a page that was never loaded is worse than no audit. */
-  await page.goto(`${BASE}/watches/00000000-0000-0000-0000-000000000000`, {
-    waitUntil: "domcontentloaded",
-  });
-  const created = await page.evaluate(async () => {
-    const response = await fetch("/api/watches", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        originCode: "BOS",
-        destinationCode: "NYP",
-        desiredTravelDate: "2026-10-09",
-        dateFlexibilityDays: 1,
-        currentBookedPriceCents: 12_800,
-      }),
-    });
-    const json = (await response.json()) as { watch?: { id: string }; id?: string };
-    return json.watch?.id ?? json.id ?? null;
-  });
-
-  /* Each page says what proves it rendered.
+  /* Every page says what proves it rendered.
    *
    * The first version of this guard asked only "does <main> have more than a
-   * hundred characters", which the 404 page passes with room to spare — it is
-   * a designed page with a headline and two paragraphs. An audit that cannot
-   * tell the fare board from "That page is not on this timetable" reports a
-   * clean sweep of a page it never saw. The selector is the contract. */
-  const paths: { path: string; must: string }[] = [
-    { path: "/", must: ".ticket" },
+   * hundred characters", which the 404 page passes with room to spare — it
+   * is a designed page with a headline and two paragraphs. An audit that
+   * cannot tell the fare results from "that page is not on this timetable"
+   * reports a clean sweep of a page it never saw. The selector is the
+   * contract. */
+  const paths: { path: string; must: string; search?: boolean }[] = [
+    { path: "/", must: ".hero-search" },
     { path: "/fares", must: ".lookup" },
-    { path: "/watches/new", must: "form" },
-    { path: "/dashboard", must: ".lookup-title" },
+    { path: "/fares", must: ".lookup-results", search: true },
     { path: "/how-it-works", must: ".method-prose" },
-    { path: "/settings", must: ".panel" },
-    { path: "/login", must: "form" },
-    ...(created ? [{ path: `/watches/${created}`, must: ".trip-rail" }] : []),
   ];
-
-  if (!created) {
-    console.error("\n  Could not create a watch — the board page would not be audited.\n");
-    process.exitCode = 1;
-    await browser.close();
-    return;
-  }
 
   const findings: Finding[] = [];
   const missing: string[] = [];
   for (const width of WIDTHS) {
     await page.setViewportSize({ width, height: 900 });
-    for (const { path, must } of paths) {
+    for (const { path, must, search } of paths) {
       await page.goto(`${BASE}${path}`, { waitUntil: "networkidle" });
+      /* Run the search before measuring.
+       *
+       * /fares renders a form until somebody asks it something, so sweeping
+       * the route swept an empty page and reported a clean result for the
+       * densest surface in the product — the one with the figures, the day
+       * strip and the daypart strip on it. Twenty-three of the declared
+       * type primitives only exist after a search returns. */
+      if (search) {
+        await page.getByLabel("From").fill("BOS");
+        await page.getByLabel("To", { exact: true }).fill("NYP");
+        // The picker's suggestion list reflows the button out from under the
+        // click; Escape closes it and the body click commits the value.
+        await page.keyboard.press("Escape");
+        await page.locator("body").click({ position: { x: 2, y: 2 } });
+        await page.getByRole("button", { name: "Check the fare" }).click();
+        await page.waitForSelector(".lookup-results", { timeout: 90_000 }).catch(() => undefined);
+      }
       // Let fonts settle: a fallback face measures differently and invents overlaps.
       await page.evaluate(() => document.fonts.ready);
       await page.waitForTimeout(350);

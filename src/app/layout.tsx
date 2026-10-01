@@ -3,7 +3,6 @@ import localFont from "next/font/local";
 import { LocalModeBanner } from "@/components/local-mode-banner";
 import { appOrigin } from "@/lib/config";
 import "./globals.css";
-import { EmbedAnnounce } from "@/components/embed-announce";
 
 // Two faces, self-hosted: Inter for reading, IBM Plex Mono for codes and
 // times. The display serif is gone — the shipped design sets the wordmark and
@@ -103,7 +102,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <div className="relative z-10">
           <LocalModeBanner />
           {children}
-          <EmbedAnnounce />
         </div>
       </body>
     </html>

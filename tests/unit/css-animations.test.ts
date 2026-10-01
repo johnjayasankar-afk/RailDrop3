@@ -102,11 +102,15 @@ describe("globals.css animations", () => {
   });
 
   it("would catch the bug it was written for", () => {
-    // The exact declaration that shipped, against a set that no longer holds it.
-    const orphan = referencedKeyframes.call(null);
-    expect(orphan).toBeDefined();
+    /* The original bug: retiring `flap-tick` left three rules animating a
+       keyframe that no longer existed, which CSS does not complain about.
+       `surface-in` was its replacement and went with the surfaces it
+       animated, so the positive control is now a keyframe that is still
+       both declared and used. */
     expect(declared.has("flap-tick")).toBe(false);
-    expect(declared.has("surface-in")).toBe(true);
+    expect(declared.has("surface-in")).toBe(false);
+    expect(declared.has("flap-in")).toBe(true);
+    expect(referenced.has("flap-in")).toBe(true);
   });
 });
 
@@ -120,10 +124,11 @@ describe("every rotateX has perspective above it", () => {
      that carries the perspective for it, and that selector must actually
      declare perspective. Adding a fourth rotator fails this test until its
      author says where the depth comes from. */
+  /* `empty-flap` / `.board-empty-flaps` went with the board. The split-flap
+     itself survives: it sets the hero fare and the station codes. */
   const ROTATORS: Record<string, string> = {
     "flap-in": ".flap",
     "flap-out": ".flap",
-    "empty-flap": ".board-empty-flaps",
   };
 
   const rotating = [...CODE.matchAll(/@keyframes\s+([\w-]+)\s*\{([^@]*?)\n\}/g)]
@@ -154,8 +159,8 @@ describe("every rotateX has perspective above it", () => {
   it("can tell a rule with perspective from one without", () => {
     // Otherwise the check above passes by failing to find anything.
     expect(ruleFor(".flap")).toMatch(/perspective/);
-    expect(ruleFor(".board-empty-flaps")).toMatch(/perspective/);
-    expect(ruleFor(".share-sheet")).not.toMatch(/perspective/);
+    // A rule that exists and legitimately has no perspective.
+    expect(ruleFor(".price")).not.toMatch(/perspective/);
     expect(ruleFor(".definitely-not-a-selector")).toBeNull();
   });
 });

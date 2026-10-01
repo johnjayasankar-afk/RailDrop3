@@ -3,9 +3,15 @@ import type { AppConfig } from "@/lib/config";
 
 /* The operator credential.
  *
- * Two endpoints do work that costs money without a user asking for it: the
- * cron dispatcher, and the live provider probe. Both are gated on CRON_SECRET,
- * presented as `Authorization: Bearer <secret>`.
+ * One endpoint does work that costs money without a user asking for it: the
+ * live provider probe, which launches Chromium and runs a real search. It is
+ * gated on CRON_SECRET, presented as `Authorization: Bearer <secret>`. The
+ * cron dispatcher used the same gate and is gone with the watch feature.
+ *
+ * This is all that survives of src/lib/auth. There are no accounts, no
+ * sessions and no guests any more — the product reads public fares and asks
+ * nobody who they are. What is left is not user auth; it is a key on the one
+ * door that spends money.
  *
  * Header only. The query-string form this used to accept put the secret into
  * Vercel's access logs, into any Referer sent onward, and into the history of

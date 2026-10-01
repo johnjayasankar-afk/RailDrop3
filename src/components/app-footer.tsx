@@ -1,14 +1,12 @@
-import { Suspense } from "react";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { getSessionUser } from "@/lib/auth/session";
 
-/* The footer, with its session-dependent links behind a boundary.
+/* The whole footer is static now.
  *
- * Same reason as the header: the brand, the rule and "How it works" are the
- * same for everybody, and only three of the links are not. Keeping the whole
- * footer out of the static shell to vary three hrefs is what a route segment
- * config used to cost.
+ * It had a Suspense boundary around a `use cache: private` session read, to
+ * vary three hrefs between a signed-in and a signed-out visitor. There are
+ * no visitors to tell apart any more, so the boundary, the cache scope and
+ * the fallback all go with it.
  */
 export function AppFooter() {
   return (
@@ -27,57 +25,15 @@ export function AppFooter() {
           <span className="serif text-lg">RailDrop</span>
         </Link>
         <nav className="flex flex-wrap gap-4">
+          <Link href="/fares" className="hover:text-ink">
+            Check a fare
+          </Link>
           <Link href="/how-it-works" className="hover:text-ink">
             How it works
           </Link>
-          <Suspense fallback={<FooterAccountFallback />}>
-            <FooterAccount />
-          </Suspense>
         </nav>
         <ThemeToggle />
       </div>
     </footer>
-  );
-}
-
-async function FooterAccount() {
-  "use cache: private";
-
-  const user = await getSessionUser();
-  const signedIn = Boolean(user);
-  const isGuest = Boolean(user?.isGuest);
-
-  return (
-    <>
-      <Link href={signedIn ? "/dashboard" : "/"} className="hover:text-ink">
-        {signedIn ? "Your watches" : "Home"}
-      </Link>
-      <Link
-        href={signedIn ? "/watches/new" : "/api/auth/guest?next=%2Fwatches%2Fnew"}
-        className="hover:text-ink"
-      >
-        Watch a trip
-      </Link>
-      {signedIn && !isGuest ? (
-        <Link href="/settings" className="hover:text-ink">
-          Settings
-        </Link>
-      ) : (
-        <Link href="/login" className="hover:text-ink">
-          Sign in
-        </Link>
-      )}
-    </>
-  );
-}
-
-/** The signed-out links, so the footer does not reflow when the real ones land. */
-function FooterAccountFallback() {
-  return (
-    <span className="footer-account-pending" aria-hidden inert>
-      <span>Home</span>
-      <span>Watch a trip</span>
-      <span>Sign in</span>
-    </span>
   );
 }

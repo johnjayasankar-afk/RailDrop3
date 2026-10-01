@@ -1,31 +1,17 @@
 {
   "installCommand": "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install",
   "functions": {
-    "src/app/api/watches/route.ts": {
+    "src/app/api/fares/route.ts": {
       "maxDuration": 300,
       "memory": 2048
     },
-    "src/app/api/watches/[id]/check/route.ts": {
+    "src/app/api/fares/stream/route.ts": {
       "maxDuration": 300,
       "memory": 2048
-    },
-    "src/app/api/cron/dispatch/route.ts": {
-      "maxDuration": 60,
-      "memory": 1024
     },
     "src/app/api/health/provider/route.ts": {
       "maxDuration": 120,
       "memory": 2048
-    },
-    "src/app/api/cron/worker/route.ts": {
-      "maxDuration": 300,
-      "memory": 2048
     }
-  },
-  "crons": [
-    {
-      "path": "/api/cron/dispatch",
-      "schedule": "5 12 * * *"
-    }
-  ]
+  }
 }

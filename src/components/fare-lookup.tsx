@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import Link from "next/link";
 import { StationField } from "@/components/station-field";
 import { DateField } from "@/components/date-field";
 import { formatUsdCompact } from "@/lib/domain/money";
@@ -221,30 +220,12 @@ export function FareLookup({ today, initial }: { today: string; initial?: Shared
         </button>
       </form>
 
-      <Results
-        state={state}
-        passengers={passengers}
-        origin={origin}
-        destination={destination}
-        date={date}
-      />
+      <Results state={state} passengers={passengers} />
     </div>
   );
 }
 
-function Results({
-  state,
-  passengers,
-  origin,
-  destination,
-  date,
-}: {
-  state: State;
-  passengers: number;
-  origin: string;
-  destination: string;
-  date: string;
-}) {
+function Results({ state, passengers }: { state: State; passengers: number }) {
   const cheapest = useMemo(
     () => (state.status === "done" ? state.preview.ranked[0] : undefined),
     [state],
@@ -502,29 +483,6 @@ function Results({
         </p>
       ) : null}
 
-      {/* Offered after an answer, not instead of one.
-          This was a sentence of small print under the results. Watching is
-          the genuinely useful second step once somebody has seen a price
-          they might want to move on — so it gets a real control, and it
-          carries the route and date they just searched rather than making
-          them type it a second time. */}
-      <aside className="lookup-next">
-        <div>
-          <p className="lookup-next-say">Want to know if this drops?</p>
-          <p className="lookup-next-sub">
-            We check once a day and email you only when a listed fare actually improves. Optional,
-            and no account needed.
-          </p>
-        </div>
-        <Link
-          href={`/api/auth/guest?next=${encodeURIComponent(
-            `/watches/new?from=${origin}&to=${destination}&on=${date}`,
-          )}`}
-          className="btn btn-ghost"
-        >
-          Watch this trip
-        </Link>
-      </aside>
       <p className="lookup-note">Listed fares, not a booking. Confirm on Amtrak.</p>
     </section>
   );

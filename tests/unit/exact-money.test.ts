@@ -72,7 +72,8 @@ describe("cents reach the screen exactly", () => {
 
   it("scans every component and page", () => {
     // A glob that matches nothing passes every assertion below it.
-    expect(files.length).toBeGreaterThan(40);
+    // Was 40, across eight routes; the app is three surfaces now.
+    expect(files.length).toBeGreaterThan(25);
   });
 
   it("has no surface that rounds cents to whole dollars", () => {

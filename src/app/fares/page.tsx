@@ -16,15 +16,29 @@ export async function generateMetadata({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }): Promise<Metadata> {
   const params = await searchParams;
-  const today = localIsoDate(new Date(), "America/New_York");
-  const search = readSharedSearch(params, today);
+  /* No clock here.
+   *
+   * This used to resolve the travel date against `new Date()` so a shared
+   * link with no `on=` could still name a day in its description. Under
+   * Cache Components an unstable value in a prerender is an error, not a
+   * warning — and metadata is prerendered — so the whole route was logging
+   * one on every build. It was also the wrong sentence: naming today's date
+   * in a title for a link that means "whenever you open this" is a date
+   * nobody asked for.
+   *
+   * A date is named only when the link carries one. Everything else here is
+   * already request-free. */
+  const search = readSharedSearch(params, "");
   const named = typeof params.from === "string" || typeof params.to === "string";
+  const on = typeof params.on === "string" && search.travelDate ? search.travelDate : null;
   return {
     title: named
       ? `${search.originCode} → ${search.destinationCode} · Check a fare`
       : "Check a fare",
     description: named
-      ? `What ${search.originCode} to ${search.destinationCode} is listed at on ${search.travelDate ? formatDisplayDateLong(search.travelDate) : "your date"}. Live fares only — never an estimate.`
+      ? `What ${search.originCode} to ${search.destinationCode} is listed at ` +
+        `${on ? `on ${formatDisplayDateLong(on)}` : "on your date"}. ` +
+        "Live fares only — never an estimate."
       : "What an Amtrak route is listed at right now. No account, nothing saved, and never an estimated price.",
   };
 }

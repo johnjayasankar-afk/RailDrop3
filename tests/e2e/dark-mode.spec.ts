@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { createWatch, hideDevOverlay, signIn } from "./helpers";
+import { hideDevOverlay, searchFares } from "./helpers";
 
 /* Night.
  *
@@ -37,7 +37,6 @@ async function luminanceOf(page: import("@playwright/test").Page, selector: stri
 test.describe("dark mode", () => {
   test("follows the system preference", async ({ page }) => {
     await page.emulateMedia({ colorScheme: "dark" });
-    await signIn(page);
     await page.goto("/how-it-works");
     const luminance = await luminanceOf(page, "body");
     expect(luminance, "body should be near-black").toBeLessThan(0.05);
@@ -107,14 +106,13 @@ test.describe("dark mode", () => {
     expect(await luminanceOf(page, "body")).toBeLessThan(0.05);
   });
 
-  test("leaves no porcelain rectangles on the board", async ({ page }) => {
+  test("leaves no porcelain rectangles on the results", async ({ page }) => {
     /* The failure this catches: a surface with a hardcoded #ffffff that nobody
        tokenised. The header and the action dock were both exactly this — one a
        white bar across the top of a near-black page, one a white strip at the
        foot of it. */
     await page.emulateMedia({ colorScheme: "dark" });
-    await signIn(page);
-    await createWatch(page);
+    await searchFares(page);
 
     const bright = await page.evaluate(() => {
       const offenders: string[] = [];

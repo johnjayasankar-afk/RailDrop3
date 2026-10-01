@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { createWatch, hideDevOverlay, signIn } from "./helpers";
+import { hideDevOverlay, searchFares } from "./helpers";
 
 /* Structural accessibility, checked on the rendered page.
  *
@@ -19,9 +19,8 @@ import { createWatch, hideDevOverlay, signIn } from "./helpers";
 
 const PAGES: Array<{ name: string; path: string }> = [
   { name: "landing", path: "/" },
+  { name: "fares", path: "/fares" },
   { name: "how it works", path: "/how-it-works" },
-  { name: "new watch", path: "/watches/new" },
-  { name: "dashboard", path: "/dashboard" },
 ];
 
 /** Everything a screen reader would announce as nameless. */
@@ -87,7 +86,6 @@ async function skippedHeadings(page: Page) {
 test.describe("accessibility", () => {
   for (const { name, path } of PAGES) {
     test(`${name}: every control has a name`, async ({ page }) => {
-      await signIn(page);
       await page.goto(path);
       await hideDevOverlay(page);
       const offenders = await namelessControls(page);
@@ -95,14 +93,12 @@ test.describe("accessibility", () => {
     });
 
     test(`${name}: the heading outline does not skip a level`, async ({ page }) => {
-      await signIn(page);
       await page.goto(path);
       const jumps = await skippedHeadings(page);
       expect(jumps, `on ${path}: ${jumps.join("; ")}`).toEqual([]);
     });
 
     test(`${name}: has one main landmark and exactly one h1`, async ({ page }) => {
-      await signIn(page);
       await page.goto(path);
       const counts = await page.evaluate(() => ({
         main: document.querySelectorAll("main, [role=main]").length,
@@ -115,19 +111,17 @@ test.describe("accessibility", () => {
     });
   }
 
-  test("the board: every control has a name", async ({ page }) => {
+  test("the results: every control has a name", async ({ page }) => {
     // The densest page in the app by a wide margin, and the one where a
     // nameless icon button is most likely to slip in.
-    await signIn(page);
-    await createWatch(page);
+    await searchFares(page);
     await hideDevOverlay(page);
     const offenders = await namelessControls(page);
-    expect(offenders, `nameless on the board:\n${offenders.join("\n")}`).toEqual([]);
+    expect(offenders, `nameless on the results:\n${offenders.join("\n")}`).toEqual([]);
   });
 
-  test("the board: the heading outline does not skip a level", async ({ page }) => {
-    await signIn(page);
-    await createWatch(page);
+  test("the results: the heading outline does not skip a level", async ({ page }) => {
+    await searchFares(page);
     const jumps = await skippedHeadings(page);
     expect(jumps, jumps.join("; ")).toEqual([]);
   });
@@ -136,8 +130,7 @@ test.describe("accessibility", () => {
     /* A positive tabindex jumps its element to the front of the tab order for
        the whole document, which reorders every other control on the page
        relative to it. It is almost never what anyone meant. */
-    await signIn(page);
-    await createWatch(page);
+    await searchFares(page);
     const positive = await page.evaluate(() =>
       Array.from(document.querySelectorAll("[tabindex]"))
         .map((el) => Number(el.getAttribute("tabindex")))
@@ -149,8 +142,7 @@ test.describe("accessibility", () => {
   test("keyboard focus is visible wherever it lands", async ({ page }) => {
     /* `outline: none` with nothing in its place is the single most common way
        to make a page unusable by keyboard while looking fine in review. */
-    await signIn(page);
-    await page.goto("/watches/new");
+    await page.goto("/fares");
     await hideDevOverlay(page);
 
     const invisible: string[] = [];
@@ -176,8 +168,7 @@ test.describe("accessibility", () => {
   test("the skip link works and lands somewhere real", async ({ page }) => {
     // The first thing a keyboard user meets, and it is useless if its target
     // does not exist.
-    await signIn(page);
-    await page.goto("/watches/new");
+    await page.goto("/fares");
     await page.keyboard.press("Tab");
     const skip = await page.evaluate(() => {
       const el = document.activeElement as HTMLAnchorElement | null;
@@ -192,25 +183,5 @@ test.describe("accessibility", () => {
     expect(skip, "the first tab stop should be a skip link").not.toBeNull();
     expect(skip!.text).toMatch(/skip/i);
     expect(skip!.targetExists, `${skip!.href} does not exist`).toBe(true);
-  });
-
-  test("the command palette is announced as a dialog and traps nothing", async ({ page }) => {
-    await signIn(page);
-    await createWatch(page);
-    await hideDevOverlay(page);
-    await page.keyboard.press("ControlOrMeta+k");
-
-    const dialog = page.getByRole("dialog", { name: /board commands/i });
-    await expect(dialog).toBeVisible();
-    /* Scoped to the dialog: a <select> has an implicit combobox role, so an
-       unscoped query matches the board's Sort control too. */
-    const combo = dialog.getByRole("combobox");
-    await expect(combo).toBeFocused();
-    await expect(combo).toHaveAttribute("aria-controls", /palette-list/);
-    await expect(combo).toHaveAttribute("aria-activedescendant", /palette-/);
-
-    // Escape gets you out. A dialog you cannot leave by keyboard is a trap.
-    await page.keyboard.press("Escape");
-    await expect(dialog).toBeHidden();
   });
 });

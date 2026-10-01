@@ -98,22 +98,17 @@ const nextConfig: NextConfig = {
    * never scrape. `*` stands in for `[id]` on purpose — these keys are picomatch
    * globs, and a literal `[id]` would be read as a character class.
    */
+  /* The Chromium binary, for the three routes that launch it.
+   *
+   * `executablePath()` composes its path at runtime, and tracing follows
+   * imports — so nothing tells the bundler the binary is needed and the
+   * route 500s in production while working perfectly in dev. That cost a
+   * fortnight once. Seven routes needed this; three do now, and a test
+   * asserts the list covers every route that reaches for a provider. */
   outputFileTracingIncludes: {
     "/api/fares": ["./node_modules/@sparticuz/chromium/bin/**"],
     "/api/fares/stream": ["./node_modules/@sparticuz/chromium/bin/**"],
-    "/api/watches": ["./node_modules/@sparticuz/chromium/bin/**"],
-    "/api/watches/*/check": ["./node_modules/@sparticuz/chromium/bin/**"],
-    "/api/cron/worker": ["./node_modules/@sparticuz/chromium/bin/**"],
-    "/api/cron/dispatch": ["./node_modules/@sparticuz/chromium/bin/**"],
     "/api/health/provider": ["./node_modules/@sparticuz/chromium/bin/**"],
-    /* The schema, read from disk at request time.
-     *
-     * Tracing follows imports, and this is a readFile of a path built at
-     * runtime — so nothing tells the bundler the file is needed and the route
-     * would 500 in production with ENOENT while working perfectly in dev.
-     * The same omission is what kept the Chromium binary out of the bundle
-     * for six routes above. */
-    "/api/admin/setup-database": ["./supabase/SETUP_ALL.sql"],
   },
   turbopack: {
     root: process.cwd(),

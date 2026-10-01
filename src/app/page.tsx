@@ -127,15 +127,6 @@ export default async function HomePage() {
             <p className="mt-5 text-xs uppercase tracking-[0.16em] text-ink-soft">
               No account · nothing saved · never an invented price
             </p>
-            {/* The watch is the second question, and only worth asking once
-                you have seen the first answer. */}
-            <p className="mt-4 text-sm text-ink-soft">
-              Already booked?{" "}
-              <Link href="/api/auth/guest?next=%2Fwatches%2Fnew" className="text-ink underline">
-                Watch the trip
-              </Link>{" "}
-              and we will email you if a listed fare drops.
-            </p>
           </div>
           <section className="ticket reveal" style={{ animationDelay: "80ms" }}>
             <div className="border-b border-line px-5 py-4">

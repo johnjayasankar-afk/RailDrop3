@@ -33,6 +33,23 @@ const vercelConfig = JSON.parse(readFileSync(path.join(ROOT, "vercel.json"), "ut
   crons?: Array<{ path: string; schedule: string }>;
 };
 
+/** Every file of a given name under src/app, relative to the repo root. */
+function filesNamed(name: string, dir = "src/app"): string[] {
+  const found: string[] = [];
+  const walk = (current: string): void => {
+    for (const entry of readdirSync(path.join(ROOT, current), { withFileTypes: true })) {
+      const next = `${current}/${entry.name}`;
+      if (entry.isDirectory()) walk(next);
+      else if (entry.name === name) found.push(next);
+    }
+  };
+  walk(dir);
+  return found;
+}
+
+const routeFiles = () => filesNamed("route.ts");
+const pageFiles = () => filesNamed("page.tsx");
+
 function locate(base: string): string[] {
   return ["", "src"].flatMap((dir) =>
     EXTENSIONS.map((extension) => path.join(dir, `${base}.${extension}`)).filter((relative) =>
@@ -143,19 +160,7 @@ describe("the app can actually be built for production", () => {
           .replace(/\*/g, "[^/]+")}$`,
       ).test(route);
 
-    // readdirSync rather than fs.globSync: the latter is not in this @types/node,
-    // and vitest would not have told us — it does not typecheck. tsc did.
-    const routeFiles: string[] = [];
-    const walk = (dir: string): void => {
-      for (const entry of readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
-        const next = `${dir}/${entry.name}`;
-        if (entry.isDirectory()) walk(next);
-        else if (entry.name === "route.ts") routeFiles.push(next);
-      }
-    };
-    walk("src/app/api");
-
-    const needBrowser = routeFiles
+    const needBrowser = routeFiles()
       .filter((relative) =>
         /getFareProvider|createFareProvider/.test(readFileSync(path.join(ROOT, relative), "utf8")),
       )
@@ -168,40 +173,56 @@ describe("the app can actually be built for production", () => {
     expect(uncovered).toEqual([]);
   });
 
-  it("has exactly one of them, so the routing rules are not silently absent", () => {
-    /* Zero is its own failure and a quieter one. The proxy is what protects
-       /dashboard, /settings, /usage and /watches; with no file at all the build
-       succeeds and every protected route becomes public. */
-    expect([...locate("middleware"), ...locate("proxy")]).toHaveLength(1);
+  it("has no proxy, because there is nothing left to protect", () => {
+    /* This used to require exactly one, and the reason was sound: the proxy
+       guarded /dashboard, /settings, /usage and /watches, so with no file at
+       all the build succeeded and every protected route became public.
+       
+       Those routes are gone. There are no accounts, no sessions and no
+       guests — every surface is public by design, and a proxy running on
+       every request to protect nothing is cost without a reader. Zero is
+       the right number now, and the pairing rule above still holds: never
+       both files, whatever happens next. */
+    const routed = [...locate("middleware"), ...locate("proxy")];
+    expect(routed).toEqual([]);
+
+    // And the premise is checked, not assumed: no authenticated route exists.
+    const pages = pageFiles().map((f) => f.replace(/^src\/app/, "").replace(/\/page\.tsx$/, ""));
+    expect(pages.filter((p) => /dashboard|settings|watches|login/.test(p))).toEqual([]);
   });
 });
 
 /* A file read at request time is invisible to tracing.
  *
- * The setup route does `readFile(path.join(process.cwd(), "supabase",
- * "SETUP_ALL.sql"))`. Tracing follows imports, and a path composed at runtime
- * is not one — so the route works perfectly in dev, where the repo is on
- * disk, and throws ENOENT on Vercel where only the traced files exist. That
- * is exactly how the Chromium binary went missing for six routes and a
- * fortnight: `executablePath()` composed its path at runtime too.
+ * The rule this described — a route that reads a repo file at runtime must
+ * name it in outputFileTracingIncludes, or it works in dev and throws ENOENT
+ * on Vercel — cost a fortnight when the Chromium binary went missing for six
+ * routes. The route it guarded applied supabase/SETUP_ALL.sql, and both the
+ * route and the SQL are gone with the database.
  *
- * So the rule is stated rather than remembered: a route that reads a repo
- * file at runtime must name it in outputFileTracingIncludes.
+ * The rule itself is not gone, so the check is not either: it now asserts
+ * the general form against whatever routes exist, rather than naming one.
  */
 describe("files read at runtime are shipped", () => {
-  it("traces SETUP_ALL.sql to the route that applies it", async () => {
+  it("every runtime readFile of a repo path is traced", async () => {
     const config = (await import("../../next.config")).default;
-    const includes = config.outputFileTracingIncludes ?? {};
-    const patterns = includes["/api/admin/setup-database"] ?? [];
-    expect(patterns.some((p) => p.includes("SETUP_ALL.sql"))).toBe(true);
-  });
+    const includes = (config.outputFileTracingIncludes ?? {}) as Record<string, string[]>;
 
-  it("the file it names is actually there", () => {
-    // A trace entry for a path that does not exist ships nothing and says
-    // nothing, which is the same failure wearing a different hat.
-    expect(existsSync(path.join(ROOT, "supabase/SETUP_ALL.sql"))).toBe(true);
-  });
+    const untraced = routeFiles()
+      .filter((relative) => {
+        const source = readFileSync(path.join(ROOT, relative), "utf8");
+        // A path composed from process.cwd() at request time is the shape
+        // that tracing cannot follow.
+        return /readFile[^\n]*process\.cwd\(\)/.test(source);
+      })
+      .map((relative) => relative.replace(/^src\/app/, "").replace(/\/route\.ts$/, ""))
+      .filter((route) => !(includes[route] ?? []).length);
 
+    expect(untraced).toEqual([]);
+  });
+});
+
+describe("files read at runtime are shipped", () => {
   it("every runtime readFile of a repo path is covered", () => {
     /* Finds the pattern rather than the one known instance: a `readFile` or
        `readFileSync` whose path is built from process.cwd() inside src/app. */
@@ -265,18 +286,31 @@ describe("every page keeps its static shell", () => {
   });
 
   it("does not let the page chrome read a session", () => {
-    /* The specific regression: PageFrame taking the session as props is what
-       made eight pages dynamic. The header and footer resolve it themselves,
-       behind their own boundaries, and the frame takes children only. */
-    /* Comments stripped first. The file explains what it used to take, and
-       an assertion that fails on its own documentation is one somebody
-       deletes — this is the fourth time I have written that bug today. */
-    const frame = readFileSync(path.join(ROOT, "src/components/page-frame.tsx"), "utf8")
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/\/\/[^\n]*/g, "");
-    expect(frame).not.toMatch(/email|isGuest|getSessionUser/);
-    for (const file of ["src/components/header-account.tsx", "src/components/app-footer.tsx"]) {
-      expect(readFileSync(path.join(ROOT, file), "utf8")).toContain("use cache: private");
+    /* The original regression: PageFrame taking the session as props made
+       eight pages dynamic. The fix was for the header and footer to resolve
+       it themselves behind `use cache: private` boundaries.
+       
+       There is no session now, so the stronger property holds — the chrome
+       reads NOTHING per-request, which is why / and /how-it-works are fully
+       static rather than partially prerendered. Asserting the absence keeps
+       a future session read from quietly making them dynamic again.
+       
+       Comments stripped first: these files explain what they used to do,
+       and an assertion that fails on its own documentation is one somebody
+       deletes. */
+    const strip = (file: string) =>
+      readFileSync(path.join(ROOT, file), "utf8")
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/\/\/[^\n]*/g, "");
+
+    for (const file of [
+      "src/components/page-frame.tsx",
+      "src/components/app-header.tsx",
+      "src/components/app-footer.tsx",
+    ]) {
+      expect(strip(file), `${file} reads the request`).not.toMatch(
+        /getSessionUser|cookies\(\)|headers\(\)|use cache: private/,
+      );
     }
   });
 
