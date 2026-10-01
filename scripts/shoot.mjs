@@ -35,39 +35,11 @@ await context.addInitScript(() => {
 });
 const page = await context.newPage();
 
-await page.goto(`${BASE}/api/auth/guest?next=/dashboard`, { waitUntil: "domcontentloaded" });
-await page.goto(`${BASE}/watches/00000000-0000-0000-0000-000000000000`, {
-  waitUntil: "domcontentloaded",
-});
-const created = await page.evaluate(async () => {
-  const r = await fetch("/api/watches", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      originCode: "BOS",
-      destinationCode: "NYP",
-      desiredTravelDate: "2026-10-09",
-      dateFlexibilityDays: 1,
-      currentBookedPriceCents: 12800,
-    }),
-  });
-  const j = await r.json();
-  return j.watch?.id ?? j.id ?? null;
-});
-if (!created) {
-  console.error("Could not create a watch — the board would not be photographed.");
-  process.exit(1);
-}
-
 const PAGES = [
-  { name: "landing", path: "/", must: ".ticket" },
+  { name: "landing", path: "/", must: ".hero-search" },
   { name: "fares", path: "/fares", must: ".lookup" },
-  { name: "new-watch", path: "/watches/new", must: "form" },
-  { name: "dashboard", path: "/dashboard", must: ".lookup-title" },
-  { name: "board", path: `/watches/${created}`, must: ".trip-rail" },
+  { name: "results", path: "/fares?from=BOS&to=NYP&flex=2", must: ".lookup", search: true },
   { name: "how-it-works", path: "/how-it-works", must: ".method-prose" },
-  { name: "settings", path: "/settings", must: ".panel" },
-  { name: "login", path: "/login", must: "form" },
 ].filter((p) => !ONLY || ONLY.split(",").includes(p.name));
 
 const missed = [];
@@ -75,9 +47,21 @@ for (const theme of THEMES) {
   for (const width of WIDTHS) {
     await page.setViewportSize({ width, height: width < 700 ? 844 : 1000 });
     await page.emulateMedia({ colorScheme: theme });
-    for (const { name, path, must } of PAGES) {
+    for (const { name, path, must, search } of PAGES) {
       await page.goto(`${BASE}${path}`, { waitUntil: "networkidle" });
       await page.evaluate(() => document.fonts.ready);
+      if (search) {
+        // The results only exist once somebody asks, and they are the
+        // surface most worth photographing.
+        await page.getByLabel("From").fill("BOS");
+        await page.getByLabel("To", { exact: true }).fill("NYP");
+        await page.keyboard.press("Escape");
+        await page.locator("body").click({ position: { x: 2, y: 2 } });
+        await page.getByRole("button", { name: "Check the fare" }).click();
+        await page.waitForSelector(".lookup-results", { timeout: 120_000 }).catch(() => {});
+        await page.fill("#paid", "128").catch(() => {});
+        await page.waitForTimeout(400);
+      }
       // The dev overlay hit-tests above the page and photographs as a badge.
       await page.addStyleTag({ content: "nextjs-portal{display:none!important}" });
       await page.waitForTimeout(400);

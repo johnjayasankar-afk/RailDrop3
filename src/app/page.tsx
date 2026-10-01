@@ -3,63 +3,54 @@ import { PageFrame } from "@/components/page-frame";
 import { JsonLd } from "@/components/json-ld";
 import { RouteRibbon } from "@/components/route-ribbon";
 import { Flap } from "@/components/flap";
-import { cadencePhrase } from "@/lib/domain/cadence";
 
+/* An example of the shape of an answer, not an answer.
+ *
+ * It used to be framed around a watch — "you paid $128", "Regional 95
+ * dropped $14, look at switching" — describing a feature that no longer
+ * exists. It now shows what the product actually returns: a listed fare,
+ * what it works out to per hour, and the cheapest one marked. The cost-per-
+ * hour figures are arithmetic on the fare and the duration beside them, so
+ * the illustration is internally consistent rather than decorative. */
 const SAMPLE = [
-  ["06:10", "Northeast Regional 95", "4h 08m", "$47", "save $81"],
-  ["07:00", "Acela 2155", "3h 50m", "$133", "listed"],
-  ["09:20", "Northeast Regional 93", "4h 02m", "$61", "save $67"],
-  ["13:00", "Acela 2167", "3h 47m", "$141", "listed"],
+  ["06:10", "Northeast Regional 95", "4h 08m", "$47", "$11/hr"],
+  ["07:00", "Acela 2155", "3h 50m", "$133", "$35/hr"],
+  ["09:20", "Northeast Regional 93", "4h 02m", "$61", "$15/hr"],
+  ["13:00", "Acela 2167", "3h 47m", "$141", "$37/hr"],
 ] as const;
 
 const FAQ = [
   [
     "Do I need an account?",
-    "No. Watch a trip as a guest. Add an email on the trip only if you want fare-drop alerts. Sign-in is optional.",
+    "No. There is no sign-up, no login and nothing to create. Type a route and a date and you get fares.",
   ],
   [
     "Do you invent Amtrak prices?",
-    "No. If the live board is down, you see that — never a guessed fare. Confirm on Amtrak before you change a ticket.",
+    "No. Every figure is a fare a provider was observed listing, at the moment you asked. If the live board cannot be read you are told that, never given a guess.",
   ],
   [
-    "Will you rebook for me?",
-    "No. We watch and rank. You book on Amtrak, then tell us what you actually paid.",
+    "Where do the fares come from?",
+    "A third-party rail search service reads Amtrak's listed inventory. We do not scrape amtrak.com, we hold no Amtrak data agreement, and we are not affiliated with Amtrak.",
+  ],
+  [
+    "Can you tell me the best day to book?",
+    "Only from what this search saw. We will say which of the dates you asked about is cheapest right now, and which part of the day is. We will not predict what a fare will do, because nobody has observed the future.",
+  ],
+  [
+    "Why does it take ten seconds?",
+    "Because a real browser is loading the corridor for every date in your window. Nothing here is served from an earlier visitor's search.",
+  ],
+  [
+    "Do you save my search?",
+    "No. Nothing is stored anywhere. Close the tab and it is gone — the link in your address bar is the only record, and it carries the route and the date, never a price.",
+  ],
+  [
+    "Can I book here?",
+    "No. We show what is listed; you book on Amtrak. We will not deep-link a fake itinerary, because no verified stable link to a specific Amtrak itinerary exists.",
   ],
   [
     "What does ±1 day mean?",
-    "The day before, your travel day, and the day after — every bookable rail option, not just the train you bought.",
-  ],
-  [
-    "How often do you check?",
-    `Immediately when you create a watch, then ${cadencePhrase()} for as long as you are watching. Press C to recheck now.`,
-  ],
-  [
-    "If I already booked a specific train?",
-    "Add the train number. The board pins it next to the cheapest listed option.",
-  ],
-  [
-    "Do you know if I should actually change the ticket?",
-    "We show what moved and how close departure is. Change rules depend on Flexible / Value / Saver. We never invent a fee.",
-  ],
-  [
-    "Can I send this to someone else on the trip?",
-    "Yes. Copy a one-liner with T — stations, cheapest listed train, and what you paid. They still confirm on Amtrak.",
-  ],
-  [
-    "Do you subtract the Amtrak change fee?",
-    "Only if you type an estimate, or tap $10 / $20 / $50. We never invent a fee. Confirm the real one on Amtrak.",
-  ],
-  [
-    "Can I filter by when I need to leave or arrive?",
-    "Yes — leave after, arrive by, duration cap, and a 30-minute arrive buffer. The view lives in the URL, so you can copy it, reload it, or send it to whoever you are travelling with.",
-  ],
-  [
-    "What does Beats your train mean?",
-    "Cheaper and not slower than yours — or faster and not more expensive. Press Z for ticket-and-board only. Confirm on Amtrak.",
-  ],
-  [
-    "How do I walk the board without drowning in panels?",
-    "J / K focus a train. H hides it this visit, U undoes, Y copies you vs this, W copies the window, F copies Amtrak fields.",
+    "The day before, your travel day, and the day after — each searched separately, so you can see which of the three is cheapest.",
   ],
 ] as const;
 
@@ -74,7 +65,7 @@ export default async function HomePage() {
           applicationCategory: "TravelApplication",
           operatingSystem: "Web",
           description:
-            "Live Amtrak fare watch for trips you already booked. Emails you when listed rail fares actually drop.",
+            "Live Amtrak fares for any Northeast Corridor route, read from inventory the moment you ask. No account, nothing saved, never an estimate.",
           offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
         }}
       />
@@ -90,7 +81,7 @@ export default async function HomePage() {
           <div className="reveal">
             <p className="lookup-eyebrow">
               <span className="pulse" aria-hidden />
-              <span className="micro">Amtrak fare watch · live inventory</span>
+              <span className="micro">Amtrak fares · read live, on request</span>
             </p>
             <h1 className="serif mt-5 max-w-3xl text-[2.6rem] leading-[1.02] sm:text-6xl md:text-7xl">
               What is Amtrak charging right now?
@@ -136,7 +127,9 @@ export default async function HomePage() {
               <div className="mt-3">
                 <RouteRibbon origin="BOS" destination="NYP" />
               </div>
-              <p className="mt-3 text-xs text-save">You paid $128 · cheapest listed $47</p>
+              <p className="mt-3 text-xs text-ink-soft">
+                4 trains listed · cheapest <span className="text-save">$47</span>
+              </p>
             </div>
             <div className="timetable">
               <div className="sample-head">
@@ -156,15 +149,15 @@ export default async function HomePage() {
                   <p className="price serif text-right text-xl">
                     <Flap>{price}</Flap>
                     <span
-                      className={`mt-0.5 block text-[10px] uppercase tracking-[0.14em] ${note.startsWith("save") ? "text-save" : "text-ink-soft"}`}
+                      className={`mt-0.5 block text-[10px] uppercase tracking-[0.14em] ${price === "$47" ? "text-save" : "text-ink-soft"}`}
                     >
                       {note}
                     </span>
                   </p>
                 </div>
               ))}
-              <p className="border-t border-line px-5 py-3 text-xs text-save">
-                Regional 95 dropped $14 · Look at switching
+              <p className="border-t border-line px-5 py-3 text-xs text-ink-soft">
+                Read from live inventory · confirm on Amtrak
               </p>
             </div>
           </section>
@@ -221,15 +214,16 @@ export default async function HomePage() {
             <h2 className="serif text-3xl">How it works</h2>
             <ol className="step-list mt-7">
               <li>
-                <span className="step-lede">Book on Amtrak.</span> Whatever you actually paid.
+                <span className="step-lede">Pick a route and a date.</span> Three letters each way;
+                the date is optional and defaults to today.
               </li>
               <li>
-                <span className="step-lede">Tell us stations, date, and price.</span> We search the
-                window immediately.
+                <span className="step-lede">We read the live board.</span> A real browser loads
+                Amtrak inventory for every date in your window, while you wait.
               </li>
               <li>
-                <span className="step-lede">One email when it drops.</span> Confirm on Amtrak before
-                you change anything.
+                <span className="step-lede">You see every listed fare.</span> Cheapest day, cheapest
+                departure, cost per hour — then book on Amtrak.
               </li>
             </ol>
           </div>
@@ -241,12 +235,12 @@ export default async function HomePage() {
                 you see that — not a guess.
               </li>
               <li>
-                <span className="step-lede">Deep-link a fake itinerary.</span> You copy trip details
-                and book on Amtrak.
+                <span className="step-lede">Deep-link a fake itinerary.</span> No verified link to a
+                specific Amtrak itinerary exists, so we do not fabricate one.
               </li>
               <li>
-                <span className="step-lede">Spam you.</span> Alerts fire only when the opportunity
-                actually improves.
+                <span className="step-lede">Predict a fare.</span> We describe what we saw, and say
+                how much we saw. A pattern is not a forecast.
               </li>
             </ul>
           </div>

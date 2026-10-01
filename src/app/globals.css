@@ -1731,9 +1731,6 @@ a.depart-strip:hover {
    Inline SVG in the board palette. The chart is a polyline and two rules; a
    charting library would be a runtime dependency for forty lines of markup.
    ───────────────────────────────────────────────────────────────────────────── */
-.fare-history {
-  --fh-rule: color-mix(in srgb, var(--ink) 14%, transparent);
-}
 
 /* How sure it is, said out loud rather than hidden in a tooltip. */
 

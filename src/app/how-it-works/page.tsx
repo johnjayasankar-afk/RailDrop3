@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PageFrame } from "@/components/page-frame";
-import { cadenceSentence } from "@/lib/domain/cadence";
 import { STATION_BY_CODE } from "@/lib/stations/catalog";
 import { unmappedStationCodes } from "@/lib/stations/coverage";
 import { WANDERU_STATION_IDS } from "@/lib/providers/wanderu-station-map";
@@ -37,9 +36,9 @@ export default async function HowItWorksPage() {
           What we observe, and what we do not.
         </h1>
         <p className="mt-5 text-lg text-ink-soft">
-          RailDrop watches a trip you have already booked and tells you when a cheaper listed fare
-          appears. This page explains where those numbers come from and where they stop. If
-          something here is vague, treat the number it describes as vague.
+          RailDrop reads what Amtrak is listing for a route, right now, and shows you all of it.
+          This page explains where those numbers come from and exactly where they stop. If something
+          here is vague, treat the number it describes as vague.
         </p>
 
         <Section title="Where the fares come from">
@@ -56,26 +55,26 @@ export default async function HowItWorksPage() {
           </p>
         </Section>
 
-        <Section title="How often we look">
+        <Section title="When we look">
           <p>
-            {/* Derived, not typed. This paragraph said "three times a day" while
-                vercel.json shipped a single cron, on the page that exists to
-                state our method in words someone could hold us to. */}
-            {cadenceSentence()} For as long as your monitoring window runs, plus once immediately
-            when you create the watch. The window is your travel date give or take a day by default.
+            When you ask, and only then. There is no schedule, no background job and no cached
+            answer from an earlier visitor: pressing the button opens a real browser against the
+            corridor for each date in your window, which is why it takes ten seconds rather than
+            one.
           </p>
           <p>
-            When two people watch the same route on the same date, we look once and share the
-            answer. A search older than twenty minutes is not reused.
+            That also means a reading goes stale the moment it is taken. Every result says when it
+            was read, and if you are looking at a tab you opened an hour ago, that is an hour-old
+            answer.
           </p>
         </Section>
 
         <Section title="What we will not do">
           <ul>
             <li>
-              <strong>Invent a price.</strong> If a date could not be checked, the board says so. A
-              provider outage is never rendered as “no cheaper fare”, and a check we paused for
-              budget reasons is never rendered as an empty market. Those are opposite claims.
+              <strong>Invent a price.</strong> A date we could not read keeps its place in the
+              results and says which kind of nothing it was. A provider outage is never rendered as
+              “no fares listed”, because those are opposite claims.
             </li>
             <li>
               <strong>Invent a link.</strong> No verified, stable Amtrak deep link exists for a
@@ -122,30 +121,41 @@ export default async function HowItWorksPage() {
           </p>
           <p>
             We label those stations <em>coverage unverified</em> in the picker rather than letting
-            you create a watch that may never return a result. These counts are read from the
-            software when this page renders, so they cannot drift from the truth.
+            you run a search that may never return a result. These counts are read from the software
+            when this page renders, so they cannot drift from the truth.
           </p>
         </Section>
 
-        <Section title="What the statistics can and cannot tell you">
+        <Section title="What the numbers can and cannot tell you">
           <p>
-            Where RailDrop shows a pattern — how often a corridor drops, where today&rsquo;s price
-            sits in the range we have seen — it is describing observations we actually recorded,
-            with the number of them stated. A pattern over nine Thursdays is a description of nine
-            Thursdays. It is not a probability, and we will not dress it as one.
+            Everything on a result is either a fare somebody was observed listing, or arithmetic on
+            fares somebody was observed listing. The cheapest of a set, the gap between two of them,
+            a cost per hour, the spread between the floor and the ceiling — all of those are
+            descriptions of what was seen.
+          </p>
+          <p>
+            What they are not is a forecast. We will tell you that the cheapest fare in the three
+            days you asked about is on the Tuesday; we will not tell you that Tuesdays are cheap.
+            The first is a reading. The second is a claim about days we never looked at, and a
+            pattern over nine Thursdays is a description of nine Thursdays.
           </p>
           <p>
             We would rather say <em>not enough data yet</em> than compute a statistic from a handful
-            of points. If a number appears without a sample size next to it, that is a bug — please
-            tell us.
+            of points. If a number appears without something next to it saying how much was seen,
+            that is a bug — please tell us.
           </p>
         </Section>
 
         <Section title="What we store">
           <p>
-            The route, the date, the amount you told us you paid, your timezone, and an email only
-            if you asked for alerts. Prices we observe are kept so the history on your board is
-            real. You can export or delete everything from Settings, including as a guest.
+            Nothing. There is no database, no account and no session — the route and the date live
+            in the address bar while you are looking at them, and vanish when you close the tab. The
+            amount you type into &ldquo;what you paid&rdquo; is subtracted in your browser and never
+            sent anywhere.
+          </p>
+          <p>
+            This is a reduction, not a privacy claim we engineered. The product used to watch trips
+            and email you; that needed accounts, a database and a scheduler, and all three are gone.
           </p>
         </Section>
 
