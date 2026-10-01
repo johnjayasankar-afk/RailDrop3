@@ -5074,3 +5074,22 @@ time,
     top: var(--sp-16);
   }
 }
+
+/* Three orderings of the same observed set, and no judgement about which
+   train to take. Cheapest is the default because it is the question most
+   people arrive with; departure matters to anyone with a meeting, and
+   journey time to anyone weighing a $91 four-hour train against a $141
+   three-hour one. */
+.lookup-sort {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-5);
+  margin-bottom: var(--sp-2);
+}
+
+.lookup-sort .micro {
+  color: var(--ink-soft);
+  margin-inline-end: var(--sp-1);
+}

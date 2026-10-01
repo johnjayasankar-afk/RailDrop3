@@ -7,7 +7,7 @@ import { formatUsdCompact } from "@/lib/domain/money";
 import { formatDisplayDate } from "@/lib/domain/calendar";
 import { formatClock } from "@/lib/domain/timezone";
 import { trainLabel } from "@/lib/domain/board-decision";
-import { centsPerHour } from "@/lib/domain/board-tools";
+import { centsPerHour, sortBoard, type BoardSort } from "@/lib/domain/board-tools";
 import { formatDurationMinutes } from "@/lib/domain/calendar";
 import { FareProvenance } from "@/components/fare-provenance";
 import { Money } from "@/components/money";
@@ -251,6 +251,12 @@ function Results({ state, passengers }: { state: State; passengers: number }) {
      a reader comparing against the scale saw a $315 ceiling with no row
      anywhere near it and no way to tell whether that was a bug. */
   const [showAll, setShowAll] = useState(false);
+  /* Cheapest first by default, because that is the question most people
+     arrived with. Departure matters to anyone with a meeting, and duration
+     to anyone choosing between a $91 four-hour train and a $141 three-hour
+     one — both orderings of the same observed set, neither a judgement
+     about which to take. */
+  const [sort, setSort] = useState<BoardSort>("price");
 
   if (state.status === "idle") {
     return (
@@ -374,6 +380,8 @@ function Results({ state, passengers }: { state: State; passengers: number }) {
   const ceiling = prices[prices.length - 1] ?? 0;
   const span = ceiling - floor;
   const at = (cents: number) => (span > 0 ? ((cents - floor) / span) * 100 : 50);
+
+  const ordered = sortBoard(preview.ranked, sort);
 
   const paidCents = Math.round(Number(paid) * 100);
   const paidIsReal = Number.isFinite(paidCents) && paidCents > 0;
@@ -586,19 +594,45 @@ function Results({ state, passengers }: { state: State; passengers: number }) {
         </section>
       ) : null}
 
+      <div className="lookup-sort" role="group" aria-label="Order the fares">
+        <span className="micro">Order by</span>
+        {(
+          [
+            ["price", "cheapest"],
+            ["depart", "departure"],
+            ["duration", "journey time"],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            className={`chip${sort === key ? " chip-on" : ""}`}
+            aria-pressed={sort === key}
+            onClick={() => setSort(key)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       <ol className="lookup-list stagger">
-        {(showAll ? preview.ranked : preview.ranked.slice(0, VISIBLE_ROWS)).map((candidate) => (
+        {(showAll ? ordered : ordered.slice(0, VISIBLE_ROWS)).map((candidate) => (
           <li key={`${candidate.journey.id}:${candidate.fare.id}`} className="lookup-row">
             <span className="price lookup-row-price">
               {formatUsdCompact(candidate.totalPartyPriceCents)}
             </span>
             <span className="lookup-row-when">
-              {formatDisplayDate(candidate.journey.searchedTravelDate)}
+              {formatDisplayDate(candidate.journey.searchedTravelDate)}{" "}
+              {/* A real space, not just the margin below.
+                  Without it the text content is "Oct 15:30 PM" — the gap is
+                  drawn by CSS and does not exist in the string — so it looks
+                  right, reads wrong to a screen reader, and pastes wrong. */}
               <span className="lookup-row-clock">
-                {formatClock(candidate.journey.departureAt)}
+                {formatClock(candidate.journey.departureAt)}{" "}
                 <span className="lookup-row-arrow" aria-hidden>
                   →
                 </span>
+                <span className="sr-only"> to </span>
                 {formatClock(candidate.journey.arrivalAt)}
               </span>
             </span>
