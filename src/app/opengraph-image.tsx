@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-export const alt = "RailDrop — Know when your train gets cheaper";
+export const alt = "RailDrop — What is Amtrak charging right now?";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -43,10 +43,10 @@ export default function OpenGraphImage() {
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 1000 }}>
         <div style={{ fontSize: 80, lineHeight: 1.02, letterSpacing: -3.4 }}>
-          Know when your train gets cheaper.
+          What is Amtrak charging right now?
         </div>
         <div style={{ fontSize: 30, lineHeight: 1.35, color: "#48524c", maxWidth: 860 }}>
-          Live Amtrak rail fares for the trip you already booked. No invented prices.
+          Listed fares for every bookable train on your route, read live. No invented prices.
         </div>
       </div>
       <div

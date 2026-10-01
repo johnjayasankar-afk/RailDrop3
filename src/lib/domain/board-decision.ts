@@ -30,6 +30,13 @@ export function findBookedCandidate(
   );
 }
 
+/* The cheapest fare on one date.
+ *
+ * By price, not by the ranking's position: `ranked` is ordered by a composite
+ * score, so its first entry for a date is not reliably that date's cheapest,
+ * and this feeds the "what you paid" comparison — a benchmark that is not the
+ * lowest listed figure would understate how well the reader did. Ties break
+ * on departure so the same train is chosen every render. */
 export function sameDayCheapest(
   ranked: RankedCandidate[],
   desiredTravelDate: string,
@@ -37,7 +44,13 @@ export function sameDayCheapest(
   const sameDay = ranked.filter(
     (candidate) => candidate.journey.searchedTravelDate === desiredTravelDate,
   );
-  return sameDay[0] ?? null;
+  if (sameDay.length === 0) return null;
+  return sameDay.reduce((best, candidate) => {
+    if (candidate.totalPartyPriceCents !== best.totalPartyPriceCents) {
+      return candidate.totalPartyPriceCents < best.totalPartyPriceCents ? candidate : best;
+    }
+    return candidate.journey.departureAt < best.journey.departureAt ? candidate : best;
+  });
 }
 
 export function durationDeltaMinutes(from: RankedCandidate, to: RankedCandidate): number | null {

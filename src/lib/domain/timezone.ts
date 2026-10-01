@@ -163,6 +163,31 @@ export function formatBoardStamp(iso: string | null | undefined, timeZone: strin
   }).format(date);
 }
 
+/* An instant, in a named zone, with the zone said out loud.
+ *
+ * formatClock below slices the hour out of the literal string, which is right
+ * for the provider's naive-local departure times and catastrophically wrong
+ * for anything carrying a Z. The "read at" stamp is an instant
+ * (`now.toISOString()`), so it rendered the UTC hour as a bare local clock:
+ * a reading taken at 4:12 PM in New York printed "8:11 PM" — four hours off,
+ * in the future, on the single field whose whole purpose is to tell you how
+ * stale the number above it is.
+ *
+ * The zone abbreviation is not decoration. A clock with no zone is the thing
+ * that made this wrong for so long without anybody noticing.
+ */
+export function formatInstantClock(iso: string, timeZone: string = DEFAULT_TIMEZONE): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  const zone = isValidTimeZone(timeZone) ? timeZone : DEFAULT_TIMEZONE;
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: zone,
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  }).format(date);
+}
+
 export function formatClock(isoDateTime: string): string {
   const match = /T(\d{2}):(\d{2})/.exec(isoDateTime);
   if (!match) {

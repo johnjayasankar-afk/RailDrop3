@@ -151,10 +151,25 @@ export function StationField({
           setQuery(event.target.value);
           setResults([]);
           setChosen(null);
-          if (/^[A-Za-z]{3}$/.test(event.target.value)) {
-            const code = event.target.value.toUpperCase();
+          /* What is in the box is what gets searched.
+           *
+           * This only pushed a value up when the text was exactly three
+           * letters, and pushed nothing otherwise — so the parent kept the
+           * LAST valid code while the field the reader was looking at was
+           * empty. Clearing "BOS" and pressing the button searched BOS: a
+           * results header reading "BOS → NYP" for a route nobody had
+           * entered. Typing "B" did the same thing.
+           *
+           * Anything that is not a resolved code clears the parent, which
+           * disables the submit, so the control and the search agree. */
+          const typed = event.target.value;
+          if (/^[A-Za-z]{3}$/.test(typed)) {
+            const code = typed.toUpperCase();
             pushedRef.current = code;
             onChange(code);
+          } else {
+            pushedRef.current = "";
+            onChange("");
           }
         }}
         className="field"

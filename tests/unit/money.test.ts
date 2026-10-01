@@ -3,6 +3,7 @@ import {
   dollarsToCents,
   formatUsd,
   formatUsdCompact,
+  formatUsdPerHour,
   meetsSavingsThreshold,
   partyTotalCents,
 } from "@/lib/domain/money";
@@ -27,5 +28,22 @@ describe("money", () => {
   it("formats compact whole-dollar amounts", () => {
     expect(formatUsdCompact(7400)).toBe("$74");
     expect(formatUsd(7450)).toBe("$74.50");
+  });
+});
+
+describe("a rate, not an amount", () => {
+  it("renders cost-per-hour to the dollar", () => {
+    /* It rendered as $29.42/hr: two decimals on a quotient, which reads as a
+       measured sum of money rather than a comparison. */
+    expect(formatUsdPerHour(2942)).toBe("$29");
+    expect(formatUsdPerHour(5885)).toBe("$59");
+    expect(formatUsdPerHour(1100)).toBe("$11");
+  });
+
+  it("rounds rather than truncates, so a rate never reads low", () => {
+    // $29.99/hr floored is $29, which understates what the train costs.
+    expect(formatUsdPerHour(2999)).toBe("$30");
+    expect(formatUsdPerHour(2950)).toBe("$30");
+    expect(formatUsdPerHour(2949)).toBe("$29");
   });
 });

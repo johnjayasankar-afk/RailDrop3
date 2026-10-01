@@ -3112,11 +3112,53 @@ body::after {
 }
 
 /* The open receipt spans the whole row rather than the column its button
-   sits in. */
-.lookup-row:has(.prov) {
-  grid-template-areas:
-    "price when train toggle"
-    "prov prov prov prov";
+   sits in.
+
+   Scoped above 560px, because the four-column area map re-established four
+   columns on a phone where the row had collapsed to two: opening a receipt
+   took the "when" cell from 236px to 115px and tore the AM/PM off both clock
+   times onto a line of their own, while the train — which keeps grid-column
+   2 from the narrow rule and has no named area — auto-placed into a new row
+   AFTER the receipt, stranding "Northeast Regional 179" four hundred pixels
+   below its own fare. Disclosing a derivation must not reflow the thing it
+   is deriving. */
+@media (min-width: 561px) {
+  .lookup-row:has(.prov) {
+    grid-template-areas:
+      "price when train toggle"
+      "prov prov prov prov";
+  }
+}
+
+@media (max-width: 560px) {
+  .lookup-row:has(.prov) {
+    grid-template-areas:
+      "price when"
+      "price train"
+      "prov prov";
+  }
+
+  /* Named explicitly: without an area it auto-places past the receipt. */
+  .lookup-row:has(.prov) .lookup-row-when {
+    grid-area: when;
+  }
+
+  .lookup-row:has(.prov) .lookup-row-price {
+    grid-area: price;
+  }
+
+  .lookup-row:has(.prov) .lookup-row-train {
+    grid-area: train;
+    grid-column: auto;
+  }
+
+  /* The toggle rides under the train rather than claiming a column of its
+     own on a 390px row. */
+  .lookup-row:has(.prov) .prov-toggle {
+    grid-area: train;
+    justify-self: end;
+    align-self: start;
+  }
 }
 
 .lookup-row:has(.prov) .prov-wrap {
@@ -4799,7 +4841,12 @@ time,
   color: var(--ink);
   font: inherit;
   font-variant-numeric: tabular-nums slashed-zero;
+  /* The wrapper owns the whole focus treatment. Zeroing the global outline
+     and leaving its companion halo gave the field two concentric rings of
+     different radii, the inner one touching the "$" and clipped by the
+     wrapper's own border. */
   outline: none;
+  box-shadow: none;
 }
 
 .lookup-paid-out {
@@ -4846,8 +4893,23 @@ time,
   box-shadow: inset 0 0 0 1px var(--line);
   /* Room for the end ticks. At 0% and 100% a tick sits in the corner
      radius and gets clipped to a nub, which hides the one mark on the
-     whole rule that matters most — the cheapest. */
-  padding-inline: 3px;
+     whole rule that matters most — the cheapest.
+
+     padding-inline cannot do this: an absolutely positioned child resolves
+     inset-inline-start against the PADDING box, so 0% and 100% stayed the
+     element's own edges and both end ticks rendered half outside the rule —
+     the cheapest protruding past the rounded corner into the page, the
+     dearest merged into the right border. The ticks are positioned within
+     an inset track instead, which is what the comment always claimed. */
+  padding-inline: 0;
+}
+
+/* The track the ticks live on: the rule, inset by half a tick at each end,
+   so a mark at the floor and a mark at the ceiling are both wholly on it. */
+.fare-scale-track {
+  position: absolute;
+  inset-block: 0;
+  inset-inline: 3px;
 }
 
 /* The stretch of the rule that is cheaper than what you paid. */
@@ -5092,4 +5154,94 @@ time,
 .lookup-sort .micro {
   color: var(--ink-soft);
   margin-inline-end: var(--sp-1);
+}
+
+/* ── The landing panel, with no fares in it ────────────────────────────────
+   It used to hold four invented Amtrak prices captioned "read from live
+   inventory", on the page that promises twice never to invent one. The rows
+   now show the shape of the answer: a departure slot, a service, a duration,
+   and a rule where the fare will be. */
+.sample-slot {
+  font-size: var(--step--1);
+  color: var(--ink-soft);
+  letter-spacing: var(--track-label);
+}
+
+/* currentColor, not --ink: this panel is a dark board and 18% of near-black
+   on it is nothing at all. */
+.sample-blank {
+  display: inline-block;
+  width: 3.25rem;
+  height: 3px;
+  border-radius: var(--r-hair);
+  background: color-mix(in srgb, currentColor 32%, transparent);
+  vertical-align: middle;
+}
+
+.sample-blank.is-best {
+  background: color-mix(in srgb, var(--save) 70%, transparent);
+}
+
+/* ── What you paid, marked on the rule ─────────────────────────────────────
+   An unlabelled dashed line standing among fare ticks reads as another fare.
+   The caption rides with the marker, and says so when the figure sits outside
+   everything that was observed — a marker pinned to the end of the rule
+   otherwise claims a price nobody listed. */
+.fare-scale-paid-tag {
+  position: absolute;
+  top: calc(100% + var(--sp-1));
+  left: 0;
+  translate: -50% 0;
+  white-space: nowrap;
+  font-size: var(--step--3);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.fare-scale-paid.is-over .fare-scale-paid-tag {
+  translate: -100% 0;
+  left: auto;
+  right: 0;
+}
+
+.fare-scale-paid.is-under-all .fare-scale-paid-tag {
+  translate: 0 0;
+}
+
+/* The second line of the paid comparison: moving the trip is a different
+   offer from beating the price, so it is a different sentence. */
+.lookup-paid-move {
+  margin-top: var(--sp-1);
+  font-size: var(--step--1);
+  color: var(--ink-soft);
+}
+
+/* ── A chip that is on, looking on ────────────────────────────────────────
+   `.chip-on` was applied by the sort control and styled by nothing, so all
+   three orderings rendered identically — same fill, same border, same
+   weight — and the only feedback a reader got was the focus ring, which
+   leaves with focus. A pressed control indistinguishable from an unpressed
+   one is a dead control.
+
+   Same treatment as the cheapest day cell, for the same reason: it is the
+   one of its group that is currently true. */
+.chip-on {
+  border-color: color-mix(in srgb, var(--save) 55%, transparent);
+  /* The key-face gradient is a background-IMAGE over the colour, so the fill
+     has to replace both or the chip keeps its unpressed face. */
+  background-color: color-mix(in srgb, var(--save) 12%, var(--paper-elevated));
+  background-image: none;
+  color: var(--ink);
+  font-weight: var(--w-strong);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--save) 30%, transparent);
+}
+
+.chip-on::before {
+  content: "";
+  width: 0.4rem;
+  height: 0.4rem;
+  margin-inline-end: var(--sp-1-5);
+  border-radius: 50%;
+  background: var(--save);
 }

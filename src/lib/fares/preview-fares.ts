@@ -24,7 +24,7 @@ import { localIsoDate, isValidTimeZone } from "@/lib/domain/timezone";
 import { logger } from "@/lib/logger";
 import type { FareProvider } from "@/lib/providers/fare-provider";
 import type { JourneyOption, RankedCandidate } from "@/lib/domain/types";
-import { previewFaresSchema, type PreviewFaresInput } from "@/lib/validation/watch";
+import { previewFaresSchema, type PreviewFaresInput } from "@/lib/validation/fares";
 
 /**
  * One date, the moment it finishes.
@@ -55,6 +55,12 @@ export interface FarePreview {
   destinationCode: string;
   /** Dates actually searched, after past ones were dropped. */
   dates: string[];
+  /* The date the reader actually asked about, as opposed to the cheapest one
+     in the window. Without it the result cannot tell "the cheapest fare we
+     saw" apart from "the cheapest fare on your trip", and every comparison
+     drawn against the window minimum quietly described a different journey
+     from the one the reader booked. */
+  desiredTravelDate: string;
   ranked: RankedCandidate[];
   /** Cheapest on each date, for the strip. */
   byDate: Array<[string, RankedCandidate]>;
@@ -75,14 +81,21 @@ export interface FarePreview {
 }
 
 /**
- * How many dates a preview will scrape.
+ * How many dates a search will scrape.
  *
- * Lower than a watch's window on purpose. A preview is unauthenticated work
- * that costs provider credits and happens while somebody waits, so it buys the
- * answer to "what does this cost" rather than the full flexibility sweep. The
- * watch does the sweep once it exists.
+ * This was 3, which was the right number when a preview was the cheap
+ * unauthenticated taster and a saved watch did the full sweep later. There is
+ * no watch any more — this search is the product — and the leftover cap had
+ * turned the "±2 days" control into a lie: a five-date window was trimmed
+ * back to three, while the form said "searching ±2 days" and the picker lit
+ * five days in the calendar. The reader chose a wider window, was shown a
+ * wider window, and got the narrower one.
+ *
+ * Five is the widest window the interface can ask for, so nothing the reader
+ * can select is silently trimmed. trimAround still guards the invariant for
+ * any caller that asks for more.
  */
-const MAX_PREVIEW_DATES = 3;
+const MAX_PREVIEW_DATES = 5;
 
 export async function previewFares(input: {
   body: unknown;
@@ -96,6 +109,16 @@ export async function previewFares(input: {
    * otherwise fine.
    */
   onProgress?: (progress: DateProgress) => void;
+  /**
+   * Abandoned by the reader.
+   *
+   * Each date drives a real headless browser at a real provider, and the
+   * stream route's only reaction to a closed connection was to stop writing
+   * — the scrape kept going through every remaining date, for up to the
+   * route's full five-minute budget, on work nobody would ever see. Checked
+   * between dates, which is where the expensive part begins.
+   */
+  signal?: AbortSignal;
 }): Promise<FarePreview> {
   const parsed: PreviewFaresInput = previewFaresSchema.parse(input.body);
   if (parsed.originCode === parsed.destinationCode) {
@@ -123,6 +146,13 @@ export async function previewFares(input: {
   /* Sequential. A preview is one person waiting, not a scheduled sweep, and the
    * provider's own page limit would serialise it anyway. */
   for (const [index, travelDate] of dates.entries()) {
+    /* The reader has gone. Stop before paying for the next date; what has
+       already landed is still returned, so a caller holding the promise gets
+       a partial window rather than an exception. */
+    if (input.signal?.aborted) {
+      for (const remaining of dates.slice(index)) failedDates.push(remaining);
+      break;
+    }
     const result = await input.provider.searchTrips({
       originCode: parsed.originCode,
       destinationCode: parsed.destinationCode,
@@ -162,8 +192,21 @@ export async function previewFares(input: {
       passengerCount: parsed.passengerCount,
     });
     if (!screened.verdict.trustworthy) {
+      /* Unreadable only, never also failed.
+       *
+       * This pushed the date into BOTH arrays, which made the two outcomes
+       * overlap and every count drawn from them wrong: one bad date out of
+       * three rendered as "Answered 2 · Not answered 1 · Unreadable 1" —
+       * four outcomes for three dates, with the same date claimed twice. It
+       * also made the strip's "unreadable" branch unreachable, because the
+       * code tests `failed` first and `failed` was always true whenever
+       * `unreadable` was, so a date the provider DID answer for was labelled
+       * "not answered". Those are opposite claims, and telling them apart is
+       * the thing the methodology page promises in the reader's defence.
+       *
+       * The two sets are disjoint. "Did not produce a fare" is their union
+       * where a caller needs it. */
       unreadableDates.push(travelDate);
-      failedDates.push(travelDate);
       report(input.onProgress, {
         travelDate,
         index: index + 1,
@@ -237,6 +280,7 @@ export async function previewFares(input: {
     failedDates,
     unreadableDates,
     failureReason,
+    desiredTravelDate: parsed.desiredTravelDate,
     checkedAt: now.toISOString(),
   };
 }

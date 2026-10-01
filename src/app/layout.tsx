@@ -29,24 +29,29 @@ export const metadata: Metadata = {
   // every canonical URL and Open Graph image URL pointed at a domain that is
   // not us — and each preview deployment claimed to be production.
   metadataBase: new URL(appOrigin()),
+  /* Every one of these sold a product that no longer exists: watching, a
+     window, an email, an account. "Know WHEN your train gets cheaper" was
+     also a forecast promise, which /how-it-works explicitly refuses —
+     "Nothing in RailDrop forecasts." The tab title, the search result, the
+     share card and the installed app all have to say the same true thing. */
   title: {
-    default: "RailDrop. Know when your train gets cheaper",
+    default: "RailDrop. What is Amtrak charging right now?",
     template: "%s · RailDrop",
   },
   description:
-    "Book the trip. RailDrop watches every bookable Amtrak rail option across your window and emails you when it actually gets cheaper.",
+    "Listed fares for every bookable train on your route, read from live inventory the moment you ask. No account, nothing saved, and never an estimate.",
   applicationName: "RailDrop",
-  keywords: ["Amtrak", "train", "fare watch", "Northeast Corridor", "Acela"],
+  keywords: ["Amtrak", "train fares", "Northeast Corridor", "Acela", "rail prices"],
   openGraph: {
-    title: "RailDrop. Know when your train gets cheaper",
-    description: "Live Amtrak fare watch for trips you already booked.",
+    title: "RailDrop. What is Amtrak charging right now?",
+    description: "Live Amtrak fares, read the moment you ask. No invented prices.",
     type: "website",
     locale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
     title: "RailDrop",
-    description: "Know when your train gets cheaper.",
+    description: "What is Amtrak charging right now?",
   },
   robots: {
     index: true,

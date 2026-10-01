@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "RailDrop",
     short_name: "RailDrop",
     description:
-      "Know when your train gets cheaper. Live Amtrak fare watch for trips you already booked.",
+      "Listed Amtrak fares for your route, read from live inventory the moment you ask. No account, nothing saved, never an estimate.",
     start_url: "/",
     display: "standalone",
     background_color: "#f8f6f1",

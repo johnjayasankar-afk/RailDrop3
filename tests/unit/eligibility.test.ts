@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { collectEligibleFares, isFareEligible } from "@/lib/domain/eligibility";
-import { changeRuleNote } from "@/lib/domain/board-moves";
 import type { FareFamily, FareOption, JourneyOption } from "@/lib/domain/types";
 
 /* Which fares reach the board, and what we are entitled to say about them.
@@ -77,18 +76,6 @@ describe("a fare family we were never told", () => {
     );
     expect(eligible[0]!.fare.fareFamily).toBe("UNKNOWN");
   });
-
-  it("is never described as easy to change", () => {
-    const note = changeRuleNote("UNKNOWN");
-    expect(note).not.toMatch(/easiest to change|flexible/i);
-    // And it warns in the direction the evidence actually points.
-    expect(note).toMatch(/saver/i);
-    expect(note).toMatch(/non-refundable|hard to change/i);
-  });
-
-  it("says plainly that the source did not tell us", () => {
-    expect(changeRuleNote("UNKNOWN")).toMatch(/does not say which fare type/i);
-  });
 });
 
 describe("families the provider does report", () => {
@@ -108,16 +95,6 @@ describe("families the provider does report", () => {
 
   it("keeps flexible", () => {
     expect(isFareEligible(journey(), fare({ fareFamily: "FLEXIBLE" }), rules)).toBe(true);
-  });
-
-  it("describes each one without overstating it", () => {
-    expect(changeRuleNote("FLEXIBLE")).toMatch(/easiest to change/i);
-    expect(changeRuleNote("SAVER")).toMatch(/restrictive/i);
-    expect(changeRuleNote("VALUE")).toMatch(/change fees/i);
-    // None of them claim to know the fee itself.
-    for (const family of ["FLEXIBLE", "VALUE", "SAVER", "UNKNOWN"] as FareFamily[]) {
-      expect(changeRuleNote(family), family).not.toMatch(/\$\d/);
-    }
   });
 });
 

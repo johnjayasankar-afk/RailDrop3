@@ -43,6 +43,47 @@ export function connectionNote(candidate: RankedCandidate): {
   };
 }
 
+/* The cheapest departure in each part of ONE day, with the sample size.
+ *
+ * cheapestByBucket pools the whole window, so a "morning" minimum drawn from
+ * Oct 1 could sit beside an "afternoon" minimum drawn from Oct 3 and render
+ * as a time-of-day pattern when it is purely a date effect — the exact
+ * confound this product refuses to make everywhere else. Sitting directly
+ * under "cheapest day in this window", it also invited the reader to compose
+ * the two into a date-and-time nobody had checked existed together.
+ *
+ * One date, named in the heading, and the count of fares behind each cell,
+ * because the methodology page says: "If a number appears without something
+ * next to it saying how much was seen, that is a bug."
+ */
+export function cheapestByBucketOnDate(
+  ranked: RankedCandidate[],
+  travelDate: string,
+): Record<TimeBucket, { candidate: RankedCandidate; count: number } | null> {
+  const onDate = ranked.filter((c) => c.journey.searchedTravelDate === travelDate);
+  const result: Record<TimeBucket, { candidate: RankedCandidate; count: number } | null> = {
+    morning: null,
+    afternoon: null,
+    evening: null,
+  };
+  for (const candidate of onDate) {
+    const bucket = departureBucket(candidate.journey.departureAt);
+    const current = result[bucket];
+    if (!current) {
+      result[bucket] = { candidate, count: 1 };
+    } else {
+      result[bucket] = {
+        candidate:
+          candidate.totalPartyPriceCents < current.candidate.totalPartyPriceCents
+            ? candidate
+            : current.candidate,
+        count: current.count + 1,
+      };
+    }
+  }
+  return result;
+}
+
 export function cheapestByBucket(
   ranked: RankedCandidate[],
 ): Record<TimeBucket, RankedCandidate | null> {

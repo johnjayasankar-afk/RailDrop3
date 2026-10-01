@@ -83,14 +83,29 @@ export function filterBoard(
 export function sortBoard(ranked: RankedCandidate[], sort: BoardSort): RankedCandidate[] {
   if (sort === "rank") return [...ranked];
   const copy = [...ranked];
+  /* Ties break on departure, in every ordering that can have them.
+   *
+   * Four fares on one date can list at exactly the same price, and the
+   * comparator returned 0 for all of them — so the list came out in whatever
+   * order the provider happened to return, and the headline, which names
+   * ranked[0], picked an arbitrary one of four equal trains. A reader looking
+   * at "7:55 PM" above four identical $91 fares starting at 3:10 PM has been
+   * told something the data does not support. */
+  const byDeparture = (a: RankedCandidate, b: RankedCandidate) =>
+    a.journey.departureAt.localeCompare(b.journey.departureAt);
   copy.sort((a, b) => {
-    if (sort === "price") return a.totalPartyPriceCents - b.totalPartyPriceCents;
-    if (sort === "depart") return a.journey.departureAt.localeCompare(b.journey.departureAt);
-    if (sort === "duration") {
-      return (a.journey.durationMinutes ?? 9999) - (b.journey.durationMinutes ?? 9999);
+    if (sort === "price") {
+      return a.totalPartyPriceCents - b.totalPartyPriceCents || byDeparture(a, b);
     }
-    if (sort === "savings") return b.savingsCents - a.savingsCents;
-    return a.rankScore - b.rankScore;
+    if (sort === "depart") return byDeparture(a, b);
+    if (sort === "duration") {
+      return (
+        (a.journey.durationMinutes ?? 9999) - (b.journey.durationMinutes ?? 9999) ||
+        byDeparture(a, b)
+      );
+    }
+    if (sort === "savings") return b.savingsCents - a.savingsCents || byDeparture(a, b);
+    return a.rankScore - b.rankScore || byDeparture(a, b);
   });
   return copy;
 }

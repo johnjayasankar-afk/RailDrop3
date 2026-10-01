@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { monthGrid, monthOf, moveByKey, WEEKDAY_LABELS } from "@/lib/domain/month-grid";
-import { addUtcDays, compareIsoDates, formatDisplayDateLong } from "@/lib/domain/calendar";
+import {
+  addUtcDays,
+  compareIsoDates,
+  formatDisplayDate,
+  formatDisplayDateLong,
+} from "@/lib/domain/calendar";
 
 /* Picking the travel date.
  *
@@ -51,6 +56,15 @@ export function DateField({
   const id = useId();
 
   const max = useMemo(() => addUtcDays(today, WINDOW_MAX_DAYS), [today]);
+  /* Past dates are dropped before anything is searched, so the window the
+     radio names and the window that runs are not always the same. */
+  const searchedSpan = useMemo(() => {
+    if (!value || flexibilityDays <= 0) return "";
+    const wanted = addUtcDays(value, -flexibilityDays);
+    const first = wanted < today ? today : wanted;
+    const last = addUtcDays(value, flexibilityDays);
+    return `${formatDisplayDate(first)}\u2009–\u2009${formatDisplayDate(last)}`;
+  }, [value, flexibilityDays, today]);
 
   useEffect(() => {
     if (!open) return;
@@ -154,9 +168,12 @@ export function DateField({
       {value ? (
         <p className="datefield-read">
           {formatDisplayDateLong(value)}
-          {flexibilityDays > 0
-            ? ` · searching ±${flexibilityDays} day${flexibilityDays === 1 ? "" : "s"}`
-            : ""}
+          {/* The dates that will actually be searched, not the width of the
+              window that was asked for. "±2 days" on a trip leaving today
+              promises five dates and gets three, because the two before
+              today have gone — and the reader has no way to tell that from
+              the control. Naming the span says it without a caveat. */}
+          {flexibilityDays > 0 ? ` · searching ${searchedSpan}` : ""}
         </p>
       ) : null}
 

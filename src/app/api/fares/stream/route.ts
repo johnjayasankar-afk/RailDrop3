@@ -49,6 +49,8 @@ export async function POST(request: Request) {
         const preview = await previewFares({
           body,
           provider: getFareProvider(),
+          // So an abandoned search stops costing something.
+          signal: request.signal,
           onProgress: (progress) => send({ type: "progress", progress }),
         });
         send({ type: "done", preview });

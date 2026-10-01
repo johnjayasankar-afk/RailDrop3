@@ -39,7 +39,11 @@ export function FareProvenance({
         aria-controls={id}
         onClick={() => setOpenedAt(openedAt ? null : new Date())}
       >
-        {openedAt ? "Hide source" : "Where from?"}
+        {/* "Where from?" on a page whose own form has a field labelled From,
+            above a row that reads BOS → NYP, is a question about the route —
+            which is the one thing this button has nothing to do with. It also
+            did not pair with its own closed state. */}
+        {openedAt ? "Hide source" : "Show source"}
       </button>
 
       {openedAt ? <Receipt id={id} candidate={candidate} context={context} now={openedAt} /> : null}

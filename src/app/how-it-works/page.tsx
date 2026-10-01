@@ -98,8 +98,7 @@ export default async function HowItWorksPage() {
             <li>
               <strong>Your ticket&rsquo;s change rules.</strong> We know the fare family a listing
               advertises. We do not know what your specific ticket permits, what it costs to change,
-              or whether a refund is a credit. The change-fee field on the board is your estimate,
-              used only for your own arithmetic — we never supply a number.
+              or whether a refund is a credit.
             </li>
             <li>
               <strong>Seat inventory.</strong> We see a price, not how many seats remain behind it.

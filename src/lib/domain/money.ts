@@ -27,6 +27,18 @@ export function formatUsdCompact(cents: number): string {
   return formatUsd(cents);
 }
 
+/* A derived rate, to the dollar.
+ *
+ * Cost-per-hour is arithmetic on a fare and a duration, and it rendered as
+ * "$29.42/hr" — two decimal places on a quotient, which reads as a measured
+ * amount of money rather than a comparison. Nobody uses the cents: the figure
+ * exists so a $126 four-hour train and a $141 three-hour one can be ranked at
+ * a glance, and the exact fare is on the same line. Rounded, not truncated, so
+ * the rate never reads lower than it is. */
+export function formatUsdPerHour(cents: number): string {
+  return formatUsdCompact(Math.round(cents / 100) * 100);
+}
+
 export function savingsCents(bookedCents: number, candidateCents: number): number {
   return bookedCents - candidateCents;
 }

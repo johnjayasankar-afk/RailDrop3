@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { stationQuerySchema } from "@/lib/validation/watch";
+import { stationQuerySchema } from "@/lib/validation/fares";
 import { STATIONS } from "@/lib/stations/catalog";
 import { stationCoverage } from "@/lib/stations/coverage";
 

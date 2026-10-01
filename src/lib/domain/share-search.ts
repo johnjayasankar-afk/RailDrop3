@@ -19,10 +19,18 @@ export interface SharedSearch {
   travelDate: string | null;
   flexibilityDays: 0 | 1 | 2;
   passengers: number;
+  /* Whether the link actually named a route, as opposed to falling back to
+     BOS → NYP. The defaults are indistinguishable from a deliberate choice
+     once they are in the form, and the difference decides whether opening
+     the page is a request for fares or just a visit to the form. */
+  routeWasNamed: boolean;
 }
 
 const CODE = /^[A-Za-z]{3}$/;
 const MAX_PASSENGERS = 8;
+
+/** The window a search runs when nobody said otherwise: the day either side. */
+export const DEFAULT_FLEXIBILITY_DAYS = 1;
 
 /**
  * Read a shared search out of query parameters.
@@ -42,16 +50,22 @@ export function readSharedSearch(
     travelDate: date(params.on) ?? fallbackDate,
     flexibilityDays: flexibility(params.flex),
     passengers: passengers(params.pax),
+    routeWasNamed: code(params.from) !== null && code(params.to) !== null,
   };
 }
 
 /** The canonical link for a search, for copying and for the card. */
-export function sharedSearchHref(search: SharedSearch): string {
+export function sharedSearchHref(search: Omit<SharedSearch, "routeWasNamed">): string {
   const query = new URLSearchParams({
     from: search.originCode,
     to: search.destinationCode,
     ...(search.travelDate ? { on: search.travelDate } : {}),
-    ...(search.flexibilityDays > 0 ? { flex: String(search.flexibilityDays) } : {}),
+    /* Written whenever it is not the default, in both directions — a link for
+       an explicit single-date search has to come back as a single-date
+       search, and omitting a 0 would hand the recipient the default window. */
+    ...(search.flexibilityDays !== DEFAULT_FLEXIBILITY_DAYS
+      ? { flex: String(search.flexibilityDays) }
+      : {}),
     ...(search.passengers > 1 ? { pax: String(search.passengers) } : {}),
   });
   return `/fares?${query.toString()}`;
@@ -81,9 +95,25 @@ function date(value: string | string[] | undefined): string | null {
   }
 }
 
+/* An absent window is not a window of zero.
+ *
+ * This returned 0 for a missing `flex`, which made it the value the component
+ * initialised from — and `?? 1` cannot fall back past a 0, because 0 is not
+ * nullish. So every first search in the product ran one date: the cheapest-day
+ * register, the daypart strip and the spread between the best and worst day
+ * never rendered at all, and the page that promises to find you the cheapest
+ * date in a window silently refused to look at one. The landing page documents
+ * "±1 day" and the FAQ explains it; this is the code that was supposed to mean
+ * it.
+ *
+ * Absent means the product's default. An explicit `flex=0` still means one
+ * date, and still survives a round trip through sharedSearchHref. */
 function flexibility(value: string | string[] | undefined): 0 | 1 | 2 {
-  const raw = Number.parseInt(first(value) ?? "", 10);
-  return raw === 1 || raw === 2 ? raw : 0;
+  const raw = first(value)?.trim();
+  if (!raw) return DEFAULT_FLEXIBILITY_DAYS;
+  const parsed = Number.parseInt(raw, 10);
+  if (parsed === 0 || parsed === 1 || parsed === 2) return parsed;
+  return DEFAULT_FLEXIBILITY_DAYS;
 }
 
 function passengers(value: string | string[] | undefined): number {

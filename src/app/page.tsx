@@ -2,21 +2,33 @@ import Link from "next/link";
 import { PageFrame } from "@/components/page-frame";
 import { JsonLd } from "@/components/json-ld";
 import { RouteRibbon } from "@/components/route-ribbon";
-import { Flap } from "@/components/flap";
+import { HeroDateField } from "@/components/hero-date-field";
 
-/* An example of the shape of an answer, not an answer.
+/* What the answer looks like, with no fares in it.
  *
- * It used to be framed around a watch — "you paid $128", "Regional 95
- * dropped $14, look at switching" — describing a feature that no longer
- * exists. It now shows what the product actually returns: a listed fare,
- * what it works out to per hour, and the cheapest one marked. The cost-per-
- * hour figures are arithmetic on the fare and the duration beside them, so
- * the illustration is internally consistent rather than decorative. */
-const SAMPLE = [
-  ["06:10", "Northeast Regional 95", "4h 08m", "$47", "$11/hr"],
-  ["07:00", "Acela 2155", "3h 50m", "$133", "$35/hr"],
-  ["09:20", "Northeast Regional 93", "4h 02m", "$61", "$15/hr"],
-  ["13:00", "Acela 2167", "3h 47m", "$141", "$37/hr"],
+ * This panel used to hold four fully-formed fares — "Northeast Regional 95
+ * $47", "Acela 2155 $133" — real train numbers, plausible durations, and
+ * derived cost-per-hour figures that were internally consistent with them,
+ * so the one check a sceptical reader would run came back clean. Its header
+ * read "4 trains listed · cheapest $47" using the product's own loaded word,
+ * its footer read "Read from live inventory · confirm on Amtrak", and the
+ * only thing marking it as fiction was "sample board" at ten pixels. On a
+ * phone it stacked directly under the search form, exactly where a real
+ * result lands.
+ *
+ * Four invented Amtrak prices, captioned as live readings, on the page that
+ * promises "never an invented price" twice. There is no caption that fixes
+ * that — the panel had to stop carrying prices.
+ *
+ * What it shows now is the shape of the answer: the columns, the ordering,
+ * the cheapest row marked. Nothing in it is a number anybody could mistake
+ * for a fare, because there are no numbers in it.
+ */
+const SHAPE = [
+  ["Earliest", "Regional", "4h", "cheapest marked"],
+  ["Morning", "Acela", "3h 50m", ""],
+  ["Midday", "Regional", "4h", "cost per hour"],
+  ["Afternoon", "Acela", "3h 47m", ""],
 ] as const;
 
 const FAQ = [
@@ -34,11 +46,11 @@ const FAQ = [
   ],
   [
     "Can you tell me the best day to book?",
-    "Only from what this search saw. We will say which of the dates you asked about is cheapest right now, and which part of the day is. We will not predict what a fare will do, because nobody has observed the future.",
+    "Only from what this search saw. Every search looks at the day either side by default, so you get three dates compared and the cheapest marked, plus which part of the day is cheapest. We will not predict what a fare will do, because nobody has observed the future.",
   ],
   [
-    "Why does it take ten seconds?",
-    "Because a real browser is loading the corridor for every date in your window. Nothing here is served from an earlier visitor's search.",
+    "Why does it take ten to thirty seconds?",
+    "Because a real browser loads the corridor once per date, and the default window is three dates. Nothing here is served from an earlier visitor's search. Each date appears as it lands, so you are reading fares before the last one is back.",
   ],
   [
     "Do you save my search?",
@@ -99,18 +111,35 @@ export default async function HomePage() {
                 empty is not a gap: readSharedSearch falls back to today, and
                 today is what most people mean. */}
             <form action="/fares" method="get" className="hero-search mt-9">
+              {/* required + pattern: an emptied field submitted happily and
+                  /fares fell back to BOS → NYP, so the results header named
+                  a route nobody had typed. The browser blocks it here, with
+                  no JavaScript involved. */}
               <label className="hero-field">
                 <span className="micro">From</span>
-                <input name="from" defaultValue="BOS" maxLength={3} autoComplete="off" />
+                <input
+                  name="from"
+                  defaultValue="BOS"
+                  maxLength={3}
+                  pattern="[A-Za-z]{3}"
+                  title="A three-letter station code, like BOS"
+                  required
+                  autoComplete="off"
+                />
               </label>
               <label className="hero-field">
                 <span className="micro">To</span>
-                <input name="to" defaultValue="NYP" maxLength={3} autoComplete="off" />
+                <input
+                  name="to"
+                  defaultValue="NYP"
+                  maxLength={3}
+                  pattern="[A-Za-z]{3}"
+                  title="A three-letter station code, like NYP"
+                  required
+                  autoComplete="off"
+                />
               </label>
-              <label className="hero-field hero-field-date">
-                <span className="micro">Date · today if blank</span>
-                <input name="on" type="date" />
-              </label>
+              <HeroDateField />
               <button type="submit" className="btn btn-primary hero-go">
                 See live fares
               </button>
@@ -122,13 +151,16 @@ export default async function HomePage() {
           <section className="ticket reveal" style={{ animationDelay: "80ms" }}>
             <div className="border-b border-line px-5 py-4">
               <p className="text-[10px] uppercase tracking-[0.16em] text-ink-soft">
-                Northeast corridor · sample board
+                Northeast corridor
               </p>
               <div className="mt-3">
                 <RouteRibbon origin="BOS" destination="NYP" />
               </div>
+              {/* Body size, not a ten-pixel eyebrow, and it says what the
+                  panel is before the reader reaches the rows. */}
               <p className="mt-3 text-xs text-ink-soft">
-                4 trains listed · cheapest <span className="text-save">$47</span>
+                The shape of an answer — <strong>no fares here</strong>. Search to see what is
+                listed.
               </p>
             </div>
             <div className="timetable">
@@ -137,27 +169,31 @@ export default async function HomePage() {
                 <span>Train</span>
                 <span className="text-right">Price</span>
               </div>
-              {SAMPLE.map(([time, name, duration, price, note]) => (
-                <div key={name} className="sample-row border-t border-line px-5 py-3">
-                  <p className="price serif text-2xl">
-                    <Flap>{time}</Flap>
-                  </p>
+              {SHAPE.map(([slot, service, duration, note], index) => (
+                <div key={slot} className="sample-row border-t border-line px-5 py-3">
+                  <p className="sample-slot">{slot}</p>
                   <p className="sample-train min-w-0">
-                    {name}
+                    {service}
                     <span className="mt-0.5 block text-xs text-ink-soft">{duration}</span>
                   </p>
-                  <p className="price serif text-right text-xl">
-                    <Flap>{price}</Flap>
-                    <span
-                      className={`mt-0.5 block text-[10px] uppercase tracking-[0.14em] ${price === "$47" ? "text-save" : "text-ink-soft"}`}
-                    >
-                      {note}
-                    </span>
+                  <p className="text-right">
+                    {/* A rule where the fare goes. Not a blurred number, not
+                        a plausible one — nothing a reader could read as a
+                        price, which is the entire point. */}
+                    <span className={`sample-blank${index === 0 ? " is-best" : ""}`} aria-hidden />
+                    <span className="sr-only">fare, shown after you search</span>
+                    {note ? (
+                      <span
+                        className={`mt-1 block text-[10px] uppercase tracking-[0.14em] ${index === 0 ? "text-save" : "text-ink-soft"}`}
+                      >
+                        {note}
+                      </span>
+                    ) : null}
                   </p>
                 </div>
               ))}
               <p className="border-t border-line px-5 py-3 text-xs text-ink-soft">
-                Read from live inventory · confirm on Amtrak
+                Every bookable train, cheapest marked · you book on Amtrak
               </p>
             </div>
           </section>

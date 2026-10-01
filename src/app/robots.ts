@@ -7,7 +7,8 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/dashboard", "/watches", "/settings", "/api/"],
+        // /dashboard, /watches and /settings went with the accounts.
+        disallow: ["/api/"],
       },
     ],
     sitemap: `${appOrigin()}/sitemap.xml`,

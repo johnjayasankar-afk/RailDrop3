@@ -55,15 +55,26 @@ describe("a fare lookup with no database", () => {
     }
   });
 
-  it("caps how many dates it will scrape", async () => {
-    // Somebody is waiting, and it costs provider credit. The watch does the
-    // full sweep once it exists.
+  it("searches the whole window the reader asked for", async () => {
+    /* The cap was 3, inherited from when a preview was the cheap taster and
+       a saved watch did the full sweep. There is no watch, and the leftover
+       cap made the "±2 days" control a lie: five dates were trimmed to three
+       while the form said "searching ±2 days" and the picker lit five days. */
     const preview = await previewFares({
       body: { ...body, dateFlexibilityDays: 2 },
       provider: new FixtureFareProvider(),
       now,
     });
-    expect(preview.dates.length).toBeLessThanOrEqual(3);
+    expect(preview.dates).toHaveLength(5);
+  });
+
+  it("searches three for ±1, so the two windows differ", async () => {
+    const narrow = await previewFares({
+      body: { ...body, dateFlexibilityDays: 1 },
+      provider: new FixtureFareProvider(),
+      now,
+    });
+    expect(narrow.dates).toHaveLength(3);
   });
 
   it("centres the window on the date that was actually asked for", async () => {
@@ -129,8 +140,14 @@ describe("it screens fares like a real cycle does", () => {
         })),
       ),
     });
+    /* Unreadable and failed are opposite claims and the sets are disjoint.
+       This date was reached and answered; what came back could not be
+       trusted. Putting it in both arrays double-counted it in the colophon
+       — one bad date of three rendered as four outcomes — and made the
+       strip's "unreadable" branch unreachable, so the page said "not
+       answered" about a date the provider had answered for. */
     expect(preview.unreadableDates).toContain("2026-10-09");
-    expect(preview.failedDates).toContain("2026-10-09");
+    expect(preview.failedDates).not.toContain("2026-10-09");
     expect(preview.ranked).toHaveLength(0);
   });
 });
