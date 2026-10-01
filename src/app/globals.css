@@ -5053,3 +5053,24 @@ time,
   border-color: var(--ink-soft);
   color: var(--ink);
 }
+
+/* ── The form travels with the results ──────────────────────────────────────
+   Measured at 1440: the form ends around 865px while the results run past
+   1800, so a fifth of that column was a form and the rest was a thousand
+   pixels of nothing. Sticky fixes both halves — the void goes, and changing
+   the date or the window no longer means scrolling back up past
+   twenty-three fares to reach the control that produced them.
+
+   Declared here, at the end, rather than beside the .lookup grid where it
+   belongs: a later `.lookup-form { position: relative }` has equal
+   specificity and was silently winning, so the first version of this
+   computed to `relative` and scrolled away. `sticky` establishes a
+   containing block the same way `relative` does, so whatever that rule was
+   positioning still works. */
+@media (min-width: 900px) {
+  .lookup-form {
+    position: sticky;
+    /* Clear of the 3.5rem sticky header. */
+    top: var(--sp-16);
+  }
+}
