@@ -3131,20 +3131,33 @@ body::after {
 }
 
 @media (max-width: 560px) {
+  /* One column, stacked.
+   *
+   * A 390px row cannot hold a price, a date, two clock times and a train in
+   * two columns and still have the receipt open underneath: the "when" cell
+   * came out at 115px and tore the AM/PM off both times onto a line of their
+   * own, so the row read as two bare numbers with two orphaned meridiems.
+   * Opening a derivation must not make the thing being derived harder to
+   * read than it was closed. */
   .lookup-row:has(.prov) {
+    grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
-      "price when"
-      "price train"
-      "prov prov";
+      "price"
+      "when"
+      "train"
+      "toggle"
+      "prov";
+    gap: var(--sp-2);
   }
 
-  /* Named explicitly: without an area it auto-places past the receipt. */
-  .lookup-row:has(.prov) .lookup-row-when {
-    grid-area: when;
-  }
-
+  /* Each one named: without an area it auto-places past the receipt, which
+     is how the train ended up four hundred pixels below its own fare. */
   .lookup-row:has(.prov) .lookup-row-price {
     grid-area: price;
+  }
+
+  .lookup-row:has(.prov) .lookup-row-when {
+    grid-area: when;
   }
 
   .lookup-row:has(.prov) .lookup-row-train {
@@ -3152,12 +3165,13 @@ body::after {
     grid-column: auto;
   }
 
-  /* The toggle rides under the train rather than claiming a column of its
-     own on a 390px row. */
   .lookup-row:has(.prov) .prov-toggle {
-    grid-area: train;
-    justify-self: end;
-    align-self: start;
+    grid-area: toggle;
+    justify-self: start;
+  }
+
+  .lookup-row:has(.prov) .prov {
+    grid-area: prov;
   }
 }
 

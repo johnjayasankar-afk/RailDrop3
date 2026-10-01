@@ -2,6 +2,8 @@ import Link from "next/link";
 import { PageFrame } from "@/components/page-frame";
 import { JsonLd } from "@/components/json-ld";
 import { RouteRibbon } from "@/components/route-ribbon";
+import { STATION_BY_CODE } from "@/lib/stations/catalog";
+import { WANDERU_STATION_IDS } from "@/lib/providers/wanderu-station-map";
 import { HeroDateField } from "@/components/hero-date-field";
 
 /* What the answer looks like, with no fares in it.
@@ -31,6 +33,10 @@ const SHAPE = [
   ["Afternoon", "Acela", "3h 47m", ""],
 ] as const;
 
+/* Computed, not written down, so the caveat cannot drift from the catalog. */
+const TOTAL_STATIONS = STATION_BY_CODE.size;
+const VERIFIED_STATIONS = Object.keys(WANDERU_STATION_IDS).length;
+
 const FAQ = [
   [
     "Do I need an account?",
@@ -43,6 +49,10 @@ const FAQ = [
   [
     "Where do the fares come from?",
     "A third-party rail search service reads Amtrak's listed inventory. We do not scrape amtrak.com, we hold no Amtrak data agreement, and we are not affiliated with Amtrak.",
+  ],
+  [
+    "Does it work for every station?",
+    `Our catalog lists ${TOTAL_STATIONS} stations and ${VERIFIED_STATIONS} have a provider identifier we have verified. The rest are matched by city name, which can return nothing or, in a city with two stations, the wrong platform — so the picker labels them "coverage unverified" before you search.`,
   ],
   [
     "Can you tell me the best day to book?",
@@ -224,7 +234,11 @@ export default async function HomePage() {
             [
               "Every train",
               "Regional, Acela, connections",
-              "All bookable rail on the route, not just the one you had in mind.",
+              /* The coverage caveat belongs with the coverage claim. This is
+                 the strongest thing the landing page says, and the only page
+                 carrying the qualification was the methodology page, which
+                 most readers never open. */
+              `All bookable rail on the route. Coverage is verified on ${VERIFIED_STATIONS} of ${TOTAL_STATIONS} stations; the rest are matched by city name.`,
             ],
             [
               "Honest",
