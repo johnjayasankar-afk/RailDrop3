@@ -7,6 +7,8 @@ import { formatUsdCompact } from "@/lib/domain/money";
 import { formatDisplayDate } from "@/lib/domain/calendar";
 import { formatClock } from "@/lib/domain/timezone";
 import { trainLabel } from "@/lib/domain/board-decision";
+import { centsPerHour } from "@/lib/domain/board-tools";
+import { formatDurationMinutes } from "@/lib/domain/calendar";
 import { FareProvenance } from "@/components/fare-provenance";
 import { Money } from "@/components/money";
 import type { DateProgress, FarePreview } from "@/lib/watches/preview-fares";
@@ -225,6 +227,9 @@ export function FareLookup({ today, initial }: { today: string; initial?: Shared
   );
 }
 
+/** Rows shown before the list asks to be expanded. */
+const VISIBLE_ROWS = 12;
+
 function Results({ state, passengers }: { state: State; passengers: number }) {
   const cheapest = useMemo(
     () => (state.status === "done" ? state.preview.ranked[0] : undefined),
@@ -235,6 +240,10 @@ function Results({ state, passengers }: { state: State; passengers: number }) {
      sent anywhere and nothing is stored — it is arithmetic on two numbers
      the reader is already looking at. */
   const [paid, setPaid] = useState("");
+  /* The list showed the first twelve and said nothing about the rest, so
+     a reader comparing against the scale saw a $315 ceiling with no row
+     anywhere near it and no way to tell whether that was a bug. */
+  const [showAll, setShowAll] = useState(false);
 
   if (state.status === "idle") {
     return (
@@ -338,6 +347,27 @@ function Results({ state, passengers }: { state: State; passengers: number }) {
     ? Math.min(...bucketRows.map(([, c]) => c.totalPartyPriceCents))
     : 0;
 
+  /* The scale.
+   *
+   * Every fare the search returned, as one tick on one rule, positioned by
+   * price between the cheapest and dearest things actually observed. The
+   * point is that the eye finds the cheap end before anyone reads a number,
+   * and that the shape of the distribution — a lone tick at the floor, or a
+   * wall of them crowded at the top — is information no list can give you.
+   *
+   * Both ends of the rule are real fares. There is no rounded axis, no
+   * nice-numbers algorithm, no zero origin: inventing an endpoint would put
+   * a price on the page that nobody listed, which is the one thing this
+   * product does not do. When every fare is the same price there is no
+   * distribution to draw and the component says so instead of drawing a
+   * scale one pixel wide.
+   */
+  const prices = preview.ranked.map((c) => c.totalPartyPriceCents).sort((a, b) => a - b);
+  const floor = prices[0] ?? 0;
+  const ceiling = prices[prices.length - 1] ?? 0;
+  const span = ceiling - floor;
+  const at = (cents: number) => (span > 0 ? ((cents - floor) / span) * 100 : 50);
+
   const paidCents = Math.round(Number(paid) * 100);
   const paidIsReal = Number.isFinite(paidCents) && paidCents > 0;
   const delta = paidIsReal ? paidCents - cheapest!.totalPartyPriceCents : null;
@@ -401,7 +431,85 @@ function Results({ state, passengers }: { state: State; passengers: number }) {
         </div>
       </header>
 
-      {preview.byDate.length > 1 ? (
+      {span > 0 ? (
+        <section
+          className="fare-scale"
+          role="img"
+          aria-label={
+            `${preview.ranked.length} fares listed, from ` +
+            `${formatUsdCompact(floor)} to ${formatUsdCompact(ceiling)}` +
+            (delta !== null && delta > 0
+              ? `. ${preview.ranked.filter((c) => c.totalPartyPriceCents < paidCents).length} of ` +
+                `them are below the ${formatUsdCompact(paidCents)} you paid.`
+              : ".")
+          }
+        >
+          <div className="fare-scale-rule">
+            {/* The band between the floor and what you paid. Drawn only when
+                somebody has told us what they paid, and only across the part
+                of the rule that is genuinely below it — it is the gap
+                between two observed-or-supplied numbers, not a prediction. */}
+            {delta !== null && delta > 0 ? (
+              <span
+                className="fare-scale-band"
+                style={{ insetInlineStart: 0, width: `${Math.min(100, at(paidCents))}%` }}
+                aria-hidden
+              />
+            ) : null}
+            {preview.ranked.map((candidate, index) => {
+              const cents = candidate.totalPartyPriceCents;
+              const best = cents === floor;
+              const beatsPaid = delta !== null && delta > 0 && cents < paidCents;
+              return (
+                <span
+                  key={`${candidate.journey.id}:${candidate.fare.id}:${index}`}
+                  className={`fare-tick${best ? " is-best" : ""}${beatsPaid ? " is-under" : ""}`}
+                  style={{ insetInlineStart: `${at(cents)}%` }}
+                  aria-hidden
+                />
+              );
+            })}
+            {/* What you paid, as a rule across the scale rather than a
+                sentence beside it. Clamped, and said so, when it sits
+                outside everything we saw. */}
+            {delta !== null ? (
+              <span
+                className={`fare-scale-paid${paidCents > ceiling ? " is-over" : ""}${
+                  paidCents < floor ? " is-under-all" : ""
+                }`}
+                style={{
+                  insetInlineStart: `${Math.max(0, Math.min(100, at(paidCents)))}%`,
+                }}
+                aria-hidden
+              />
+            ) : null}
+          </div>
+          <div className="fare-scale-ends">
+            <span className="fare-scale-end">
+              <Money cents={floor} />
+              <span className="micro">cheapest listed</span>
+            </span>
+            <span className="fare-scale-end is-high">
+              <Money cents={ceiling} />
+              <span className="micro">dearest listed</span>
+            </span>
+          </div>
+        </section>
+      ) : preview.ranked.length > 1 ? (
+        <p className="fare-scale-flat micro">
+          Every listed fare on this search is <Money cents={floor} />. There is no spread to draw.
+        </p>
+      ) : null}
+
+      {/* One cell per date SEARCHED, not per date that answered.
+          
+          A date the provider could not read used to drop out of this strip
+          entirely and reappear as a sentence below the fold, so a window
+          where one of three days failed looked exactly like a window where
+          that day was simply dearer — and the reader drew a conclusion
+          about a day nobody had managed to look at. A gap in the data is a
+          fact about the search, and it holds its position here. */}
+      {preview.dates.length > 1 ? (
         <section className="lookup-when" aria-label="Cheapest by date">
           <p className="micro lookup-when-head">
             Cheapest day in this window
@@ -413,13 +521,35 @@ function Results({ state, passengers }: { state: State; passengers: number }) {
             ) : null}
           </p>
           <ul className="lookup-days stagger">
-            {preview.byDate.map(([day, candidate]) => {
-              const best = candidate.totalPartyPriceCents === dayFloor;
+            {preview.dates.map((day) => {
+              const entry = preview.byDate.find(([d]) => d === day);
+              const failed = preview.failedDates.includes(day);
+              const unreadable = preview.unreadableDates.includes(day);
+              const best = Boolean(entry && entry[1].totalPartyPriceCents === dayFloor);
               return (
-                <li key={day} className={`lookup-day${best ? " is-best" : ""}`}>
+                <li
+                  key={day}
+                  className={`lookup-day${best ? " is-best" : ""}${entry ? "" : " is-blank"}`}
+                >
                   <span className="lookup-day-label micro">{formatDisplayDate(day)}</span>
-                  <span className="price">{formatUsdCompact(candidate.totalPartyPriceCents)}</span>
-                  {best ? <span className="lookup-day-flag micro">cheapest</span> : null}
+                  {entry ? (
+                    <span className="price">{formatUsdCompact(entry[1].totalPartyPriceCents)}</span>
+                  ) : (
+                    <span className="price lookup-day-none" aria-hidden>
+                      —
+                    </span>
+                  )}
+                  <span className="lookup-day-flag micro">
+                    {best
+                      ? "cheapest"
+                      : failed
+                        ? "not answered"
+                        : unreadable
+                          ? "unreadable"
+                          : entry
+                            ? ""
+                            : "nothing listed"}
+                  </span>
                 </li>
               );
             })}
@@ -450,16 +580,46 @@ function Results({ state, passengers }: { state: State; passengers: number }) {
       ) : null}
 
       <ol className="lookup-list stagger">
-        {preview.ranked.slice(0, 12).map((candidate) => (
+        {(showAll ? preview.ranked : preview.ranked.slice(0, VISIBLE_ROWS)).map((candidate) => (
           <li key={`${candidate.journey.id}:${candidate.fare.id}`} className="lookup-row">
             <span className="price lookup-row-price">
               {formatUsdCompact(candidate.totalPartyPriceCents)}
             </span>
             <span className="lookup-row-when">
-              {formatDisplayDate(candidate.journey.searchedTravelDate)} ·{" "}
-              {formatClock(candidate.journey.departureAt)}
+              {formatDisplayDate(candidate.journey.searchedTravelDate)}
+              <span className="lookup-row-clock">
+                {formatClock(candidate.journey.departureAt)}
+                <span className="lookup-row-arrow" aria-hidden>
+                  →
+                </span>
+                {formatClock(candidate.journey.arrivalAt)}
+              </span>
             </span>
-            <span className="lookup-row-train">{trainLabel(candidate)}</span>
+            <span className="lookup-row-train">
+              {trainLabel(candidate)}
+              {/* Duration and cost-per-hour were in the data and on no
+                  screen. Both are arithmetic on observations — a departure
+                  and an arrival, a fare and a duration — so both are things
+                  this product is allowed to state, and the second is the
+                  only number that makes a $91 four-hour train and a $141
+                  three-hour one comparable at a glance. */}
+              <span className="lookup-row-meta micro">
+                {formatDurationMinutes(candidate.journey.durationMinutes) ?? "duration unknown"}
+                {centsPerHour(candidate.totalPartyPriceCents, candidate.journey.durationMinutes) !=
+                null ? (
+                  <>
+                    {" · "}
+                    {formatUsdCompact(
+                      centsPerHour(
+                        candidate.totalPartyPriceCents,
+                        candidate.journey.durationMinutes,
+                      )!,
+                    )}
+                    /hr
+                  </>
+                ) : null}
+              </span>
+            </span>
             {/* The claim this product makes is unusual enough to be worth
                 being able to check. Collapsed, because most people want the
                 fare and not the derivation. */}
@@ -476,14 +636,73 @@ function Results({ state, passengers }: { state: State; passengers: number }) {
         ))}
       </ol>
 
-      {preview.failedDates.length > 0 ? (
-        <p className="lookup-note">
-          {preview.failedDates.length} date{preview.failedDates.length === 1 ? "" : "s"} in this
-          window could not be read, so they are unknown rather than empty.
-        </p>
+      {preview.ranked.length > VISIBLE_ROWS ? (
+        <button
+          type="button"
+          className="lookup-more"
+          aria-expanded={showAll}
+          onClick={() => setShowAll((value) => !value)}
+        >
+          {showAll
+            ? `Show the cheapest ${VISIBLE_ROWS}`
+            : `Show all ${preview.ranked.length} listed fares`}
+        </button>
       ) : null}
 
-      <p className="lookup-note">Listed fares, not a booking. Confirm on Amtrak.</p>
+      {/* The colophon: exactly what this reading was.
+          
+          Three disclaimers used to be scattered down the page — one about
+          unread dates, one about listed fares not being a booking, one in
+          the provenance toggle — each true, none of them adding up to a
+          statement of what had actually been measured. A reader could not
+          tell a search of three dates that all answered from a search of
+          three dates where one did, and both printed the same confident
+          figure at the top.
+          
+          Counts and verbatim fields only. Every number here is something
+          the search did, not something inferred from it, and
+          `failureReason` is printed in the provider's own words or the
+          line is absent — paraphrasing an error is how "we were blocked"
+          becomes "nothing was listed". */}
+      <dl className="colophon">
+        <div>
+          <dt className="micro">Dates requested</dt>
+          <dd>{preview.dates.length}</dd>
+        </div>
+        <div>
+          <dt className="micro">Answered</dt>
+          <dd>{preview.byDate.length}</dd>
+        </div>
+        {preview.failedDates.length > 0 ? (
+          <div>
+            <dt className="micro">Not answered</dt>
+            <dd className="colophon-gap">{preview.failedDates.length}</dd>
+          </div>
+        ) : null}
+        {preview.unreadableDates.length > 0 ? (
+          <div>
+            <dt className="micro">Unreadable</dt>
+            <dd className="colophon-gap">{preview.unreadableDates.length}</dd>
+          </div>
+        ) : null}
+        <div>
+          <dt className="micro">Fares seen</dt>
+          <dd>{preview.ranked.length}</dd>
+        </div>
+        <div>
+          <dt className="micro">Read at</dt>
+          <dd>{formatClock(preview.checkedAt)}</dd>
+        </div>
+      </dl>
+
+      {preview.failureReason ? (
+        <p className="lookup-note colophon-why">{preview.failureReason}</p>
+      ) : null}
+
+      <p className="lookup-note">
+        Listed fares, not a booking — confirm on Amtrak. A date that could not be read is unknown,
+        not empty.
+      </p>
     </section>
   );
 }

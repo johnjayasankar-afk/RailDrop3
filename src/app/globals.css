@@ -4820,3 +4820,239 @@ time,
    a real control — and it carries the route and date they just searched,
    rather than asking them to type it again. Dashed and unfilled: a prompt
    inside the results, not a card competing with them. */
+
+/* ── The scale ──────────────────────────────────────────────────────────────
+   Every fare the search returned, as one tick on one rule, positioned by
+   price between the cheapest and dearest things actually observed.
+
+   The eye finds the cheap end before anyone reads a number, and the shape —
+   a lone tick at the floor, or a wall of them crowded at the top — is
+   information a list cannot give you at any length.
+
+   Both ends are real fares. No rounded axis, no nice-numbers algorithm, no
+   zero origin: inventing an endpoint would put a price on the page nobody
+   listed.
+
+   Built from --save, --ink and --line, all of which are redefined for dark.
+   --forest-2, --mint-2 and --mint-3 are declared once, in the light :root,
+   and never again — anything leaning on them is a light-mode colour wearing
+   a token's name, and at night it simply does not adapt. */
+.fare-scale {
+  margin-top: var(--sp-6);
+}
+
+.fare-scale-rule {
+  position: relative;
+  height: 2.75rem;
+  border-radius: var(--r-well);
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+  box-shadow: inset 0 0 0 1px var(--line);
+  /* Room for the end ticks. At 0% and 100% a tick sits in the corner
+     radius and gets clipped to a nub, which hides the one mark on the
+     whole rule that matters most — the cheapest. */
+  padding-inline: 3px;
+}
+
+/* The stretch of the rule that is cheaper than what you paid. */
+.fare-scale-band {
+  position: absolute;
+  inset-block: 0;
+  border-radius: var(--r-well) 0 0 var(--r-well);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--save) 22%, transparent),
+    color-mix(in srgb, var(--save) 7%, transparent)
+  );
+}
+
+/* Density by stacking, not by jitter.
+   
+   Fares cluster hard on real routes — twenty-three results are often four
+   distinct prices — so most ticks land exactly on top of each other and
+   twenty-three marks render as four. Nudging them apart would place marks
+   at prices nobody listed, which is not available to this product. A
+   partly transparent tick solves it honestly instead: four at the same
+   price composite to four times the ink, so the wall at $167 is visibly
+   denser than the pair at $211 and every mark is still exactly where its
+   fare is. */
+.fare-tick {
+  position: absolute;
+  top: 28%;
+  bottom: 28%;
+  width: 1px;
+  translate: -0.5px 0;
+  background: color-mix(in srgb, var(--ink) 30%, transparent);
+}
+
+/* Ticks that beat what you paid. Thicker rather than a different hue, so
+   the distinction survives a monochrome print and colour blindness both. */
+.fare-tick.is-under {
+  top: 20%;
+  bottom: 20%;
+  width: 2px;
+  background: color-mix(in srgb, var(--save) 45%, transparent);
+}
+
+/* The cheapest. Full height, so it reads as the end of the scale rather
+   than one more reading on it. */
+.fare-tick.is-best {
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: var(--r-hair);
+  background: var(--save);
+  /* Opaque, and the only opaque mark on the rule: it is the answer, not a
+     reading. */
+  opacity: 1;
+}
+
+.fare-scale-paid {
+  position: absolute;
+  inset-block: -0.3rem;
+  width: 0;
+  translate: -1px 0;
+  border-inline-start: 2px dashed var(--ink);
+}
+
+/* Off the end of everything observed: the mark pins to the edge, and the
+   dash becomes an arrow-ish notch so it does not read as a value ON the
+   scale. */
+.fare-scale-paid.is-over,
+.fare-scale-paid.is-under-all {
+  border-inline-start-style: dotted;
+  opacity: 0.75;
+}
+
+.fare-scale-ends {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  margin-top: var(--sp-2);
+}
+
+.fare-scale-end {
+  display: grid;
+  gap: var(--sp-0-5);
+  font-size: var(--step--1);
+  color: var(--save);
+}
+
+.fare-scale-end .micro {
+  color: var(--ink-soft);
+}
+
+.fare-scale-end.is-high {
+  text-align: end;
+  color: var(--ink-soft);
+}
+
+.fare-scale-flat {
+  margin-top: var(--sp-6);
+  color: var(--ink-soft);
+}
+
+/* ── The colophon ───────────────────────────────────────────────────────────
+   What this reading actually was, in counts and verbatim fields.
+
+   Three disclaimers used to be scattered down the page, each true, none of
+   them adding up to a statement of what had been measured — so a search
+   where one of three dates failed looked exactly like one where all three
+   answered, and both printed the same confident figure at the top.
+
+   A run-in definition list, because that is the shape of the content: a
+   series of label-and-count pairs that belong on one line and wrap as a
+   unit. Mono, small, quiet — it is the apparatus, not the answer. */
+.colophon {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-6);
+  margin-top: var(--sp-6);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line);
+  font-family: var(--font-code);
+  font-size: var(--step--3);
+}
+
+.colophon > div {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-1-5);
+}
+
+.colophon dt {
+  color: var(--ink-soft);
+}
+
+.colophon dd {
+  margin: 0;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+
+/* A date nobody could read is not a zero, and should not be set like one. */
+.colophon-gap {
+  color: var(--drop);
+}
+
+.colophon-why {
+  margin-top: var(--sp-2);
+  color: var(--drop);
+}
+
+/* ── A row says what it costs, when it runs, and what that rate is ──────────
+   The rows carried price, date, departure and a train name. Arrival,
+   duration and cost-per-hour were all in the data and on no screen — and
+   the last of those is the only figure that makes a $91 four-hour train
+   and a $141 three-hour one comparable without arithmetic in your head. */
+.lookup-row-clock {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-1);
+  margin-inline-start: var(--sp-2);
+  font-variant-numeric: tabular-nums slashed-zero;
+  color: var(--ink);
+}
+
+.lookup-row-arrow {
+  color: var(--ink-soft);
+}
+
+.lookup-row-meta {
+  display: block;
+  margin-top: var(--sp-0-5);
+  color: var(--ink-soft);
+}
+
+/* A date that returned nothing keeps its cell and says which kind of
+   nothing it was. Dimmed, dashed, and never mistaken for a price. */
+.lookup-day.is-blank {
+  border-style: dashed;
+  opacity: 0.85;
+}
+
+.lookup-day-none {
+  color: var(--ink-soft);
+  letter-spacing: 0;
+}
+
+/* The list shows the cheapest twelve and says so, rather than truncating
+   in silence — a reader comparing the rows against the scale could see a
+   ceiling with no row near it and no way to tell whether that was a bug. */
+.lookup-more {
+  margin-top: var(--sp-3);
+  padding: var(--sp-2) var(--sp-4);
+  border: 1px dashed var(--line-2);
+  border-radius: var(--r-pill);
+  background: none;
+  color: var(--ink-soft);
+  font-size: var(--step--1);
+  cursor: pointer;
+  transition:
+    border-color var(--t-base) var(--ease-out),
+    color var(--t-base) var(--ease-out);
+}
+
+.lookup-more:hover {
+  border-color: var(--ink-soft);
+  color: var(--ink);
+}
