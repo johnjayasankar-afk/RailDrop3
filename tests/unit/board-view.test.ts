@@ -73,9 +73,7 @@ describe("narrowing a board already paid for", () => {
   it("will not filter on the reader's own private figure", () => {
     /* savingsCents is derived from what the reader typed into "what you
        paid". No control and no URL may select it. */
-    const withSavings = board.map(
-      (c) => ({ ...c, savingsCents: 0 }) as unknown as RankedCandidate,
-    );
+    const withSavings = board.map((c) => ({ ...c, savingsCents: 0 }) as unknown as RankedCandidate);
     expect(narrow(withSavings, WHOLE_BOARD)).toHaveLength(3);
     expect(Object.keys(WHOLE_BOARD)).not.toContain("savingsOnly");
   });

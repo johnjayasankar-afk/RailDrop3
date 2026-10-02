@@ -5565,3 +5565,88 @@ time,
   color: var(--ink-soft);
   opacity: 0.75;
 }
+
+/* ── Two trains, and only what differs ────────────────────────────────────
+   The one thing no ordering can produce is a selection: by price the $91
+   four-hour sits beside the $95 three-and-a-half and the $141 three-hour is
+   fourteen rows away; by duration it inverts.
+
+   Sticky at the foot, because a strip below the Show-all button is invisible
+   during the scroll it exists to eliminate. The board reserves room for it
+   so nothing is covered. */
+.pin {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  margin-top: var(--sp-1-5);
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.pin input {
+  width: 0.85rem;
+  height: 0.85rem;
+  accent-color: var(--forest-2);
+}
+
+.compare {
+  position: sticky;
+  bottom: var(--sp-3);
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-2) var(--sp-3);
+  margin-top: var(--sp-5);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--ink);
+  border-radius: var(--r-plate);
+  background: var(--paper-elevated);
+  box-shadow: var(--lift-key-hover);
+}
+
+.compare-pair {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  font-weight: var(--w-strong);
+}
+
+.compare-versus {
+  color: var(--ink-soft);
+  font-size: var(--step--1);
+}
+
+.compare-says {
+  margin: 0;
+  flex: 1 1 14rem;
+  /* Deliberately not --save. A green figure on the cheaper side is a
+     recommendation, and which train is better depends on things we were
+     never told. */
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+
+.compare-days {
+  color: var(--ink);
+}
+
+.compare-clear {
+  border: 0;
+  background: none;
+  padding: 0;
+  font-size: var(--step--1);
+  color: var(--ink-soft);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.compare-clear:hover {
+  color: var(--ink);
+}
+
+.compare-hint {
+  margin-top: var(--sp-4);
+  color: var(--ink-soft);
+}

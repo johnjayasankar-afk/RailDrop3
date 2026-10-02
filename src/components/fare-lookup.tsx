@@ -15,10 +15,11 @@ import {
   WHOLE_BOARD,
   type BoardView,
 } from "@/lib/domain/board-view";
+import { compareFares } from "@/lib/domain/fare-compare";
 import { fareDistribution } from "@/lib/domain/fare-distribution";
 import { journeyShape } from "@/lib/domain/journey-shape";
 import { readingAge, readingIsStale } from "@/lib/domain/reading-age";
-import { centsPerHour, sortBoard, type BoardSort } from "@/lib/domain/board-tools";
+import { candidateKey, centsPerHour, sortBoard, type BoardSort } from "@/lib/domain/board-tools";
 import { formatDurationMinutes } from "@/lib/domain/calendar";
 import { FareProvenance } from "@/components/fare-provenance";
 import { TakeItWithYou } from "@/components/take-it-with-you";
@@ -579,12 +580,19 @@ function Results({
      rows are for days the reader is not travelling — and the only way to
      see fewer was another ten-seconds-per-date scrape. */
   const [view, setView] = useState<BoardView>(WHOLE_BOARD);
+  /* Pinned rows, held as candidate KEYS and resolved against the current
+     reading on every render. Holding the objects is how a strip ends up
+     subtracting two readings taken ten minutes apart and printing the
+     result as though it were now. */
+  const [pins, setPins] = useState<string[]>([]);
   /* Read on the client only, and only once the board exists: a relative time
      rendered on the server is wrong by the time it arrives, and React would
      report the mismatch. Thirty seconds is finer than the coarsest unit the
      phrasing uses, so the label is never seen to be behind. */
   const [now, setNow] = useState<Date | null>(null);
   const checkedAt = state.status === "done" ? state.preview.checkedAt : null;
+  // A pin belongs to one reading. A new one invalidates it.
+  useEffect(() => setPins([]), [checkedAt, state.status]);
   useEffect(() => {
     if (!checkedAt) return;
     setNow(new Date());
@@ -839,6 +847,21 @@ function Results({
   const shown = narrowed ? narrow(preview.ranked, view) : preview.ranked;
   const orphan = narrowed ? orphanedHeadline(shown, cheapest) : null;
   const ordered = sortBoard(shown, sort);
+  /* Resolved against this reading; a key that no longer matches anything
+     drops out silently rather than resurrecting a stale row. */
+  const pinned = pins
+    .map((key) => preview.ranked.find((c) => candidateKey(c) === key))
+    .filter((c): c is RankedCandidate => c !== undefined);
+  const comparison = pinned.length === 2 ? compareFares(pinned[0]!, pinned[1]!) : null;
+  const togglePin = (candidate: RankedCandidate) => {
+    const key = candidateKey(candidate);
+    setPins((current) =>
+      current.includes(key)
+        ? current.filter((k) => k !== key)
+        : // A third pin replaces the older of the two.
+          [...current, key].slice(-2),
+    );
+  };
   /* The collapsed list always contains the fare the headline names.
    *
    * It was the first twelve of whatever ordering was active, so under
@@ -1417,6 +1440,20 @@ function Results({
                   a 4h02m nonstop were distinguishable only by reading the
                   duration and doing the arithmetic. A reader scanning prices
                   does not do that. */}
+                {/* Inside the train cell on purpose. .lookup-row is defined
+                    four times — the 4-column base, the ≤560px 2-column rule,
+                    and the :has(.prov) area maps at both breakpoints — and a
+                    fifth grid child once stranded a train four hundred
+                    pixels below its own fare. This cell already has a named
+                    area at every breakpoint. */}
+                <label className="pin">
+                  <input
+                    type="checkbox"
+                    checked={pins.includes(candidateKey(candidate))}
+                    onChange={() => togglePin(candidate)}
+                  />
+                  <span className="micro">Compare</span>
+                </label>
                 {shape.flags.length > 0 ? (
                   <span className="lookup-row-flags">
                     {shape.flags.map((flag) => (
@@ -1470,6 +1507,38 @@ function Results({
               ? `Show all ${shown.length} in this view`
               : `Show all ${preview.ranked.length} listed fares`}
         </button>
+      ) : null}
+
+      {/* Two trains, and only what differs.
+          No ordering can produce a selection: by price the $91 four-hour
+          sits beside the $95 three-and-a-half and the $141 three-hour is
+          fourteen rows away; by duration it inverts. No winner is named and
+          nothing is coloured — which train is better depends on things we
+          were never told. */}
+      {comparison ? (
+        <aside className="compare" aria-label="The two fares you pinned">
+          <div className="compare-pair">
+            <span className="compare-train">{comparison.from}</span>
+            <span className="compare-versus" aria-hidden>
+              vs
+            </span>
+            <span className="compare-train">{comparison.to}</span>
+          </div>
+          <p className="compare-says">
+            {comparison.differentDays ? (
+              <>
+                <strong className="compare-days">{comparison.differentDays}</strong>
+                {" · "}
+              </>
+            ) : null}
+            {comparison.clauses.join(" · ")}
+          </p>
+          <button type="button" className="compare-clear" onClick={() => setPins([])}>
+            Clear
+          </button>
+        </aside>
+      ) : pinned.length === 1 ? (
+        <p className="compare-hint micro">Pin one more fare to see only what differs.</p>
       ) : null}
 
       <TakeItWithYou preview={preview} passengers={passengers} cheapest={cheapest} />
