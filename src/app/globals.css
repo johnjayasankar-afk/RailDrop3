@@ -5259,3 +5259,117 @@ time,
   border-radius: 50%;
   background: var(--save);
 }
+
+/* ── What kind of journey this is ─────────────────────────────────────────
+   A ten-hour connecting overnight and a four-hour nonstop looked the same on
+   this board apart from a duration the reader had to convert in their head.
+   These are facts read off the journey, never advice: tone "warn" is for the
+   ones that change what the trip is, not for ones we think are worse. */
+.lookup-row-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1-5);
+  margin-top: var(--sp-1-5);
+}
+
+.journey-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 0.1rem var(--sp-1-5);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-hair);
+  font-family: var(--font-code);
+  font-size: var(--step--3);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.journey-flag.is-warn {
+  border-color: color-mix(in srgb, var(--gold) 45%, transparent);
+  color: var(--gold);
+}
+
+/* A way out of a thirty-second wait. Quiet, because stopping is not the
+   thing we are asking for — it is the thing that must be possible. */
+.lookup-stop {
+  margin-top: var(--sp-4);
+  align-self: start;
+  padding: var(--sp-1-5) var(--sp-3);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-pill);
+  background: none;
+  color: var(--ink-soft);
+  font-size: var(--step--1);
+  transition:
+    border-color var(--t-fast) var(--ease-out),
+    color var(--t-fast) var(--ease-out);
+}
+
+.lookup-stop:hover {
+  border-color: var(--ink-soft);
+  color: var(--ink);
+}
+
+/* ── The reading ages in front of you ──────────────────────────────────────
+   "Every result says when it was read" was honoured by a clock time in the
+   colophon at the bottom of the page. Beside the figure it is a fact about
+   the figure; at the bottom it is a footnote about the page. */
+.lookup-age {
+  margin-top: var(--sp-1-5);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1-5);
+  color: var(--ink-soft);
+}
+
+.lookup-age.is-stale {
+  color: var(--gold);
+}
+
+.lookup-again {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: var(--gold);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.lookup-again:hover {
+  color: var(--ink);
+}
+
+
+/* ── What the shape of the rule actually is ────────────────────────────────
+   Order statistics under the scale. Set as one run with hairline separators
+   rather than a list, because it is one sentence about one set of fares. */
+.fare-spread {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-2-5);
+  border-top: 1px solid var(--line);
+  color: var(--ink-soft);
+}
+
+.fare-spread-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--ink) 28%, transparent);
+}
+
+/* The figures inside it stay in the ink, so the statistics read as figures
+   and the words around them read as the label. */
+.fare-spread .readout {
+  color: var(--ink);
+}

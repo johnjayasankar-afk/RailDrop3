@@ -8,6 +8,9 @@ import { formatDisplayDate } from "@/lib/domain/calendar";
 import { formatClock, formatInstantClock } from "@/lib/domain/timezone";
 import { sameDayCheapest, trainLabel } from "@/lib/domain/board-decision";
 import { dateOutcomes, windowWasPartial } from "@/lib/domain/date-outcomes";
+import { fareDistribution } from "@/lib/domain/fare-distribution";
+import { journeyShape } from "@/lib/domain/journey-shape";
+import { readingAge, readingIsStale } from "@/lib/domain/reading-age";
 import { centsPerHour, sortBoard, type BoardSort } from "@/lib/domain/board-tools";
 import { formatDurationMinutes } from "@/lib/domain/calendar";
 import { FareProvenance } from "@/components/fare-provenance";
@@ -51,6 +54,10 @@ type State =
      "Per traveller $211 · Party total $211 · Multiplied by 4 travellers".
      Nobody observed $211 for four people. */
   | { status: "done"; preview: FarePreview; passengers: number }
+  /* Stopped on purpose, holding whatever had already landed. Distinct from
+     "failed", because nothing went wrong and the dates that came back are
+     real readings. */
+  | { status: "stopped"; done: DateProgress[] }
   | { status: "failed"; message: string };
 
 export function FareLookup({ today, initial }: { today: string; initial?: SharedSearch }) {
@@ -91,13 +98,26 @@ export function FareLookup({ today, initial }: { today: string; initial?: Shared
    * still waits to be asked, because nobody asked for anything. */
   const autoRan = useRef(false);
 
+  /* A way out of a thirty-second wait.
+   *
+   * The only exit was the back button or the tab, both of which throw away
+   * the dates that had already landed — and the scrape carried on at the
+   * provider either way. Aborting the fetch closes the stream, which the
+   * route now reads to stop between dates, and the reader keeps whatever
+   * came back before they stopped it. */
+  const abortRef = useRef<AbortController | null>(null);
+
   const search = useCallback(async () => {
     if (!ready) return;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
     setState({ status: "searching", done: [] });
     try {
       const response = await fetch("/api/fares/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           originCode: origin,
           destinationCode: destination,
@@ -183,13 +203,35 @@ export function FareLookup({ today, initial }: { today: string; initial?: Shared
           message: "The connection dropped before the search finished. Nothing was read.",
         });
       }
-    } catch {
+    } catch (error) {
+      /* A reader who pressed Stop is not an error, and must not be told the
+         connection failed — they ended it on purpose, and whatever landed
+         before they did is still a real reading. */
+      if (error instanceof DOMException && error.name === "AbortError") {
+        setState((current) =>
+          current.status === "searching" ? { status: "stopped", done: current.done } : current,
+        );
+        return;
+      }
       setState({
         status: "failed",
         message: "Could not reach RailDrop. Your connection, or ours.",
       });
     }
   }, [ready, origin, destination, date, flexibility, passengers]);
+
+  /* Leaving the page is the same as pressing Stop, but an unmount cleanup is
+     the wrong place to say so: React invokes effects twice in development,
+     so the cleanup from the first mount aborted the search the second mount
+     had just started — every search stopped before its first date landed.
+     pagehide fires when the document actually goes away, and a full
+     navigation closes the connection regardless, which the stream route
+     reads to stop scraping. */
+  useEffect(() => {
+    const stop = () => abortRef.current?.abort();
+    window.addEventListener("pagehide", stop);
+    return () => window.removeEventListener("pagehide", stop);
+  }, []);
 
   useEffect(() => {
     if (autoRan.current || !initial?.routeWasNamed || !ready) return;
@@ -318,7 +360,11 @@ export function FareLookup({ today, initial }: { today: string; initial?: Shared
         </button>
       </form>
 
-      <Results state={state} />
+      <Results
+        state={state}
+        onStop={() => abortRef.current?.abort()}
+        onAgain={() => void search()}
+      />
     </div>
   );
 }
@@ -338,7 +384,18 @@ export function FareLookup({ today, initial }: { today: string; initial?: Shared
  * and the component says that rather than substituting another day's fare.
  */
 type PaidVerdict =
-  | { kind: "idle" | "unusable"; note: string; move: null }
+  | {
+      kind: "idle" | "unusable";
+      note: string;
+      /* A figure we could read but cannot benchmark — their own date
+         returned nothing — is still a real amount, and the rule spans the
+         whole window. Marking it there is honest and useful even when the
+         sentence beside it has to say there is nothing to compare against;
+         withholding the mark too would be the page forgetting a number the
+         reader can see in the field. Null when the text did not parse. */
+      cents: number | null;
+      move: null;
+    }
   | {
       kind: "cheaper" | "dearer" | "same";
       /** The figure as typed, for the scale to mark. */
@@ -353,19 +410,30 @@ export function readPaid(
   cheapestDay: readonly [string, RankedCandidate] | undefined,
 ): PaidVerdict {
   if (typed.trim().length === 0) {
-    return { kind: "idle", note: "Type it to compare against the live board.", move: null };
+    return {
+      kind: "idle",
+      note: "Type it to compare against the live board.",
+      cents: null,
+      move: null,
+    };
   }
   /* dollarsToCents, not Number: "$128" and "1,200" are what people type, and
      Number gives NaN for both — which rendered as the same hint an empty
      field gets, so the product looked like it had not noticed. */
   const cents = dollarsToCents(typed);
   if (cents === null || cents <= 0) {
-    return { kind: "unusable", note: "That is not an amount we can compare.", move: null };
+    return {
+      kind: "unusable",
+      note: "That is not an amount we can compare.",
+      cents: null,
+      move: null,
+    };
   }
   if (cents > MAX_SANE_FARE_CENTS) {
     return {
       kind: "unusable",
       note: "That is more than any rail fare — check the figure.",
+      cents: null,
       move: null,
     };
   }
@@ -374,7 +442,8 @@ export function readPaid(
   if (!benchmark) {
     return {
       kind: "unusable",
-      note: `Nothing was listed for ${formatDisplayDate(preview.desiredTravelDate)}, so there is nothing to compare against.`,
+      note: `Nothing was listed for ${formatDisplayDate(preview.desiredTravelDate)}, so there is nothing to compare it against — but it is marked on the rule below.`,
+      cents,
       move: null,
     };
   }
@@ -411,7 +480,15 @@ const SORT_LABEL: Partial<Record<BoardSort, string>> = {
    Northeast Corridor fare, including a party of eight in first class. */
 const MAX_SANE_FARE_CENTS = 10_000_00;
 
-function Results({ state }: { state: State }) {
+function Results({
+  state,
+  onStop,
+  onAgain,
+}: {
+  state: State;
+  onStop?: () => void;
+  onAgain?: () => void;
+}) {
   /* The count the search ran with, never the one in the form. */
   const passengers = state.status === "done" ? state.passengers : 1;
   /* The headline fare and the first row under "cheapest" are the same train.
@@ -439,6 +516,18 @@ function Results({ state }: { state: State }) {
      one — both orderings of the same observed set, neither a judgement
      about which to take. */
   const [sort, setSort] = useState<BoardSort>("price");
+  /* Read on the client only, and only once the board exists: a relative time
+     rendered on the server is wrong by the time it arrives, and React would
+     report the mismatch. Thirty seconds is finer than the coarsest unit the
+     phrasing uses, so the label is never seen to be behind. */
+  const [now, setNow] = useState<Date | null>(null);
+  const checkedAt = state.status === "done" ? state.preview.checkedAt : null;
+  useEffect(() => {
+    if (!checkedAt) return;
+    setNow(new Date());
+    const timer = window.setInterval(() => setNow(new Date()), 30_000);
+    return () => window.clearInterval(timer);
+  }, [checkedAt]);
 
   if (state.status === "idle") {
     return (
@@ -486,6 +575,44 @@ function Results({ state }: { state: State }) {
         <div className="lookup-bar" aria-hidden>
           <span />
         </div>
+
+        {/* A way out. The only exit was the back button or the tab, both of
+            which throw away the dates that already landed — and the scrape
+            carried on at the provider regardless. */}
+        {onStop ? (
+          <button type="button" className="lookup-stop" onClick={onStop}>
+            Stop and keep what has come back
+          </button>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (state.status === "stopped") {
+    const landed = state.done.filter((entry) => entry.cheapestCents !== null);
+    return (
+      <div className="lookup-empty panel" role="status">
+        <p className="kicker">Stopped</p>
+        <p className="mt-2 text-ink-soft">
+          {state.done.length === 0
+            ? "You stopped before any date came back, so there is nothing to show."
+            : landed.length === 0
+              ? /* Dates came back and none of them had a fare. Saying "these
+                   are the cheapest fares" above an empty list would be the
+                   page describing something it is not showing. */
+                `You stopped after ${state.done.length} of ${state.done[0]?.total ?? state.done.length} dates, and none of the dates that came back had a fare listed. The rest of the window was never looked at.`
+              : `You stopped after ${state.done.length} of ${state.done[0]?.total ?? state.done.length} dates. Below is the cheapest fare each of those dates was listing when we read it — these are readings, not a full board, and the rest of the window was never looked at.`}
+        </p>
+        {landed.length > 0 ? (
+          <ul className="lookup-live">
+            {landed.map((entry) => (
+              <li key={entry.travelDate} className="lookup-live-row is-fares">
+                <span className="lookup-live-date">{formatDisplayDate(entry.travelDate)}</span>
+                <span className="lookup-live-value">{formatUsdCompact(entry.cheapestCents!)}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </div>
     );
   }
@@ -514,7 +641,9 @@ function Results({ state }: { state: State }) {
         <p className="mt-2 text-ink-soft">
           {preview.failureReason ??
             (unread === 0
-              ? `All ${preview.dates.length} ${preview.dates.length === 1 ? "date" : "dates"} were read and nothing is listed on ${preview.dates.length === 1 ? "it" : "them"}.`
+              ? preview.dates.length === 1
+                ? "We read the date and nothing is listed on it."
+                : `We read all ${preview.dates.length} dates and nothing is listed on any of them.`
               : unread === preview.dates.length
                 ? `None of the ${preview.dates.length} dates could be read, so we do not know what is listed.`
                 : `${unread} of ${preview.dates.length} dates could not be read. The ${empty.empty} we did read have nothing listed.`)}
@@ -536,6 +665,8 @@ function Results({ state }: { state: State }) {
      pick. Every day at the floor is flagged, which is also the honest answer
      to "when should I travel": sometimes it is "either of these". */
   const outcomes = dateOutcomes(preview);
+  const age = now ? readingAge(preview.checkedAt, now) : "read moments ago";
+  const stale = now ? readingIsStale(preview.checkedAt, now) : false;
   const dayPrices = preview.byDate.map(([, candidate]) => candidate.totalPartyPriceCents);
   const dayFloor = dayPrices.length ? Math.min(...dayPrices) : 0;
   /* Two dates can land on the same lowest fare, and when they did, both cells
@@ -590,6 +721,7 @@ function Results({ state }: { state: State }) {
   const span = ceiling - floor;
   const at = (cents: number) => (span > 0 ? ((cents - floor) / span) * 100 : 50);
 
+  const spread = fareDistribution(prices);
   const ordered = sortBoard(preview.ranked, sort);
   /* The collapsed list always contains the fare the headline names.
    *
@@ -630,7 +762,7 @@ function Results({ state }: { state: State }) {
      against. An unusable or absent one marks nothing — a band drawn from a
      number we have just refused to use would be the product arguing with
      itself. */
-  const paidCents = "cents" in paidVerdict ? paidVerdict.cents : null;
+  const paidCents = paidVerdict.cents;
   /* Off the end of the rule in either direction is a fact about the reading,
      not a thing to silently clamp: a $900 entry pinned to the ceiling tick
      reads as a fare somebody listed. */
@@ -654,7 +786,43 @@ function Results({ state }: { state: State }) {
             cheapest of {preview.ranked.length} listed
             {cheapestDay ? ` · ${formatDisplayDate(cheapestDay[0])}` : ""}
             {cheapest?.journey.departureAt ? ` · ${formatClock(cheapest.journey.departureAt)}` : ""}
-            {passengers > 1 ? ` · ${passengers} passengers, total` : ""}
+            {/* Both units, when the party is more than one.
+                The figure is the party total — correct, and the number a
+                reader checks against a quote — but "$844" beside a route is
+                read as a ticket price unless the per-head figure is on the
+                same line. Read from the provider's own per-traveller field,
+                not divided out of the total. */}
+            {passengers > 1 ? (
+              <>
+                {" · "}
+                {passengers} travelling
+                {cheapest?.fare.pricePerTravelerCents ? (
+                  <>
+                    {", "}
+                    <Money cents={cheapest.fare.pricePerTravelerCents} /> each
+                  </>
+                ) : (
+                  ", total"
+                )}
+              </>
+            ) : null}
+          </p>
+          {/* The reading ages in front of you.
+              "Every result says when it was read" was honoured by a clock
+              time in the colophon at the very bottom. Somebody looking at
+              the headline could not tell a nine-second-old figure from a
+              ninety-minute-old one, which is the difference between a price
+              and a memory. */}
+          <p className={`lookup-age micro${stale ? " is-stale" : ""}`}>
+            {age}
+            {stale ? (
+              <>
+                {" · "}
+                <button type="button" className="lookup-again" onClick={onAgain}>
+                  read it again
+                </button>
+              </>
+            ) : null}
           </p>
         </div>
 
@@ -786,6 +954,38 @@ function Results({ state }: { state: State }) {
               <span className="micro">dearest listed</span>
             </span>
           </div>
+          {/* What the shape IS, in figures.
+              The rule draws every fare as a tick, so the distribution is
+              visible — a lone mark at the floor, a wall of them at the top —
+              but nobody can count forty ticks, and nothing said whether the
+              cheapest fare was one train or six. Every figure here is an
+              order statistic computed by nearest rank, which returns a fare
+              somebody listed rather than a value interpolated between two.
+              The sample size travels with them, because the methodology page
+              says a number without one is a bug. */}
+          {spread ? (
+            <p className="fare-spread micro">
+              <span>
+                {spread.count} fares listed, {spread.distinct} different{" "}
+                {spread.distinct === 1 ? "price" : "prices"}
+              </span>
+              <span className="fare-spread-dot" aria-hidden />
+              <span>
+                median <Money cents={spread.median} />
+              </span>
+              <span className="fare-spread-dot" aria-hidden />
+              <span>
+                middle half <Money cents={spread.lowerQuartile} /> to{" "}
+                <Money cents={spread.upperQuartile} />
+              </span>
+              <span className="fare-spread-dot" aria-hidden />
+              <span className={spread.atFloor === 1 ? "text-save" : undefined}>
+                {spread.atFloor === 1
+                  ? "one train at the cheapest price"
+                  : `${spread.atFloor} trains at the cheapest price`}
+              </span>
+            </p>
+          ) : null}
         </section>
       ) : preview.ranked.length > 1 ? (
         <p className="fare-scale-flat micro">
@@ -914,65 +1114,92 @@ function Results({ state }: { state: State }) {
       </div>
 
       <ol className="lookup-list stagger">
-        {(showAll ? ordered : collapsed).map((candidate) => (
-          <li key={`${candidate.journey.id}:${candidate.fare.id}`} className="lookup-row">
-            <span className="price lookup-row-price">
-              {formatUsdCompact(candidate.totalPartyPriceCents)}
-            </span>
-            <span className="lookup-row-when">
-              {formatDisplayDate(candidate.journey.searchedTravelDate)}{" "}
-              {/* A real space, not just the margin below.
+        {(showAll ? ordered : collapsed).map((candidate) => {
+          const shape = journeyShape(candidate);
+          return (
+            <li key={`${candidate.journey.id}:${candidate.fare.id}`} className="lookup-row">
+              <span className="price lookup-row-price">
+                {formatUsdCompact(candidate.totalPartyPriceCents)}
+              </span>
+              <span className="lookup-row-when">
+                {formatDisplayDate(candidate.journey.searchedTravelDate)}{" "}
+                {/* A real space, not just the margin below.
                   Without it the text content is "Oct 15:30 PM" — the gap is
                   drawn by CSS and does not exist in the string — so it looks
                   right, reads wrong to a screen reader, and pastes wrong. */}
-              <span className="lookup-row-clock">
-                {formatClock(candidate.journey.departureAt)}{" "}
-                <span className="lookup-row-arrow" aria-hidden>
-                  →
+                <span className="lookup-row-clock">
+                  {formatClock(candidate.journey.departureAt)}{" "}
+                  <span className="lookup-row-arrow" aria-hidden>
+                    →
+                  </span>
+                  <span className="sr-only"> to </span>
+                  {formatClock(candidate.journey.arrivalAt)}
                 </span>
-                <span className="sr-only"> to </span>
-                {formatClock(candidate.journey.arrivalAt)}
               </span>
-            </span>
-            <span className="lookup-row-train">
-              {trainLabel(candidate)}
-              {/* Duration and cost-per-hour were in the data and on no
+              <span className="lookup-row-train">
+                {trainLabel(candidate)}
+                {/* Duration and cost-per-hour were in the data and on no
                   screen. Both are arithmetic on observations — a departure
                   and an arrival, a fare and a duration — so both are things
                   this product is allowed to state, and the second is the
                   only number that makes a $91 four-hour train and a $141
                   three-hour one comparable at a glance. */}
-              <span className="lookup-row-meta micro">
-                {formatDurationMinutes(candidate.journey.durationMinutes) ?? "duration unknown"}
-                {centsPerHour(candidate.totalPartyPriceCents, candidate.journey.durationMinutes) !=
-                null ? (
-                  <>
-                    {" · "}
-                    {formatUsdPerHour(
-                      centsPerHour(
-                        candidate.totalPartyPriceCents,
-                        candidate.journey.durationMinutes,
-                      )!,
-                    )}
-                    /hr
-                  </>
+                <span className="lookup-row-meta micro">
+                  {formatDurationMinutes(candidate.journey.durationMinutes) ?? "duration unknown"}
+                  {centsPerHour(
+                    candidate.totalPartyPriceCents,
+                    candidate.journey.durationMinutes,
+                  ) != null ? (
+                    <>
+                      {" · "}
+                      {formatUsdPerHour(
+                        centsPerHour(
+                          candidate.totalPartyPriceCents,
+                          candidate.journey.durationMinutes,
+                        )!,
+                      )}
+                      {/* "per hour aboard", not "per hour of value".
+                        A ten-hour overnight at $154 works out to $15/hr and
+                        sorted to the top of the column as if it were the best
+                        buy, when the figure only says you are paying little
+                        for each hour you spend on the train — which is the
+                        opposite of what somebody choosing a train wants. The
+                        unit says what it measures. */}
+                      /hr aboard
+                    </>
+                  ) : null}
+                </span>
+                {/* What kind of journey this actually is.
+                  transferCount, legs[] and the two timestamps were all in the
+                  data and on no screen, so a 10h12m connecting overnight and
+                  a 4h02m nonstop were distinguishable only by reading the
+                  duration and doing the arithmetic. A reader scanning prices
+                  does not do that. */}
+                {shape.flags.length > 0 ? (
+                  <span className="lookup-row-flags">
+                    {shape.flags.map((flag) => (
+                      <span key={flag.label} className={`journey-flag is-${flag.tone}`}>
+                        {flag.label}
+                      </span>
+                    ))}
+                  </span>
                 ) : null}
               </span>
-            </span>
-            {/* The claim this product makes is unusual enough to be worth
+              {/* The claim this product makes is unusual enough to be worth
                 being able to check. Collapsed, because most people want the
                 fare and not the derivation. */}
-            <FareProvenance
-              candidate={candidate}
-              context={{
-                originCode: preview.originCode,
-                destinationCode: preview.destinationCode,
-                travelDate: candidate.journey.searchedTravelDate,
-                passengerCount: passengers,
-              }}
-            />
-          </li>
-        ))}
+              <FareProvenance
+                candidate={candidate}
+                context={{
+                  originCode: preview.originCode,
+                  destinationCode: preview.destinationCode,
+                  travelDate: candidate.journey.searchedTravelDate,
+                  passengerCount: passengers,
+                }}
+              />
+            </li>
+          );
+        })}
       </ol>
 
       {preview.ranked.length > VISIBLE_ROWS ? (
