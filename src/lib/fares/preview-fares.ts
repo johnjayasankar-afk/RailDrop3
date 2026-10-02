@@ -19,6 +19,7 @@
 import { generateSearchDates } from "@/lib/domain/calendar";
 import { collectEligibleFares } from "@/lib/domain/eligibility";
 import { screenJourneys } from "@/lib/domain/fare-screen";
+import { fareFrontier } from "@/lib/domain/fare-frontier";
 import { cheapestByDate, rankCandidates } from "@/lib/domain/ranking";
 import { localIsoDate, isValidTimeZone } from "@/lib/domain/timezone";
 import { logger } from "@/lib/logger";
@@ -278,6 +279,16 @@ export async function previewFares(input: {
     currentBookedPriceCents: 0,
   });
 
+  /* How many fares on the asked-for date are not beaten on both price and
+     journey time.
+     Logged and not drawn. Two design proposals wanted a panel built on this
+     relation, and on real Northeast Corridor data it may never have enough
+     points to be worth one: a timetable is near-monotone, so dominance
+     needs a schedule overtake AND the overtaker to be no dearer, while here
+     the faster service is the expensive one. Measuring it on real searches
+     is the gate before anything is built on top of it. */
+  const frontier = fareFrontier(ranked, parsed.desiredTravelDate);
+
   logger.info("fares.preview", {
     origin: parsed.originCode,
     destination: parsed.destinationCode,
@@ -285,6 +296,8 @@ export async function previewFares(input: {
     failed: failedDates.length,
     unreadable: unreadableDates.length,
     found: ranked.length,
+    frontierOnDate: frontier.frontier.length,
+    consideredOnDate: frontier.considered,
   });
 
   return {
