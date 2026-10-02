@@ -165,6 +165,58 @@ test.describe("accessibility", () => {
     expect(invisible, `no visible focus on:\n${invisible.join("\n")}`).toEqual([]);
   });
 
+  test("the date field can actually be typed into", async ({ page }) => {
+    /* It could not. `onFocus={openCalendar}` opened the popover, which
+       re-ran the focus-follows-cursor effect, which moved focus onto a day
+       <button> within the same commit — so clicking or tabbing into the
+       field took focus straight out of it. Digits went to the button, which
+       swallows them, and Space picked the cursor date and closed the
+       calendar. The Tab loop below walks straight past this asserting
+       nothing but focus visibility, which is why it survived. */
+    await page.goto("/fares");
+    await hideDevOverlay(page);
+
+    const input = page.locator(".datefield-input");
+    await input.click();
+    await expect(input, "focus left the field the moment it was clicked").toBeFocused();
+    // And the calendar did not open itself on top of the reader.
+    await expect(page.locator(".datefield-pop")).toHaveCount(0);
+
+    await input.fill("");
+    await input.pressSequentially("2026-12-18");
+    await expect(input).toHaveValue("2026-12-18");
+    await expect(input, "typing moved focus out of the field").toBeFocused();
+    // Typing a date must not submit the search.
+    await expect(page.locator(".lookup-results")).toHaveCount(0);
+  });
+
+  test("the calendar opens on demand and gives the field back", async ({ page }) => {
+    await page.goto("/fares");
+    await hideDevOverlay(page);
+
+    await page.getByRole("button", { name: /open the calendar/i }).click();
+    const grid = page.locator(".datefield-pop");
+    await expect(grid).toHaveCount(1);
+    // Opening from the button DOES hand focus to the grid, which is the one
+    // case where the announcement is wanted.
+    await expect(page.locator('.datefield-pop [data-cursor="true"]')).toBeFocused();
+
+    await page.keyboard.press("Escape");
+    await expect(grid).toHaveCount(0);
+    await expect(
+      page.locator(".datefield-input"),
+      "Escape dropped focus on the body instead of the field",
+    ).toBeFocused();
+  });
+
+  test("the calendar says it takes the keyboard, in the default window", async ({ page }) => {
+    /* The one line advertising the grid rendered only at ±0, and the product
+       defaults to ±1 — invisible in the state almost everyone is in. */
+    await page.goto("/fares");
+    await page.getByRole("button", { name: /open the calendar/i }).click();
+    await expect(page.locator(".datefield-hint")).toContainText(/arrow keys move/i);
+  });
+
   test("the skip link works and lands somewhere real", async ({ page }) => {
     // The first thing a keyboard user meets, and it is useless if its target
     // does not exist.

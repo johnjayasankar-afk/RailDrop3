@@ -4818,6 +4818,14 @@ time,
   gap: var(--sp-2);
   align-content: start;
   min-width: 0;
+  /* Bounded, so its longest sentence wraps inside the block rather than
+     widening it. The head is a wrapping flex row: an explanation like
+     "Nothing was listed for Oct 1, so there is nothing to compare it
+     against" took the block to 658px, which no longer fit beside the
+     headline, so the whole comparison dropped below the fare it is a
+     comparison WITH. A control that moves when you use it is worse than one
+     that is slightly narrow. */
+  max-width: 24rem;
 }
 
 .lookup-paid-label {
@@ -5346,7 +5354,6 @@ time,
   color: var(--ink);
 }
 
-
 /* ── What the shape of the rule actually is ────────────────────────────────
    Order statistics under the scale. Set as one run with hairline separators
    rather than a list, because it is one sentence about one set of fares. */
@@ -5372,4 +5379,193 @@ time,
    and the words around them read as the label. */
 .fare-spread .readout {
   color: var(--ink);
+}
+
+/* ── Something to take away, from a product that keeps nothing ─────────────
+   "Nothing is saved anywhere" is a promise with a cost the reader was
+   absorbing: nowhere to put the board they just waited thirty seconds for.
+   Set as a quiet utility row, not a call to action — the fares above it are
+   the thing, and this is the way out. */
+.takeaway {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-5);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--line);
+}
+
+.takeaway-label {
+  color: var(--ink-soft);
+}
+
+.takeaway-go {
+  padding: var(--sp-1-5) var(--sp-3);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-pill);
+  background: none;
+  color: var(--ink);
+  font-size: var(--step--1);
+  transition:
+    border-color var(--t-fast) var(--ease-out),
+    background-color var(--t-fast) var(--ease-out);
+}
+
+.takeaway-go:hover {
+  border-color: color-mix(in srgb, var(--save) 55%, transparent);
+  background: color-mix(in srgb, var(--save) 8%, transparent);
+}
+
+.takeaway-note {
+  flex-basis: 100%;
+  margin-top: var(--sp-1);
+  color: var(--ink-soft);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* The clipboard refused. Saying nothing leaves a dead control looking alive,
+   so the link is revealed for the reader to take themselves. */
+.lookup-share-fallback {
+  display: grid;
+  gap: var(--sp-1-5);
+  margin-top: var(--sp-2);
+}
+
+.lookup-share-fallback span {
+  color: var(--ink-soft);
+}
+
+.lookup-share-fallback input {
+  width: 100%;
+  min-width: 0;
+  padding: var(--sp-1-5) var(--sp-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-hair);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-code);
+  font-size: var(--step--2);
+}
+
+/* ── Narrowing the board already paid for ─────────────────────────────────
+   A pressed cell cannot reuse `.chip-on` or `.lookup-day.is-best`: those
+   two are deliberately byte-identical ("same treatment as the cheapest day
+   cell"), and a pressed Oct 2 that looked like the cheapest cell would
+   break the invariant that the accent marks exactly one thing. Pressed is a
+   solid ink fill with an inverted label — a different idea, drawn
+   differently. */
+.lookup-day-press {
+  display: contents;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+.lookup-day:has(.lookup-day-press[aria-pressed]) {
+  transition:
+    border-color var(--t-fast) var(--ease-out),
+    background-color var(--t-fast) var(--ease-out);
+}
+
+.lookup-day:has(.lookup-day-press[aria-pressed]:hover) {
+  border-color: var(--ink-soft);
+}
+
+.lookup-day.is-on {
+  border-color: var(--ink);
+  background: var(--ink);
+}
+
+.lookup-day.is-on .lookup-day-label,
+.lookup-day.is-on .lookup-day-flag,
+.lookup-day.is-on .price,
+.lookup-day.is-on .readout {
+  color: var(--paper);
+}
+
+/* The accent still marks the cheapest, even when that cell is the pressed
+   one — the two statements are independent and both are true. */
+.lookup-day.is-on.is-best {
+  box-shadow: inset 2px 0 0 var(--save);
+}
+
+.lookup-day-press:focus-visible {
+  outline: none;
+}
+
+.lookup-day:has(.lookup-day-press:focus-visible) {
+  outline: 2px solid var(--forest-2);
+  outline-offset: 2px;
+}
+
+.lookup-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-4);
+}
+
+/* Pressed, for the chips. Not `.chip-on`, for the reason above. */
+.chip-press {
+  border-color: var(--ink);
+  background-color: var(--ink);
+  background-image: none;
+  color: var(--paper);
+  font-weight: var(--w-strong);
+}
+
+.lookup-after {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--ink-soft);
+}
+
+.lookup-after input {
+  padding: var(--sp-1) var(--sp-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-pill);
+  background: var(--paper-elevated);
+  color: var(--ink);
+  font-family: var(--font-code);
+  font-size: var(--step--2);
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+
+.lookup-filter-count {
+  color: var(--ink-soft);
+}
+
+.lookup-filter-clear {
+  border: 0;
+  background: none;
+  padding: 0;
+  font-size: var(--step--1);
+  color: var(--ink-soft);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.lookup-filter-clear:hover {
+  color: var(--ink);
+}
+
+/* Where the headline fare went. Full width so it is a sentence, not a chip. */
+.lookup-filter-orphan {
+  flex-basis: 100%;
+  color: var(--gold);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.lookup-filter-empty {
+  margin-top: var(--sp-4);
 }

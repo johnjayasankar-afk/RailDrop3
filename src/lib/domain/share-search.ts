@@ -54,8 +54,15 @@ export function readSharedSearch(
   };
 }
 
+/* The query a search was actually run with.
+ *
+ * Distinct from SharedSearch, which is what a LINK said: this is what the
+ * board on screen is an answer to, snapshotted when the request went out and
+ * never re-read from the form. */
+export type SearchedQuery = Omit<SharedSearch, "routeWasNamed">;
+
 /** The canonical link for a search, for copying and for the card. */
-export function sharedSearchHref(search: Omit<SharedSearch, "routeWasNamed">): string {
+export function sharedSearchHref(search: SearchedQuery): string {
   const query = new URLSearchParams({
     from: search.originCode,
     to: search.destinationCode,

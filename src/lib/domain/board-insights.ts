@@ -14,33 +14,70 @@ export function waitMinutes(fromIso: string, toIso: string): number | null {
   return Math.round((to - from) / 60_000);
 }
 
-export function connectionNote(candidate: RankedCandidate): {
-  quality: "direct" | "tight" | "ok" | "long";
-  label: string;
-} {
-  if (candidate.journey.transferCount === 0 || candidate.journey.legs.length < 2) {
-    return { quality: "direct", label: "Nonstop" };
+/* How many changes, and where — from the provider's own count.
+ *
+ * connectionNote returned "Nonstop" when `transferCount === 0 || legs.length
+ * < 2`, and this repository's own representative connecting itinerary trips
+ * that second clause: the Lake Shore Limited entry in wanderu-trips.json has
+ * `transfers: 2` and exactly ONE itinerary leg, because
+ * wanderu-normalizer.ts builds `legs` from the train legs only and a
+ * train-bus-train journey loses its middle. So a two-change trip rendered
+ * with no change flag at all — the board said nothing, and a reader who
+ * knows a nonstop is unmarked read that silence as "nonstop".
+ *
+ * The count now comes from `transferCount` and nothing else. Everything
+ * derived from `legs` is guarded by whether the legs we were given account
+ * for the changes we were told about:
+ *
+ *   - the connecting station is named only when consecutive legs agree on
+ *     it, and never when it is the normalizer's "—" placeholder;
+ *   - the minutes between legs are printed only when `legs.length - 1`
+ *     equals `transferCount`, because otherwise the subtraction spans a leg
+ *     the reader was never shown.
+ *
+ * The old "tight connection" and "layover" thresholds are gone. Twenty
+ * minutes and ninety minutes were editorial policy that exists nowhere in
+ * the data, rendered as though the provider had said it.
+ */
+export interface ChangeNote {
+  changes: number;
+  /** Null when there is nothing to say, which is also how "nonstop" is said. */
+  label: string | null;
+}
+
+const UNKNOWN_STATION = "—";
+
+export function changeNote(candidate: RankedCandidate): ChangeNote {
+  const changes = candidate.journey.transferCount;
+  if (changes <= 0) return { changes: 0, label: null };
+
+  const legs = candidate.journey.legs;
+  const legsAccountForChanges = legs.length - 1 === changes;
+
+  const stations: string[] = [];
+  for (let index = 0; index < legs.length - 1; index += 1) {
+    const arriving = legs[index]!.destinationCode;
+    const leaving = legs[index + 1]!.originCode;
+    if (arriving === leaving && arriving !== UNKNOWN_STATION) stations.push(arriving);
   }
+
+  const noun = changes === 1 ? "change" : "changes";
+  if (!legsAccountForChanges) {
+    /* We were told how many changes and not where. Saying so beats naming a
+       station we are guessing at, and beats saying nothing. */
+    return { changes, label: `${changes} ${noun}, station not stated` };
+  }
+
   const waits: number[] = [];
-  for (let index = 0; index < candidate.journey.legs.length - 1; index += 1) {
-    const wait = waitMinutes(
-      candidate.journey.legs[index]!.arrivalAt,
-      candidate.journey.legs[index + 1]!.departureAt,
-    );
+  for (let index = 0; index < legs.length - 1; index += 1) {
+    const wait = waitMinutes(legs[index]!.arrivalAt, legs[index + 1]!.departureAt);
     if (wait != null) waits.push(wait);
   }
   const tightest = waits.length ? Math.min(...waits) : null;
-  const longest = waits.length ? Math.max(...waits) : null;
-  if (tightest != null && tightest < 20) {
-    return { quality: "tight", label: `${tightest}m tight connection` };
-  }
-  if (longest != null && longest >= 90) {
-    return { quality: "long", label: `${longest}m layover` };
-  }
-  return {
-    quality: "ok",
-    label: `${candidate.journey.transferCount} transfer${candidate.journey.transferCount === 1 ? "" : "s"}`,
-  };
+
+  const where = stations.length === changes ? ` at ${stations.join(", ")}` : "";
+  const how = tightest == null ? "" : ` · ${tightest}m to connect`;
+  return { changes, label: `${changes} ${noun}${where}${how}` };
 }
 
 /* The cheapest departure in each part of ONE day, with the sample size.

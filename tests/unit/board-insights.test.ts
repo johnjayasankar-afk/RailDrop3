@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   cheaperCount,
   cheapestByBucket,
-  connectionNote,
+  changeNote,
   fastestCheaper,
   isOvernight,
   sparklineValues,
@@ -100,10 +100,95 @@ describe("board insights", () => {
         serviceType: "CONNECTING_RAIL",
       },
     ];
-    expect(connectionNote(connecting).quality).toBe("tight");
-    expect(connectionNote(connecting).label).toContain("12m");
+    /* The count comes from transferCount; the station and the minutes come
+       from the legs, and only when the legs account for the changes. */
+    expect(changeNote(connecting)).toEqual({
+      changes: 1,
+      label: "1 change at NHV · 12m to connect",
+    });
+
     connecting.journey.legs[1]!.departureAt = "2026-09-23T11:00:00";
-    expect(connectionNote(connecting).quality).toBe("long");
+    expect(changeNote(connecting).label).toBe("1 change at NHV · 120m to connect");
+  });
+
+  it("says how many changes even when the legs do not account for them", () => {
+    /* The regression this exists for. wanderu-trips.json entry 3 has
+       `transfers: 2` and ONE itinerary leg, because the normalizer builds
+       legs from the train legs only and a train-bus-train journey loses its
+       middle. The old helper returned "Nonstop" for it — `transferCount === 0
+       || legs.length < 2` — so a two-change trip rendered with no flag, and
+       a reader who knows a nonstop is unmarked read that silence as
+       "nonstop". */
+    const partial = stub({
+      id: "p",
+      depart: "2026-09-23T12:57:00",
+      duration: 642,
+      price: 6500,
+      savings: 0,
+    });
+    partial.journey.transferCount = 2;
+    partial.journey.legs = [
+      {
+        originCode: "BOS",
+        destinationCode: "NWK",
+        departureAt: "2026-09-23T12:57:00",
+        arrivalAt: "2026-09-23T15:21:00",
+        serviceName: "Lake Shore Limited",
+        trainNumber: "449",
+        serviceType: "CONNECTING_RAIL",
+      },
+    ];
+    expect(changeNote(partial)).toEqual({
+      changes: 2,
+      label: "2 changes, station not stated",
+    });
+  });
+
+  it("says nothing at all about a nonstop", () => {
+    /* Not the word "nonstop": the absence of a flag already says it, and
+       asserting it was false for the case above. */
+    const direct = stub({
+      id: "d",
+      depart: "2026-09-23T07:00:00",
+      duration: 240,
+      price: 4700,
+      savings: 0,
+    });
+    direct.journey.transferCount = 0;
+    expect(changeNote(direct)).toEqual({ changes: 0, label: null });
+  });
+
+  it("will not name a station the normalizer could not resolve", () => {
+    const vague = stub({
+      id: "v",
+      depart: "2026-09-23T07:00:00",
+      duration: 300,
+      price: 4700,
+      savings: 0,
+    });
+    vague.journey.transferCount = 1;
+    vague.journey.legs = [
+      {
+        originCode: "BOS",
+        destinationCode: "—",
+        departureAt: "2026-09-23T07:00:00",
+        arrivalAt: "2026-09-23T09:00:00",
+        serviceName: "Regional",
+        trainNumber: "95",
+        serviceType: "CONNECTING_RAIL",
+      },
+      {
+        originCode: "—",
+        destinationCode: "NYP",
+        departureAt: "2026-09-23T09:20:00",
+        arrivalAt: "2026-09-23T11:10:00",
+        serviceName: "Regional",
+        trainNumber: "93",
+        serviceType: "CONNECTING_RAIL",
+      },
+    ];
+    // The minutes survive — both timestamps are real — but no station is named.
+    expect(changeNote(vague).label).toBe("1 change · 20m to connect");
   });
 
   it("finds cheapest by time of day and the fastest cheaper train", () => {

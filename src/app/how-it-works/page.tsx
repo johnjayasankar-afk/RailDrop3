@@ -143,6 +143,37 @@ export default async function HowItWorksPage() {
             of points. If a number appears without something next to it saying how much was seen,
             that is a bug — please tell us.
           </p>
+          {/* Every derived relation the board draws, written down. A relation
+              a reader cannot look up is one they have to take on trust, which
+              is the thing this page exists to prevent. */}
+          <p>Each relation the board draws, and what it is computed from:</p>
+          <ul>
+            <li>
+              <strong>The median and the quartiles.</strong> Computed by nearest rank, so every
+              figure printed is a fare somebody was observed listing rather than a value
+              interpolated between two. The clause about the middle is a <em>count</em> of listed
+              fares between two listed fares, never a fraction — and it is withheld when there are
+              fewer than five distinct prices, or when the two boundaries land on the same figure.
+            </li>
+            <li>
+              <strong>The number of changes.</strong> Read from the provider&rsquo;s own transfer
+              count. The connecting station is named only when the legs we were given agree on it,
+              and the minutes between legs are printed only when those legs account for every change
+              — otherwise the row says the count and says the station was not stated. A train with
+              no changes carries no mark, because the absence is the statement.
+            </li>
+            <li>
+              <strong>Cost per hour.</strong> The fare divided by the journey time, labelled{" "}
+              <em>per hour aboard</em> because that is what it measures. A long slow train has a low
+              figure here, and that is not a recommendation.
+            </li>
+            <li>
+              <strong>A filter narrows the list only.</strong> The headline figure, the rule and the
+              colophon always describe everything we read. When narrowing hides the cheapest fare,
+              the page says where it went rather than letting the figure above contradict the list
+              below.
+            </li>
+          </ul>
         </Section>
 
         <Section title="What we store">

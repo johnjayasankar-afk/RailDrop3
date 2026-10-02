@@ -11,8 +11,12 @@ import type { JourneyLeg, RankedCandidate } from "@/lib/domain/types";
  * timestamps were all in the data and on no screen.
  */
 
-const leg = (departureAt: string, arrivalAt: string): JourneyLeg =>
-  ({ departureAt, arrivalAt }) as JourneyLeg;
+const leg = (
+  departureAt: string,
+  arrivalAt: string,
+  originCode = "BOS",
+  destinationCode = "NYP",
+): JourneyLeg => ({ departureAt, arrivalAt, originCode, destinationCode }) as JourneyLeg;
 
 function candidate(over: {
   departureAt?: string;
@@ -47,29 +51,32 @@ describe("the shape of a journey", () => {
     expect(shape.flags[0]!.tone).toBe("warn");
   });
 
-  it("tells a tight connection from a long layover", () => {
-    const tight = journeyShape(
+  it("says how many changes, where, and how long between", () => {
+    const changing = journeyShape(
       candidate({
         transferCount: 1,
         legs: [
-          leg("2026-10-09T08:00:00", "2026-10-09T10:00:00"),
-          leg("2026-10-09T10:12:00", "2026-10-09T12:00:00"),
+          leg("2026-10-09T08:00:00", "2026-10-09T10:00:00", "BOS", "NHV"),
+          leg("2026-10-09T10:12:00", "2026-10-09T12:00:00", "NHV", "NYP"),
         ],
       }),
     );
-    expect(tight.flags.map((f) => f.label)).toEqual(["12m tight connection"]);
-    expect(tight.flags[0]!.tone).toBe("warn");
+    expect(changing.flags.map((f) => f.label)).toEqual(["1 change at NHV · 12m to connect"]);
+    /* Plain, not warn. A change is a fact about the journey; "warn" is for
+       the two things that change what the trip IS. */
+    expect(changing.flags[0]!.tone).toBe("plain");
+  });
 
-    const long = journeyShape(
+  it("still flags a journey whose legs do not account for its changes", () => {
+    /* The repository's own connecting fixture: transfers 2, one leg. The old
+       helper called it direct and the row showed nothing. */
+    const partial = journeyShape(
       candidate({
-        transferCount: 1,
-        legs: [
-          leg("2026-10-09T08:00:00", "2026-10-09T10:00:00"),
-          leg("2026-10-09T12:00:00", "2026-10-09T14:00:00"),
-        ],
+        transferCount: 2,
+        legs: [leg("2026-10-09T12:57:00", "2026-10-09T15:21:00", "BOS", "NWK")],
       }),
     );
-    expect(long.flags.map((f) => f.label)).toEqual(["120m layover"]);
+    expect(partial.flags.map((f) => f.label)).toEqual(["2 changes, station not stated"]);
   });
 
   it("surfaces a fare the provider called limited, without inventing a count", () => {
@@ -86,15 +93,15 @@ describe("the shape of a journey", () => {
         arrivalAt: "2026-10-10T09:40:00",
         transferCount: 1,
         legs: [
-          leg("2026-10-09T21:30:00", "2026-10-10T02:00:00"),
-          leg("2026-10-10T02:10:00", "2026-10-10T09:40:00"),
+          leg("2026-10-09T21:30:00", "2026-10-10T02:00:00", "BOS", "ALB"),
+          leg("2026-10-10T02:10:00", "2026-10-10T09:40:00", "ALB", "CHI"),
         ],
         availability: "LIMITED",
       }),
     );
     expect(shape.flags.map((f) => f.label)).toEqual([
       "arrives next day",
-      "10m tight connection",
+      "1 change at ALB · 10m to connect",
       "limited when we looked",
     ]);
   });

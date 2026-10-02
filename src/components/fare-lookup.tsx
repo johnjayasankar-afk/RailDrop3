@@ -8,15 +8,28 @@ import { formatDisplayDate } from "@/lib/domain/calendar";
 import { formatClock, formatInstantClock } from "@/lib/domain/timezone";
 import { sameDayCheapest, trainLabel } from "@/lib/domain/board-decision";
 import { dateOutcomes, windowWasPartial } from "@/lib/domain/date-outcomes";
+import {
+  narrow,
+  orphanedHeadline,
+  viewIsNarrowed,
+  WHOLE_BOARD,
+  type BoardView,
+} from "@/lib/domain/board-view";
 import { fareDistribution } from "@/lib/domain/fare-distribution";
 import { journeyShape } from "@/lib/domain/journey-shape";
 import { readingAge, readingIsStale } from "@/lib/domain/reading-age";
 import { centsPerHour, sortBoard, type BoardSort } from "@/lib/domain/board-tools";
 import { formatDurationMinutes } from "@/lib/domain/calendar";
 import { FareProvenance } from "@/components/fare-provenance";
+import { TakeItWithYou } from "@/components/take-it-with-you";
 import { Money } from "@/components/money";
 import type { DateProgress, FarePreview } from "@/lib/fares/preview-fares";
-import { isPastDate, sharedSearchHref, type SharedSearch } from "@/lib/domain/share-search";
+import {
+  isPastDate,
+  sharedSearchHref,
+  type SearchedQuery,
+  type SharedSearch,
+} from "@/lib/domain/share-search";
 import { cheapestByBucketOnDate } from "@/lib/domain/board-insights";
 import type { TimeBucket } from "@/lib/domain/board-tools";
 import type { RankedCandidate } from "@/lib/domain/types";
@@ -46,14 +59,19 @@ type State =
      The first is usually done in a third of the total — holding it back until
      the slowest returns is most of the wait, spent showing nothing. */
   | { status: "searching"; done: DateProgress[] }
-  /* The preview is accompanied by the passenger count the search was RUN
-     with, not the one in the form. Reading the live field let the stepper
-     relabel fares that had already been fetched: a $211 single fare picked
-     up "4 passengers, total", and the provenance panel — the one surface
-     whose entire job is to let a reader check the arithmetic — printed
-     "Per traveller $211 · Party total $211 · Multiplied by 4 travellers".
-     Nobody observed $211 for four people. */
-  | { status: "done"; preview: FarePreview; passengers: number }
+  /* The preview travels with the query the search was RUN with, never the
+     one in the form.
+     It began as just the passenger count, because reading the live field
+     let the stepper relabel fares already fetched — a $211 single fare
+     picked up "4 passengers, total", and the provenance panel printed
+     "Party total $211 · Multiplied by 4 travellers" about a fare nobody
+     observed for four people. The same hole was open for the rest of the
+     query: only the submit button is ever disabled, so route, date and
+     window stay editable during and after a search, and both the address-bar
+     write and the Copy button read the live fields. One keystroke after a
+     search and the link you hand somebody describes a route the board never
+     showed. One snapshot, taken when the search runs, read by everything. */
+  | { status: "done"; preview: FarePreview; query: SearchedQuery }
   /* Stopped on purpose, holding whatever had already landed. Distinct from
      "failed", because nothing went wrong and the dates that came back are
      real readings. */
@@ -68,6 +86,9 @@ export function FareLookup({ today, initial }: { today: string; initial?: Shared
   const [passengers, setPassengers] = useState(initial?.passengers ?? 1);
   const [state, setState] = useState<State>({ status: "idle" });
   const [copied, setCopied] = useState(false);
+  /* Set when the clipboard refuses, so the link can be revealed rather than
+     the button silently doing nothing. */
+  const [blockedHref, setBlockedHref] = useState<string | null>(null);
 
   /* A date that has gone cannot be searched, and the product knew it.
    *
@@ -112,6 +133,15 @@ export function FareLookup({ today, initial }: { today: string; initial?: Shared
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
+    /* The query, as asked. Everything downstream reads this rather than the
+       fields, which stay editable throughout. */
+    const asked: SearchedQuery = {
+      originCode: origin,
+      destinationCode: destination,
+      travelDate: date,
+      flexibilityDays: flexibility,
+      passengers,
+    };
     setState({ status: "searching", done: [] });
     try {
       const response = await fetch("/api/fares/stream", {
@@ -169,24 +199,14 @@ export function FareLookup({ today, initial }: { today: string; initial?: Shared
             landed.push(message.progress);
             setState({ status: "searching", done: [...landed] });
           } else if (message.type === "done" && message.preview) {
-            setState({ status: "done", preview: message.preview, passengers });
+            setState({ status: "done", preview: message.preview, query: asked });
             settled = true;
             /* The search that just cost thirty seconds, written into the
                address bar. It left no trace at all: reload, Back and Forward
                all returned the idle "No search yet" panel and the wait was
                unrecoverable. Route, date, window and party only — never a
                fare, for the same reason the share link carries none. */
-            window.history.replaceState(
-              null,
-              "",
-              sharedSearchHref({
-                originCode: origin,
-                destinationCode: destination,
-                travelDate: date,
-                flexibilityDays: flexibility,
-                passengers,
-              }),
-            );
+            window.history.replaceState(null, "", sharedSearchHref(asked));
           } else if (message.type === "error") {
             setState({
               status: "failed",
@@ -330,34 +350,61 @@ export function FareLookup({ today, initial }: { today: string; initial?: Shared
         </p>
         {/* The link carries the route and the date and never a fare. A price in
             a URL is one nobody observed by the time it is read, and a forged
-            one would look exactly like a real one. */}
+            one would look exactly like a real one.
+
+            It copies the query the BOARD is an answer to, not the fields:
+            only the submit button is disabled during a search, so route,
+            date and window stay editable, and this button sits inside that
+            same form. One keystroke after a search and the link described a
+            route nobody had looked at. Before a search there is no board, so
+            the fields are the only thing to copy and they are the right
+            thing. */}
         <button
           type="button"
           className="lookup-share"
           onClick={async () => {
             const href = new URL(
-              sharedSearchHref({
-                originCode: origin,
-                destinationCode: destination,
-                travelDate: date,
-                flexibilityDays: flexibility,
-                passengers,
-              }),
+              sharedSearchHref(
+                state.status === "done"
+                  ? state.query
+                  : {
+                      originCode: origin,
+                      destinationCode: destination,
+                      travelDate: date,
+                      flexibilityDays: flexibility,
+                      passengers,
+                    },
+              ),
               window.location.origin,
             ).toString();
             try {
               await navigator.clipboard.writeText(href);
               setCopied(true);
+              setBlockedHref(null);
               window.setTimeout(() => setCopied(false), 2000);
             } catch {
-              // Clipboard refused (permissions, insecure origin). Say nothing
-              // rather than claim a copy that did not happen.
+              /* Refused — an insecure origin, or the permission denied. It
+                 used to say nothing at all, which leaves a dead control
+                 looking alive; the link is revealed instead so the reader
+                 can take it themselves. */
               setCopied(false);
+              setBlockedHref(href);
             }
           }}
         >
           {copied ? "Link copied" : "Copy this search"}
         </button>
+        {blockedHref ? (
+          <label className="lookup-share-fallback">
+            <span className="micro">Copying was blocked — select and copy this link.</span>
+            <input
+              readOnly
+              value={blockedHref}
+              onFocus={(event) => event.currentTarget.select()}
+              ref={(node) => node?.select()}
+            />
+          </label>
+        ) : null}
       </form>
 
       <Results
@@ -489,8 +536,8 @@ function Results({
   onStop?: () => void;
   onAgain?: () => void;
 }) {
-  /* The count the search ran with, never the one in the form. */
-  const passengers = state.status === "done" ? state.passengers : 1;
+  /* The query the search ran with, never what is in the form now. */
+  const passengers = state.status === "done" ? state.query.passengers : 1;
   /* The headline fare and the first row under "cheapest" are the same train.
    *
    * The headline read preview.ranked[0] — the ranking's own order — while the
@@ -516,6 +563,11 @@ function Results({
      one — both orderings of the same observed set, neither a judgement
      about which to take. */
   const [sort, setSort] = useState<BoardSort>("price");
+  /* Narrowing the board already paid for. A ±2-day window returns ten to
+     forty fares across up to five dates in one flat list, so most of the
+     rows are for days the reader is not travelling — and the only way to
+     see fewer was another ten-seconds-per-date scrape. */
+  const [view, setView] = useState<BoardView>(WHOLE_BOARD);
   /* Read on the client only, and only once the board exists: a relative time
      rendered on the server is wrong by the time it arrives, and React would
      report the mismatch. Thirty seconds is finer than the coarsest unit the
@@ -722,7 +774,10 @@ function Results({
   const at = (cents: number) => (span > 0 ? ((cents - floor) / span) * 100 : 50);
 
   const spread = fareDistribution(prices);
-  const ordered = sortBoard(preview.ranked, sort);
+  const narrowed = viewIsNarrowed(view);
+  const shown = narrowed ? narrow(preview.ranked, view) : preview.ranked;
+  const orphan = narrowed ? orphanedHeadline(shown, cheapest) : null;
+  const ordered = sortBoard(shown, sort);
   /* The collapsed list always contains the fare the headline names.
    *
    * It was the first twelve of whatever ordering was active, so under
@@ -737,7 +792,11 @@ function Results({
    * reader chose is still the ordering they see. */
   const collapsed = (() => {
     const head = ordered.slice(0, VISIBLE_ROWS);
-    if (!cheapest || head.includes(cheapest)) return head;
+    /* Only re-admit the headline fare when it is actually in the narrowed
+       set. Filtering it out and then re-admitting it through
+       `ordered.filter` silently produced eleven rows while the button
+       claimed twelve, and put a fare back that the reader had just excluded. */
+    if (!cheapest || !ordered.includes(cheapest) || head.includes(cheapest)) return head;
     const withCheapest = [...head.slice(0, VISIBLE_ROWS - 1), cheapest];
     return ordered.filter((candidate) => withCheapest.includes(candidate));
   })();
@@ -954,42 +1013,53 @@ function Results({
               <span className="micro">dearest listed</span>
             </span>
           </div>
-          {/* What the shape IS, in figures.
-              The rule draws every fare as a tick, so the distribution is
-              visible — a lone mark at the floor, a wall of them at the top —
-              but nobody can count forty ticks, and nothing said whether the
-              cheapest fare was one train or six. Every figure here is an
-              order statistic computed by nearest rank, which returns a fare
-              somebody listed rather than a value interpolated between two.
-              The sample size travels with them, because the methodology page
-              says a number without one is a bug. */}
-          {spread ? (
-            <p className="fare-spread micro">
-              <span>
-                {spread.count} fares listed, {spread.distinct} different{" "}
-                {spread.distinct === 1 ? "price" : "prices"}
-              </span>
-              <span className="fare-spread-dot" aria-hidden />
-              <span>
-                median <Money cents={spread.median} />
-              </span>
-              <span className="fare-spread-dot" aria-hidden />
-              <span>
-                middle half <Money cents={spread.lowerQuartile} /> to{" "}
-                <Money cents={spread.upperQuartile} />
-              </span>
-              <span className="fare-spread-dot" aria-hidden />
-              <span className={spread.atFloor === 1 ? "text-save" : undefined}>
-                {spread.atFloor === 1
-                  ? "one train at the cheapest price"
-                  : `${spread.atFloor} trains at the cheapest price`}
-              </span>
-            </p>
-          ) : null}
         </section>
       ) : preview.ranked.length > 1 ? (
         <p className="fare-scale-flat micro">
           Every listed fare on this search is <Money cents={floor} />. There is no spread to draw.
+        </p>
+      ) : null}
+
+      {/* What the shape IS, in figures.
+          The rule draws every fare as a tick, so the distribution is visible
+          and uncountable; nothing said whether the cheapest fare was one
+          train or six. It lived INSIDE the scale's own <section>, which
+          carries role="img" — and role="img" prunes its descendants from the
+          accessibility tree, so every one of these figures was invisible to a
+          screen reader. Out here it is read.
+
+          The quartile clause is a COUNT of fares between two listed fares,
+          not the fraction the word "half" asserts: with one fare at $91,
+          thirty at $167 and three at $302, the quartile boundaries collapse
+          onto $167 and "middle half $167 to $167" was a claim about 30 of 34
+          fares. Withheld when the boundaries coincide or there are too few
+          distinct prices to divide. */}
+      {spread ? (
+        <p className="fare-spread micro">
+          <span>
+            {spread.count} fares listed across{" "}
+            {preview.dates.length === 1 ? "1 date" : `${preview.dates.length} dates`},{" "}
+            {spread.distinct} different {spread.distinct === 1 ? "price" : "prices"}
+          </span>
+          <span className="fare-spread-dot" aria-hidden />
+          <span>
+            median <Money cents={spread.median} />
+          </span>
+          {spread.distinct >= 5 && spread.lowerQuartile !== spread.upperQuartile ? (
+            <>
+              <span className="fare-spread-dot" aria-hidden />
+              <span>
+                {spread.inMiddle} of them between <Money cents={spread.lowerQuartile} /> and{" "}
+                <Money cents={spread.upperQuartile} />
+              </span>
+            </>
+          ) : null}
+          <span className="fare-spread-dot" aria-hidden />
+          <span className={spread.atFloor === 1 ? "text-save" : undefined}>
+            {spread.atFloor === 1
+              ? "one train at the cheapest price"
+              : `${spread.atFloor} trains at the cheapest price`}
+          </span>
         </p>
       ) : null}
 
@@ -1002,7 +1072,7 @@ function Results({
           about a day nobody had managed to look at. A gap in the data is a
           fact about the search, and it holds its position here. */}
       {preview.dates.length > 1 ? (
-        <section className="lookup-when" aria-label="Cheapest by date">
+        <section className="lookup-when" aria-label="Cheapest by date, and filter by date">
           {/* "Cheapest day in this window" over a window we did not finish
               reading is a claim about dates nobody looked at. When part of
               the window went unread the heading says how much of it this
@@ -1026,37 +1096,65 @@ function Results({
               const failed = preview.failedDates.includes(day);
               const unreadable = preview.unreadableDates.includes(day);
               const best = Boolean(entry && entry[1].totalPartyPriceCents === dayFloor);
+              const pressed = view.date === day;
+              /* A date that returned nothing is not pressable: narrowing to
+                 it would show an empty list in answer to a press, which
+                 reads as a broken control rather than an empty date. The
+                 cell keeps its place and says which kind of nothing it was. */
+              const Cell = entry ? "button" : "span";
               return (
                 <li
                   key={day}
-                  className={`lookup-day${best ? " is-best" : ""}${entry ? "" : " is-blank"}`}
+                  className={`lookup-day${best ? " is-best" : ""}${entry ? "" : " is-blank"}${
+                    pressed ? " is-on" : ""
+                  }`}
                 >
-                  <span className="lookup-day-label micro">{formatDisplayDate(day)}</span>
-                  {entry ? (
-                    <span className="price">{formatUsdCompact(entry[1].totalPartyPriceCents)}</span>
-                  ) : (
-                    <span className="price lookup-day-none" aria-hidden>
-                      —
-                    </span>
-                  )}
-                  {/* Unreadable before failed. The two sets used to overlap,
+                  <Cell
+                    {...(entry
+                      ? {
+                          type: "button" as const,
+                          "aria-pressed": pressed,
+                          onClick: () =>
+                            setView((current) => ({
+                              ...current,
+                              date: current.date === day ? "all" : day,
+                              // A daypart is scoped to one date; changing the
+                              // date would leave it pointing at the wrong one.
+                              bucket: "all" as const,
+                            })),
+                        }
+                      : {})}
+                    className="lookup-day-press"
+                  >
+                    <span className="lookup-day-label micro">{formatDisplayDate(day)}</span>
+                    {entry ? (
+                      <span className="price">
+                        {formatUsdCompact(entry[1].totalPartyPriceCents)}
+                      </span>
+                    ) : (
+                      <span className="price lookup-day-none" aria-hidden>
+                        —
+                      </span>
+                    )}
+                    {/* Unreadable before failed. The two sets used to overlap,
                       so this branch was unreachable and a date the provider
                       DID answer for was labelled "not answered" — the
                       opposite claim, on the strip whose whole job is to say
                       which kind of nothing a gap was. */}
-                  <span className="lookup-day-flag micro">
-                    {best
-                      ? dayFloorCount > 1
-                        ? "cheapest · tied"
-                        : "cheapest"
-                      : unreadable
-                        ? "unreadable"
-                        : failed
-                          ? "not answered"
-                          : entry
-                            ? ""
-                            : "nothing listed"}
-                  </span>
+                    <span className="lookup-day-flag micro">
+                      {best
+                        ? dayFloorCount > 1
+                          ? "cheapest · tied"
+                          : "cheapest"
+                        : unreadable
+                          ? "unreadable"
+                          : failed
+                            ? "not answered"
+                            : entry
+                              ? ""
+                              : "nothing listed"}
+                    </span>
+                  </Cell>
                 </li>
               );
             })}
@@ -1065,32 +1163,111 @@ function Results({
       ) : null}
 
       {bucketRows.length > 1 ? (
-        <section className="lookup-when" aria-label="Cheapest by time of day">
+        <section
+          className="lookup-when"
+          aria-label="Cheapest by time of day, and filter by time of day"
+        >
           <p className="micro lookup-when-head">
             Cheapest departure time on {formatDisplayDate(bucketDate)}
           </p>
           <ul className="lookup-days">
-            {bucketRows.map(([bucket, { candidate, count }]) => (
-              <li
-                key={bucket}
-                className={`lookup-day${
-                  candidate.totalPartyPriceCents === bucketFloor ? " is-best" : ""
-                }`}
-              >
-                <span className="lookup-day-label micro">{bucket}</span>
-                <span className="price">{formatUsdCompact(candidate.totalPartyPriceCents)}</span>
-                {/* The clock AND the sample size: a minimum with no count
-                    behind it is a number with nothing saying how much was
-                    seen, which the methodology page calls a bug. */}
-                <span className="lookup-day-flag micro">
-                  {formatClock(candidate.journey.departureAt)} · of {count}{" "}
-                  {count === 1 ? "fare" : "fares"}
-                </span>
-              </li>
-            ))}
+            {bucketRows.map(([bucket, { candidate, count }]) => {
+              const pressed = view.bucket === bucket && view.date === bucketDate;
+              return (
+                <li
+                  key={bucket}
+                  className={`lookup-day${
+                    candidate.totalPartyPriceCents === bucketFloor ? " is-best" : ""
+                  }${pressed ? " is-on" : ""}`}
+                >
+                  {/* A press sets the bucket AND the date together. This
+                      strip is computed for one named date, while the bucket
+                      predicate is window-wide — so pressing "morning" under
+                      a heading reading "Cheapest departure time on Oct 3"
+                      would have filtered the mornings of all five dates. */}
+                  <button
+                    type="button"
+                    className="lookup-day-press"
+                    aria-pressed={pressed}
+                    onClick={() =>
+                      setView((current) =>
+                        pressed
+                          ? { ...current, bucket: "all", date: "all" }
+                          : { ...current, bucket, date: bucketDate },
+                      )
+                    }
+                  >
+                    <span className="lookup-day-label micro">{bucket}</span>
+                    <span className="price">
+                      {formatUsdCompact(candidate.totalPartyPriceCents)}
+                    </span>
+                    {/* The clock AND the sample size: a minimum with no count
+                        behind it is a number with nothing saying how much was
+                        seen, which the methodology page calls a bug. */}
+                    <span className="lookup-day-flag micro">
+                      {formatClock(candidate.journey.departureAt)} · of {count}{" "}
+                      {count === 1 ? "fare" : "fares"}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </section>
       ) : null}
+
+      {/* Narrowing, and saying exactly what is being hidden.
+          The day cells and daypart cells above are the date controls; these
+          are the two that have nowhere else to live. The nonstop chip only
+          appears when the board actually contains a journey with a change —
+          a control that can never change anything is noise. */}
+      <div className="lookup-filter" role="group" aria-label="Narrow the fares shown">
+        {preview.ranked.some((c) => c.journey.transferCount > 0) ? (
+          <button
+            type="button"
+            className={`chip${view.nonstopOnly ? " chip-press" : ""}`}
+            aria-pressed={view.nonstopOnly}
+            onClick={() => setView((c) => ({ ...c, nonstopOnly: !c.nonstopOnly }))}
+          >
+            nonstop only
+          </button>
+        ) : null}
+        <label className="lookup-after">
+          <span className="micro">Leaves after</span>
+          <input
+            type="time"
+            value={view.departAfter}
+            onChange={(event) => setView((c) => ({ ...c, departAfter: event.target.value }))}
+          />
+        </label>
+        {narrowed ? (
+          <>
+            <span className="lookup-filter-count micro">
+              {shown.length} of {preview.ranked.length} listed shown
+            </span>
+            <button
+              type="button"
+              className="lookup-filter-clear"
+              onClick={() => setView(WHOLE_BOARD)}
+            >
+              Show every fare again
+            </button>
+          </>
+        ) : null}
+        {/* The headline stays bound to the whole reading — it describes what
+            was read, and a filter is a way of looking at that rather than a
+            different reading. But that lets the page print "$91 · cheapest
+            of 34 listed" directly above a list with no $91 in it, which is
+            the exact symptom an earlier fix went to some trouble to remove.
+            Saying where it went is the honest resolution. */}
+        {orphan ? (
+          <span className="lookup-filter-orphan micro">
+            The <Money cents={orphan.totalPartyPriceCents} /> cheapest is on{" "}
+            {formatDisplayDate(orphan.journey.searchedTravelDate)} at{" "}
+            {formatClock(orphan.journey.departureAt)}, outside this view.
+          </span>
+        ) : null}
+      </div>
 
       <div className="lookup-sort" role="group" aria-label="Order the fares">
         <span className="micro">Order by</span>
@@ -1113,7 +1290,11 @@ function Results({
         ))}
       </div>
 
-      <ol className="lookup-list stagger">
+      {/* No stagger while filtering: `.stagger > *` delays up to 210ms and a
+          filter press remounts the rows, so "narrows instantly" became a
+          shuffle-and-fade on every click. The entrance belongs to a new
+          search. */}
+      <ol className={`lookup-list${narrowed ? "" : " stagger"}`}>
         {(showAll ? ordered : collapsed).map((candidate) => {
           const shape = journeyShape(candidate);
           return (
@@ -1202,7 +1383,16 @@ function Results({
         })}
       </ol>
 
-      {preview.ranked.length > VISIBLE_ROWS ? (
+      {narrowed && shown.length === 0 ? (
+        /* Never the provider-side "nothing is listed" copy: that asserts the
+           corridor had nothing, and here the corridor had plenty. */
+        <p className="lookup-note lookup-filter-empty">
+          No fare in this reading matches what you have narrowed to. The {preview.ranked.length}{" "}
+          fares are still there — widen the view to see them.
+        </p>
+      ) : null}
+
+      {shown.length > VISIBLE_ROWS ? (
         <button
           type="button"
           className="lookup-more"
@@ -1215,9 +1405,13 @@ function Results({
               ordering it is actually about to apply. */}
           {showAll
             ? `Show the first ${VISIBLE_ROWS} by ${SORT_LABEL[sort] ?? "price"}`
-            : `Show all ${preview.ranked.length} listed fares`}
+            : narrowed
+              ? `Show all ${shown.length} in this view`
+              : `Show all ${preview.ranked.length} listed fares`}
         </button>
       ) : null}
+
+      <TakeItWithYou preview={preview} passengers={passengers} cheapest={cheapest} />
 
       <Colophon preview={preview} />
     </section>

@@ -53,6 +53,7 @@ export function DateField({
   const typed = draft ?? value;
   const root = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const id = useId();
 
   const max = useMemo(() => addUtcDays(today, WINDOW_MAX_DAYS), [today]);
@@ -75,10 +76,27 @@ export function DateField({
     return () => document.removeEventListener("mousedown", onDown);
   }, [open]);
 
-  // Focus follows the cursor so a screen reader announces the day it lands on.
+  /* Focus follows the cursor so a screen reader announces the day it lands on.
+   *
+   * Guarded, because it also ran on the frame the popover opened — and the
+   * popover opened on the input's own focus event, so clicking or tabbing
+   * into the text field moved focus out of it into a day button within the
+   * same commit. The field could not be typed into on any path a reader
+   * would find: digits went to a <button>, which swallows them, and Space
+   * picked the cursor date and closed the calendar.
+   *
+   * It now moves focus only when the grid already has it — which is exactly
+   * when an arrow key has moved the cursor and the announcement is wanted —
+   * or when the opener asked for it. */
+  const wantsGridFocus = useRef(false);
   useEffect(() => {
     if (!open) return;
-    gridRef.current?.querySelector<HTMLButtonElement>('[data-cursor="true"]')?.focus();
+    const grid = gridRef.current;
+    if (!grid) return;
+    const gridHasFocus = grid.contains(document.activeElement);
+    if (!gridHasFocus && !wantsGridFocus.current) return;
+    wantsGridFocus.current = false;
+    grid.querySelector<HTMLButtonElement>('[data-cursor="true"]')?.focus();
   }, [open, cursor]);
 
   const grid = useMemo(
@@ -118,6 +136,10 @@ export function DateField({
   function onGridKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
     if (event.key === "Escape") {
       setOpen(false);
+      /* Back to the field, not to document.body: the button holding focus is
+         about to unmount, and focus landing on the body drops a keyboard
+         user out of the form entirely. */
+      inputRef.current?.focus();
       return;
     }
     if (event.key === "Enter" || event.key === " ") {
@@ -140,6 +162,7 @@ export function DateField({
       </label>
       <div className="datefield-control">
         <input
+          ref={inputRef}
           id={`${id}-input`}
           className="field datefield-input"
           value={typed}
@@ -150,7 +173,21 @@ export function DateField({
             // Only commit a complete, in-range date; partial typing is not a choice.
             if (/^\d{4}-\d{2}-\d{2}$/.test(event.target.value)) onChange(event.target.value);
           }}
-          onFocus={openCalendar}
+          /* No onFocus={openCalendar}. Focusing a text field must not open a
+             popover that then takes the focus away from it. The calendar
+             opens from its own button, or from ArrowDown here. */
+          onKeyDown={(event) => {
+            if (event.key === "ArrowDown" && !open) {
+              event.preventDefault();
+              wantsGridFocus.current = true;
+              openCalendar();
+              return;
+            }
+            if (event.key === "Escape" && open) {
+              event.preventDefault();
+              setOpen(false);
+            }
+          }}
           autoComplete="off"
         />
         <button
@@ -159,7 +196,14 @@ export function DateField({
           aria-expanded={open}
           aria-controls={`${id}-cal`}
           aria-label={open ? "Close the calendar" : "Open the calendar"}
-          onClick={() => (open ? setOpen(false) : openCalendar())}
+          onClick={() => {
+            if (open) {
+              setOpen(false);
+              return;
+            }
+            wantsGridFocus.current = true;
+            openCalendar();
+          }}
         >
           <CalendarGlyph />
         </button>
@@ -177,8 +221,11 @@ export function DateField({
         </p>
       ) : null}
 
+      {/* Not role="dialog": Tab passing through into the rest of the form is
+          correct for a non-modal popover, and aria-expanded plus
+          aria-controls on the toggle already describe it honestly. */}
       {open ? (
-        <div className="datefield-pop" id={`${id}-cal`} role="dialog" aria-label="Choose a date">
+        <div className="datefield-pop" id={`${id}-cal`} aria-label="Choose a date">
           <div className="datefield-nav">
             <button
               type="button"
@@ -243,10 +290,12 @@ export function DateField({
             ))}
           </div>
 
+          {/* Unconditional. The one line telling anybody the grid is
+              keyboard-driven rendered only at ±0, and the product defaults
+              to ±1 — so it was invisible in the state almost everyone is in. */}
           <p className="datefield-hint">
-            {flexibilityDays > 0
-              ? `Shaded days are also searched, at ±${flexibilityDays}.`
-              : "Arrow keys move, Enter chooses."}
+            Arrow keys move, Enter chooses.
+            {flexibilityDays > 0 ? ` Shaded days are also searched, at ±${flexibilityDays}.` : ""}
           </p>
         </div>
       ) : null}

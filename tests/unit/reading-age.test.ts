@@ -17,7 +17,9 @@ describe("how old the reading is", () => {
   });
 
   it("counts minutes, then hours", () => {
-    expect(readingAge("2026-10-09T12:00:00Z", at("2026-10-09T12:01:00Z"))).toBe("read 1 minute ago");
+    expect(readingAge("2026-10-09T12:00:00Z", at("2026-10-09T12:01:00Z"))).toBe(
+      "read 1 minute ago",
+    );
     expect(readingAge("2026-10-09T12:00:00Z", at("2026-10-09T12:14:00Z"))).toBe(
       "read 14 minutes ago",
     );

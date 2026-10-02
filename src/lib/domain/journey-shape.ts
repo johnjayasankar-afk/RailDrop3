@@ -1,4 +1,4 @@
-import { connectionNote, isOvernight } from "./board-insights";
+import { changeNote, isOvernight } from "./board-insights";
 import type { RankedCandidate } from "./types";
 
 /* What kind of journey this is, beyond its price.
@@ -36,16 +36,16 @@ export function journeyShape(candidate: RankedCandidate): JourneyShape {
     flags.push({ label: "arrives next day", tone: "warn" });
   }
 
-  const connection = connectionNote(candidate);
-  if (connection.quality !== "direct") {
-    /* A twenty-minute connection and a two-hour layover are both "a change",
-       and they are not the same journey. connectionNote already draws that
-       distinction; it was simply never rendered. */
-    flags.push({
-      label: connection.label,
-      tone: connection.quality === "tight" ? "warn" : "plain",
-    });
-  }
+  /* The count comes from the provider's own transferCount. A nonstop gets no
+     flag rather than the word "nonstop": the absence already says it, and
+     asserting it would have been false for the two-change single-leg
+     journeys the old helper classified as direct.
+
+     Tone stays plain. A change is a fact about the journey, not a warning —
+     "warn" is for the two things that change what the trip IS: landing on a
+     different day, and a fare the provider itself called limited. */
+  const change = changeNote(candidate);
+  if (change.label) flags.push({ label: change.label, tone: "plain" });
 
   /* The board filters to available fares, so LIMITED is the only status worth
      surfacing: a seat the provider said was scarce when we looked, which is

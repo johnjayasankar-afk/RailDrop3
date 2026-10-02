@@ -38,6 +38,17 @@ describe("the shape of what was listed", () => {
     expect(fareDistribution([9100, 9100, 9100, 25700])!.atFloor).toBe(3);
   });
 
+  it("counts the middle rather than asserting a fraction", () => {
+    /* "middle half" is false under ties: one fare at $91, thirty at $167 and
+       three at $302 gives lowerQuartile === median === upperQuartile, so the
+       line claimed "half" about 30 of 34 fares. */
+    const lopsided = [9100, ...Array.from({ length: 30 }, () => 16_700), 30_200, 30_200, 30_200];
+    const d = fareDistribution(lopsided)!;
+    expect(d.lowerQuartile).toBe(d.upperQuartile);
+    expect(d.inMiddle).toBe(30);
+    expect(d.count).toBe(34);
+  });
+
   it("holds up for a single fare", () => {
     const d = fareDistribution([12_300])!;
     expect(d).toMatchObject({
@@ -49,6 +60,7 @@ describe("the shape of what was listed", () => {
       lowerQuartile: 12_300,
       upperQuartile: 12_300,
       atFloor: 1,
+      inMiddle: 1,
     });
   });
 

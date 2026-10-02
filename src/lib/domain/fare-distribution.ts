@@ -31,6 +31,15 @@ export interface FareDistribution {
   upperQuartile: number;
   /** How many fares sit at the lowest price. "The floor is one train" matters. */
   atFloor: number;
+  /* How many fares fall between the quartile boundaries, counted — not the
+     fraction the boundaries imply.
+     "middle half $141 to $211" asserts that half the fares are in there, and
+     under ties it is simply false: one fare at $91, thirty at $167 and three
+     at $302 gives lowerQuartile === median === upperQuartile === $167, so
+     the line read "middle half $167 to $167" about 30 of 34 fares. The
+     methodology page forbids exactly this — a described pattern must be a
+     count of what was observed. */
+  inMiddle: number;
 }
 
 /** Nearest-rank: returns an element of `sorted`, never a value between two. */
@@ -52,5 +61,8 @@ export function fareDistribution(pricesCents: number[]): FareDistribution | null
     lowerQuartile: atPercentile(sorted, 0.25),
     upperQuartile: atPercentile(sorted, 0.75),
     atFloor: sorted.filter((cents) => cents === low).length,
+    inMiddle: sorted.filter(
+      (cents) => cents >= atPercentile(sorted, 0.25) && cents <= atPercentile(sorted, 0.75),
+    ).length,
   };
 }

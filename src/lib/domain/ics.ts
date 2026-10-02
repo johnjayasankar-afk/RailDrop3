@@ -103,7 +103,8 @@ export function buildIcs(events: readonly CalendarEvent[]): string {
   const lines: string[] = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//RailDrop//Fare watch//EN",
+    // The watch was deleted; this product reads live fares on request.
+    "PRODID:-//RailDrop//Live Amtrak fares//EN",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
   ];
