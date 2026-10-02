@@ -119,6 +119,13 @@ export async function previewFares(input: {
    * between dates, which is where the expensive part begins.
    */
   signal?: AbortSignal;
+  /**
+   * The dates this search will actually visit, before the first one is read.
+   *
+   * Called once, after trimming, so a caller can draw the whole window
+   * immediately instead of discovering its size from the first result.
+   */
+  onStart?: (dates: string[]) => void;
 }): Promise<FarePreview> {
   const parsed: PreviewFaresInput = previewFaresSchema.parse(input.body);
   if (parsed.originCode === parsed.destinationCode) {
@@ -136,6 +143,15 @@ export async function previewFares(input: {
    * be arbitrary; trimming to the requested date and its nearest neighbours is
    * the answer to the question they asked. */
   const dates = trimAround(window.dates, parsed.desiredTravelDate, MAX_PREVIEW_DATES);
+
+  /* The window, announced before any of it is scraped.
+   *
+   * The reader waited ten seconds before learning how many dates they were
+   * waiting for, because the component could only infer the total from the
+   * first progress line. Announced AFTER trimAround, not after
+   * generateSearchDates: the dates actually visited are the trimmed list,
+   * and hooking earlier would name dates the loop never reaches. */
+  input.onStart?.(dates);
 
   const journeys: JourneyOption[] = [];
   const failedDates: string[] = [];

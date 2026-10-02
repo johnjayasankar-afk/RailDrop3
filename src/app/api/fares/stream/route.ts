@@ -24,6 +24,9 @@ export const maxDuration = 300;
  */
 
 type Line =
+  /* The window, before any of it has been read, so the page can draw every
+     slot from the first frame instead of growing a list under the reader. */
+  | { type: "start"; dates: string[] }
   | { type: "progress"; progress: DateProgress }
   | { type: "done"; preview: FarePreview }
   | { type: "error"; error: string };
@@ -51,6 +54,7 @@ export async function POST(request: Request) {
           provider: getFareProvider(),
           // So an abandoned search stops costing something.
           signal: request.signal,
+          onStart: (dates) => send({ type: "start", dates }),
           onProgress: (progress) => send({ type: "progress", progress }),
         });
         send({ type: "done", preview });

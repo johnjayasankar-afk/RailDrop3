@@ -2388,35 +2388,6 @@ a.depart-strip:hover {
   justify-content: center;
 }
 
-/* An indeterminate bar, because the wait is real — a browser is loading a
-   corridor — and a spinner that could mean anything is worse than a bar that
-   says "still going". */
-.lookup-bar {
-  margin-top: 1rem;
-  height: 3px;
-  border-radius: var(--r-pill);
-  background: color-mix(in srgb, var(--forest-2) 16%, transparent);
-  overflow: hidden;
-}
-
-.lookup-bar span {
-  display: block;
-  height: 100%;
-  width: 34%;
-  border-radius: inherit;
-  background: var(--forest-2);
-  animation: lookup-slide 1.5s var(--ease-out) infinite;
-}
-
-@keyframes lookup-slide {
-  from {
-    transform: translateX(-100%);
-  }
-  to {
-    transform: translateX(330%);
-  }
-}
-
 .lookup-results {
   display: grid;
   gap: var(--sp-3-5);
@@ -2514,14 +2485,6 @@ a.depart-strip:hover {
   margin: 0;
   font-size: var(--step--1);
   color: var(--ink-soft);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .lookup-bar span {
-    animation: none;
-    width: 100%;
-    opacity: 0.5;
-  }
 }
 
 /* Dates arriving one at a time, while the rest are still being searched. */
@@ -5568,4 +5531,37 @@ time,
 
 .lookup-filter-empty {
   margin-top: var(--sp-4);
+}
+
+/* ── The window, drawn once ───────────────────────────────────────────────
+   The waiting list grew a row at a time inside a vertically centred panel,
+   so each arrival shifted everything already on screen, and the total was
+   unknown for the first ten seconds. The server announces its dates before
+   it reads any of them, so every slot is present from the first frame and
+   nothing moves. */
+.lookup-empty.is-reading {
+  justify-content: flex-start;
+  min-height: 0;
+}
+
+/* A rule where the figure will go. Never a shimmering rectangle in the money
+   column: a pulsing block where a price goes is a picture of a number. */
+.lookup-live-wait {
+  display: inline-block;
+  width: 2.5rem;
+  height: 2px;
+  border-radius: var(--r-hair);
+  background: color-mix(in srgb, var(--ink) 20%, transparent);
+  vertical-align: middle;
+}
+
+.lookup-live-row.is-pending .lookup-live-date {
+  color: var(--ink-soft);
+}
+
+/* A date the search never reached. Not "empty" — unknown. */
+.lookup-live-row.is-unlooked .lookup-live-date,
+.lookup-live-row.is-unlooked .lookup-live-value {
+  color: var(--ink-soft);
+  opacity: 0.75;
 }

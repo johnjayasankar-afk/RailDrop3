@@ -58,7 +58,7 @@ type State =
   /* Dates land one at a time, so the waiting state carries the ones that have.
      The first is usually done in a third of the total — holding it back until
      the slowest returns is most of the wait, spent showing nothing. */
-  | { status: "searching"; done: DateProgress[] }
+  | { status: "searching"; dates: string[]; done: DateProgress[] }
   /* The preview travels with the query the search was RUN with, never the
      one in the form.
      It began as just the passenger count, because reading the live field
@@ -75,7 +75,7 @@ type State =
   /* Stopped on purpose, holding whatever had already landed. Distinct from
      "failed", because nothing went wrong and the dates that came back are
      real readings. */
-  | { status: "stopped"; done: DateProgress[] }
+  | { status: "stopped"; dates: string[]; done: DateProgress[] }
   | { status: "failed"; message: string };
 
 export function FareLookup({ today, initial }: { today: string; initial?: SharedSearch }) {
@@ -142,7 +142,7 @@ export function FareLookup({ today, initial }: { today: string; initial?: Shared
       flexibilityDays: flexibility,
       passengers,
     };
-    setState({ status: "searching", done: [] });
+    setState({ status: "searching", dates: [], done: [] });
     try {
       const response = await fetch("/api/fares/stream", {
         method: "POST",
@@ -175,6 +175,8 @@ export function FareLookup({ today, initial }: { today: string; initial?: Shared
          in "Reading the live board…" with a disabled button and no way back.
          An unfinished search is a failed search and has to say so. */
       let settled = false;
+      /** The dates the server said it would visit. Empty until `start`. */
+      let announced: string[] = [];
 
       for (;;) {
         const { done, value } = await reader.read();
@@ -186,6 +188,7 @@ export function FareLookup({ today, initial }: { today: string; initial?: Shared
           if (!line.trim()) continue;
           let message: {
             type: string;
+            dates?: string[];
             progress?: DateProgress;
             preview?: FarePreview;
             error?: string;
@@ -195,9 +198,15 @@ export function FareLookup({ today, initial }: { today: string; initial?: Shared
           } catch {
             continue;
           }
-          if (message.type === "progress" && message.progress) {
+          if (message.type === "start" && message.dates) {
+            /* The whole window, before any of it is read, so the ladder is
+               drawn once instead of growing a row at a time under the
+               reader's eye. */
+            announced = message.dates;
+            setState({ status: "searching", dates: [...announced], done: [...landed] });
+          } else if (message.type === "progress" && message.progress) {
             landed.push(message.progress);
-            setState({ status: "searching", done: [...landed] });
+            setState({ status: "searching", dates: [...announced], done: [...landed] });
           } else if (message.type === "done" && message.preview) {
             setState({ status: "done", preview: message.preview, query: asked });
             settled = true;
@@ -229,7 +238,9 @@ export function FareLookup({ today, initial }: { today: string; initial?: Shared
          before they did is still a real reading. */
       if (error instanceof DOMException && error.name === "AbortError") {
         setState((current) =>
-          current.status === "searching" ? { status: "stopped", done: current.done } : current,
+          current.status === "searching"
+            ? { status: "stopped", dates: current.dates, done: current.done }
+            : current,
         );
         return;
       }
@@ -594,39 +605,57 @@ function Results({
   }
 
   if (state.status === "searching") {
-    const total = state.done[0]?.total ?? 0;
+    /* The window, drawn once, with every slot present from the first frame.
+     *
+     * It used to be a list that grew a row at a time inside a vertically
+     * centred panel, so each arrival shifted everything already on screen —
+     * and the total was unknown for the first ten seconds, because the
+     * component could only infer it from the first result. The server now
+     * announces the dates it will visit before it reads any of them. */
+    const slots = state.dates.length > 0 ? state.dates : state.done.map((d) => d.travelDate);
+    const byDate = new Map(state.done.map((entry) => [entry.travelDate, entry]));
     return (
-      <div className="lookup-empty panel" role="status" aria-live="polite">
+      <div className="lookup-empty is-reading panel" role="status" aria-live="polite">
         <p className="kicker">Reading the live board</p>
         <p className="mt-2 text-ink-soft">
           {state.done.length === 0
             ? "A real browser is loading the corridor — about ten seconds for each date in your window. Each one appears here as it lands."
-            : `${state.done.length} of ${total} date${total === 1 ? "" : "s"} back.`}
+            : `${state.done.length} of ${slots.length} date${slots.length === 1 ? "" : "s"} back.`}
         </p>
 
-        {/* Each date as it lands, rather than a bar and a promise. */}
-        {state.done.length > 0 ? (
+        {slots.length > 0 ? (
           <ul className="lookup-live">
-            {state.done.map((entry) => (
-              <li key={entry.travelDate} className={`lookup-live-row is-${entry.outcome}`}>
-                <span className="lookup-live-date">{formatDisplayDate(entry.travelDate)}</span>
-                <span className="lookup-live-value">
-                  {entry.cheapestCents !== null
-                    ? formatUsdCompact(entry.cheapestCents)
-                    : entry.outcome === "failed"
-                      ? "not answered"
-                      : entry.outcome === "unreadable"
-                        ? "could not read"
-                        : "nothing listed"}
-                </span>
-              </li>
-            ))}
+            {slots.map((day) => {
+              const entry = byDate.get(day);
+              return (
+                <li key={day} className={`lookup-live-row is-${entry ? entry.outcome : "pending"}`}>
+                  <span className="lookup-live-date">{formatDisplayDate(day)}</span>
+                  {/* A rule where the figure will go, never a shimmering
+                      rectangle in the money column: a pulsing block where a
+                      price goes is a picture of a number. */}
+                  <span className="lookup-live-value">
+                    {entry ? (
+                      entry.cheapestCents !== null ? (
+                        formatUsdCompact(entry.cheapestCents)
+                      ) : entry.outcome === "failed" ? (
+                        "not answered"
+                      ) : entry.outcome === "unreadable" ? (
+                        "could not read"
+                      ) : (
+                        "nothing listed"
+                      )
+                    ) : (
+                      <>
+                        <span className="lookup-live-wait" aria-hidden />
+                        <span className="sr-only">still being read</span>
+                      </>
+                    )}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         ) : null}
-
-        <div className="lookup-bar" aria-hidden>
-          <span />
-        </div>
 
         {/* A way out. The only exit was the back button or the tab, both of
             which throw away the dates that already landed — and the scrape
@@ -641,9 +670,19 @@ function Results({
   }
 
   if (state.status === "stopped") {
+    /* Every slot resolved, including the ones that never will be.
+     *
+     * A fixed ladder left the dates after the stop pending forever, reading
+     * "still being read" when the truth is "never looked at" — and the
+     * refusal short-circuit in previewFares has the same shape: it pushes
+     * the remaining dates into failedDates and breaks WITHOUT reporting
+     * them. Anything unresolved when the search ends is named here. */
+    const byDate = new Map(state.done.map((entry) => [entry.travelDate, entry]));
+    const slots = state.dates.length > 0 ? state.dates : state.done.map((d) => d.travelDate);
     const landed = state.done.filter((entry) => entry.cheapestCents !== null);
+    const unlooked = slots.filter((day) => !byDate.has(day)).length;
     return (
-      <div className="lookup-empty panel" role="status">
+      <div className="lookup-empty is-reading panel" role="status">
         <p className="kicker">Stopped</p>
         <p className="mt-2 text-ink-soft">
           {state.done.length === 0
@@ -652,18 +691,40 @@ function Results({
               ? /* Dates came back and none of them had a fare. Saying "these
                    are the cheapest fares" above an empty list would be the
                    page describing something it is not showing. */
-                `You stopped after ${state.done.length} of ${state.done[0]?.total ?? state.done.length} dates, and none of the dates that came back had a fare listed. The rest of the window was never looked at.`
-              : `You stopped after ${state.done.length} of ${state.done[0]?.total ?? state.done.length} dates. Below is the cheapest fare each of those dates was listing when we read it — these are readings, not a full board, and the rest of the window was never looked at.`}
+                `You stopped after ${state.done.length} of ${slots.length} dates, and none of the dates that came back had a fare listed.`
+              : `You stopped after ${state.done.length} of ${slots.length} dates. Below is the cheapest fare each of those dates was listing when we read it — these are readings, not a full board.`}
         </p>
-        {landed.length > 0 ? (
+        {slots.length > 0 ? (
           <ul className="lookup-live">
-            {landed.map((entry) => (
-              <li key={entry.travelDate} className="lookup-live-row is-fares">
-                <span className="lookup-live-date">{formatDisplayDate(entry.travelDate)}</span>
-                <span className="lookup-live-value">{formatUsdCompact(entry.cheapestCents!)}</span>
-              </li>
-            ))}
+            {slots.map((day) => {
+              const entry = byDate.get(day);
+              return (
+                <li
+                  key={day}
+                  className={`lookup-live-row is-${entry ? entry.outcome : "unlooked"}`}
+                >
+                  <span className="lookup-live-date">{formatDisplayDate(day)}</span>
+                  <span className="lookup-live-value">
+                    {entry
+                      ? entry.cheapestCents !== null
+                        ? formatUsdCompact(entry.cheapestCents)
+                        : entry.outcome === "failed"
+                          ? "not answered"
+                          : entry.outcome === "unreadable"
+                            ? "could not read"
+                            : "nothing listed"
+                      : "never looked at"}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
+        ) : null}
+        {unlooked > 0 ? (
+          <p className="lookup-note">
+            {unlooked} {unlooked === 1 ? "date was" : "dates were"} never looked at, so nothing is
+            known about {unlooked === 1 ? "it" : "them"} — not that it was empty.
+          </p>
         ) : null}
       </div>
     );
